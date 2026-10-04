@@ -112,6 +112,8 @@ def main():
 
     parsed = []
     for v in videos:
+        if re.search(r"\[rtx\]", v["title"], re.I):  # shader/RTX re-renders aren't the showcase
+            continue
         t = re.sub(r"^\s*(\([^)]*\)|\[[^\]]*\])\s*", "", v["title"])
         m = re.match(r"^(.*\S)\s+by\s+(.+)$", t, re.I)
         if m:

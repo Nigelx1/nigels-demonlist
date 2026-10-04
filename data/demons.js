@@ -1057,8 +1057,8 @@ window.DEMONS = [
       "DeeperSpace"
     ],
     "verifier": "Nigel",
-    "videoUrl": "https://www.youtube.com/watch?v=b96R3iY57XA",
-    "thumbnailUrl": "https://i.ytimg.com/vi/b96R3iY57XA/maxresdefault.jpg",
+    "videoUrl": "https://www.youtube.com/watch?v=mUNDM2q7u0s",
+    "thumbnailUrl": "https://i.ytimg.com/vi/mUNDM2q7u0s/maxresdefault.jpg",
     "levelId": 102343052,
     "description": "Level 8 in Geometry Dash DeeperSpace (Created by Manix648 and LazerBlitz)",
     "requirementPercent": 100,
