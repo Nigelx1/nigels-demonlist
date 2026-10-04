@@ -73,7 +73,21 @@
       })
       .filter(Boolean);
   }
-  // the level's Grind page (at one player's card), bold if it's a Main List demon
+  // which list an OFF-list goal level would be in if it were on the list, so it
+  // gets the same styling as a listed demon - Congregation is an Extreme, so
+  // it's Main List on Aceabase even though nobody there has beaten it.
+  // null = it couldn't be on the list at all (not an allowed difficulty).
+  function wouldBeTier(lv) {
+    if (!lv) return null;
+    var cfg = window.SITE || {};
+    if (cfg.allowedDifficulties && cfg.allowedDifficulties.indexOf(lv.difficulty) < 0) return null;
+    if (cfg.mainListSize === "extremes") return lv.difficulty === "Extreme" ? "main" : "extended";
+    var rating = DL.demonRating(lv);
+    var above = (window.DEMONS || []).filter(function (d) { return DL.demonRating(d) > rating; }).length;
+    return DL.tierOf(above + 1);
+  }
+  // the level's Grind page (at one player's card), styled like any demon link:
+  // bold = Main List, plain = Extended, faded = Legacy
   function grindLink(levelId, playerName) {
     var lv = DL.goalLevel(levelId);
     var a =
@@ -81,7 +95,11 @@
       (playerName ? "#" + DL.goalAnchor(playerName) : "") + '">' +
       DL.escapeHtml(lv ? lv.name : "Level " + levelId) + "</a>";
     var listed = DL.demonById(levelId);
-    return listed && DL.tierOf(listed.position) === "main" ? "<b>" + a + "</b>" : a;
+    var tier = listed ? DL.tierOf(listed.position) : wouldBeTier(lv);
+    if (tier === "main") return "<b>" + a + "</b>";
+    if (tier === "extended") return "<span>" + a + "</span>";
+    if (tier === "legacy") return '<i style="opacity:.5">' + a + "</i>";
+    return a;
   }
   // grind rows for everyone in `names`, skipping levels in `skip` (already beaten
   // / already a real progress record); several players on one level -> one
