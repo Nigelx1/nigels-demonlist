@@ -13,6 +13,8 @@
 //               unless the level is on the Demonlist, in which case demons.js wins)
 //   best      - best run % from the start (number). null = unknown / not tracked
 //   segments  - [[from, to], ...] practice-mode runs the player can do. optional
+//               Only add a run that isn't completely inside another one (5-25
+//               is left out when there's a 5-26). Repeats go in `note`.
 //   note      - freeform status line shown under the progress bar. optional
 //   blurb     - "why this one" - a sentence from the player. optional
 //   attempts  - attempt count. optional

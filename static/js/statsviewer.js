@@ -57,6 +57,64 @@
       .join(" - ");
   }
 
+  // SITE.grindInProgress (Aceabase - Poatan's compromise for The Grind keeping
+  // tiny runs): a goal in data/goals.js where the player has a run LONGER than
+  // that % - from 0, or a practice run like 42-100 - also shows in their
+  // "In Progress" row. Display only, never points. Off when the setting is
+  // missing. Returns [{ goal, run: [from, to] }] with the player's longest run.
+  function grindProgress(name) {
+    var min = window.SITE && window.SITE.grindInProgress;
+    if (min == null || !DL.goalsForPlayer) return [];
+    return DL.goalsForPlayer(name)
+      .map(function (g) {
+        var runs = (g.best != null ? [[0, g.best]] : []).concat(g.segments || []);
+        var run = runs.reduce(function (b, r) { return !b || r[1] - r[0] > b[1] - b[0] ? r : b; }, null);
+        return run && run[1] - run[0] > min ? { goal: g, run: run } : null;
+      })
+      .filter(Boolean);
+  }
+  function runText(run) {
+    return run[0] === 0 ? run[1] + "%" : run[0] + "–" + run[1] + "%";
+  }
+  // the level's Grind page (at one player's card), bold if it's a Main List demon
+  function grindLink(levelId, playerName) {
+    var lv = DL.goalLevel(levelId);
+    var a =
+      '<a href="goal.html?level=' + encodeURIComponent(levelId) +
+      (playerName ? "#" + DL.goalAnchor(playerName) : "") + '">' +
+      DL.escapeHtml(lv ? lv.name : "Level " + levelId) + "</a>";
+    var listed = DL.demonById(levelId);
+    return listed && DL.tierOf(listed.position) === "main" ? "<b>" + a + "</b>" : a;
+  }
+  // grind rows for everyone in `names`, skipping levels in `skip` (already beaten
+  // / already a real progress record); several players on one level -> one entry
+  function grindProgressRows(names, skip) {
+    var rows = {}, order = [];
+    names.forEach(function (name) {
+      grindProgress(name).forEach(function (x) {
+        var id = x.goal.levelId;
+        if (skip[id]) return;
+        if (!rows[id]) {
+          rows[id] = { levelId: id, players: [], run: x.run };
+          order.push(id);
+        }
+        rows[id].players.push(name);
+        if (x.run[1] - x.run[0] > rows[id].run[1] - rows[id].run[0]) rows[id].run = x.run;
+      });
+    });
+    return order.map(function (id) {
+      var r = rows[id];
+      var link = grindLink(r.levelId, r.players.length === 1 ? r.players[0] : null);
+      return (names.length > 1 ? '<span title="' + DL.escapeHtml(r.players.join(", ")) + '">' + link + "</span>" : link) +
+        " (" + runText(r.run) + ")";
+    });
+  }
+  function demonIds(rows) {
+    var ids = {};
+    rows.forEach(function (r) { ids[r.demon.id] = true; });
+    return ids;
+  }
+
   DL.initStatsViewer = function (root, initialPlayerName, initialNation) {
     var players = DL.aggregatePlayers();
     var nations = DL.aggregateNations();
@@ -383,11 +441,10 @@
       el("created").innerHTML = demonLinks(sortedList(p.created, sortMode === "Position"));
       el("published").innerHTML = demonLinks(sortedList(p.published, sortMode === "Position"));
       el("verified").innerHTML = demonLinks(sortedList(p.verified, sortMode === "Position"));
-      el("progress").innerHTML = p.progressed.length
-        ? p.progressed
-            .map(function (r) { return DL.formatDemonLink(r.demon) + " (" + r.progress + "%)"; })
-            .join(" - ")
-        : "None";
+      var progressed = p.progressed
+        .map(function (r) { return DL.formatDemonLink(r.demon) + " (" + r.progress + "%)"; })
+        .concat(grindProgressRows([p.name], demonIds(p.progressed.concat(p.completed))));
+      el("progress").innerHTML = progressed.length ? progressed.join(" - ") : "None";
 
       // "The Grind" - levels this player is trying to beat (data/goals.js)
       var grindHtml = DL.renderGrindChips ? DL.renderGrindChips(p.name) : "";
@@ -470,17 +527,16 @@
       el("created").innerHTML = creditRows(n.created, sortMode === "Position");
       el("published").innerHTML = creditRows(n.published, sortMode === "Position");
       el("verified").innerHTML = creditRows(n.verified, sortMode === "Position");
-      el("progress").innerHTML = n.progressed.length
-        ? sortedList(
-            n.progressed.map(function (r) { return r.demon; }),
-            sortMode === "Position"
-          )
-            .map(function (d) {
-              var row = n.progressed.filter(function (r) { return r.demon.id === d.id; })[0];
-              return demonLinkWithPlayers(d, row.players) + " (" + row.progress + "%)";
-            })
-            .join(" - ")
-        : "None";
+      var nationProgressed = sortedList(
+        n.progressed.map(function (r) { return r.demon; }),
+        sortMode === "Position"
+      )
+        .map(function (d) {
+          var row = n.progressed.filter(function (r) { return r.demon.id === d.id; })[0];
+          return demonLinkWithPlayers(d, row.players) + " (" + row.progress + "%)";
+        })
+        .concat(grindProgressRows(n.players, demonIds(n.progressed.concat(n.completed))));
+      el("progress").innerHTML = nationProgressed.length ? nationProgressed.join(" - ") : "None";
       el("unbeaten").innerHTML = demonLinks(sortedList(n.unbeaten, sortMode === "Position"));
     }
 

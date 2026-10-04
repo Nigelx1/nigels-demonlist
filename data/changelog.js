@@ -28,6 +28,10 @@ window.CHANGELOG = [
   {
     date: "2026-10-04",
     items: [
+      // newest first: the rating refresh came after Zafari went in
+      { kind: "note", text: "GDDL ratings refreshed - 29 levels had drifted since they were added, so everyone's points shift a little." },
+      { kind: "move", demon: "Theory of Everything 2", demonId: 2, from: 49, to: 48, text: "GDDL rating refresh - Theory of Everything 2 3.04 → 3.05, Change of Scene 3.04" },
+      { kind: "move", demon: "Space Invaders", demonId: 102343052, from: 27, to: 26, text: "GDDL rating refresh - Space Invaders 10.21 → 10.18, Tidal Line 10.23 → 10.15" },
       { kind: "add", demon: "Zafari", demonId: 29619645, at: 40, text: "Nigel's clear - Rustam's first 2.1 level, an Easy Demon" },
     ],
   },

@@ -42,7 +42,7 @@ window.DEMONS = [
     "position": 1,
     "name": "Ghoul",
     "difficulty": "Extreme",
-    "rating": 30.45,
+    "rating": 30.61,
     "publisher": "XavT",
     "creators": [
       "XavT"
@@ -80,7 +80,7 @@ window.DEMONS = [
     "position": 2,
     "name": "Worse Trip",
     "difficulty": "Extreme",
-    "rating": 26.18,
+    "rating": 26.17,
     "publisher": "Loltad",
     "creators": [
       "Loltad"
@@ -117,7 +117,7 @@ window.DEMONS = [
     "position": 3,
     "name": "Bloodbath",
     "difficulty": "Extreme",
-    "rating": 23.98,
+    "rating": 23.97,
     "publisher": "Riot",
     "creators": [
       "Riot"
@@ -231,7 +231,7 @@ window.DEMONS = [
     "position": 6,
     "name": "Steel Terrors",
     "difficulty": "Extreme",
-    "rating": 21.58,
+    "rating": 21.52,
     "publisher": "DreamZoneGD",
     "creators": [
       "DreamZoneGD"
@@ -306,7 +306,7 @@ window.DEMONS = [
     "position": 8,
     "name": "Through The Decay",
     "difficulty": "Extreme",
-    "rating": 20.08,
+    "rating": 20.09,
     "publisher": "sparktwo",
     "creators": [
       "sparktwo"
@@ -382,7 +382,7 @@ window.DEMONS = [
     "position": 10,
     "name": "Bad Trip",
     "difficulty": "Insane",
-    "rating": 17.91,
+    "rating": 17.92,
     "publisher": "Loltad",
     "creators": [
       "Loltad"
@@ -419,7 +419,7 @@ window.DEMONS = [
     "position": 11,
     "name": "BuTiTi II",
     "difficulty": "Insane",
-    "rating": 17.79,
+    "rating": 17.8,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -457,7 +457,7 @@ window.DEMONS = [
     "position": 12,
     "name": "Nilscapes",
     "difficulty": "Insane",
-    "rating": 17.02,
+    "rating": 17.04,
     "publisher": "L413",
     "creators": [
       "L413"
@@ -576,7 +576,7 @@ window.DEMONS = [
     "position": 15,
     "name": "Dream Travel",
     "difficulty": "Insane",
-    "rating": 16.79,
+    "rating": 16.78,
     "publisher": "SuprianGD",
     "creators": [
       "SuprianGD"
@@ -614,7 +614,7 @@ window.DEMONS = [
     "position": 16,
     "name": "Lit Fuse",
     "difficulty": "Insane",
-    "rating": 16.67,
+    "rating": 16.68,
     "publisher": "KrmaL",
     "creators": [
       "KrmaL"
@@ -651,7 +651,7 @@ window.DEMONS = [
     "position": 17,
     "name": "Fool Moon Paranoid",
     "difficulty": "Insane",
-    "rating": 16.06,
+    "rating": 16.08,
     "publisher": "unne",
     "creators": [
       "unne"
@@ -808,7 +808,7 @@ window.DEMONS = [
     "position": 21,
     "name": "Stalemate",
     "difficulty": "Insane",
-    "rating": 15.19,
+    "rating": 15.2,
     "publisher": "Nox",
     "creators": [
       "Nox"
@@ -845,7 +845,7 @@ window.DEMONS = [
     "position": 22,
     "name": "Game Time",
     "difficulty": "Insane",
-    "rating": 15.06,
+    "rating": 15.05,
     "publisher": "SimilarAMZ",
     "creators": [
       "SimilarAMZ"
@@ -883,7 +883,7 @@ window.DEMONS = [
     "position": 23,
     "name": "Forest Temple",
     "difficulty": "Hard",
-    "rating": 13.96,
+    "rating": 13.95,
     "publisher": "Michigun",
     "creators": [
       "Michigun"
@@ -920,7 +920,7 @@ window.DEMONS = [
     "position": 24,
     "name": "Future Funk",
     "difficulty": "Hard",
-    "rating": 12.96,
+    "rating": 12.95,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1009,49 +1009,11 @@ window.DEMONS = [
     }
   },
   {
-    "id": 104968496,
-    "position": 26,
-    "name": "Tidal Line",
-    "difficulty": "Hard",
-    "rating": 10.23,
-    "publisher": "Sp4rce",
-    "creators": [
-      "Sp4rce"
-    ],
-    "verifier": "Nigel",
-    "videoUrl": "https://www.youtube.com/watch?v=cfXQ1ZrKiNY",
-    "thumbnailUrl": "https://i.ytimg.com/vi/cfXQ1ZrKiNY/maxresdefault.jpg",
-    "levelId": 104968496,
-    "description": "175k Obj solo level, a Dancing Line version of Tidal Wave! Original level built by OniLink & More. Tap to change direction! Verified by: NatikosOriginal",
-    "requirementPercent": 100,
-    "records": [
-      {
-        "player": "Nigel",
-        "progress": 100,
-        "nationality": "US",
-        "subdivision": "IL"
-      }
-    ],
-    "gd": {
-      "length": "Long",
-      "objects": 65535,
-      "gameVersion": "2.2",
-      "inGameDifficulty": "Hard Demon",
-      "song": {
-        "id": "1298724",
-        "name": "[TIDAL WAVE] Dion Timmer - Shiawase VIP (Vorlex Remix)",
-        "artist": "Vorlexium",
-        "link": "-"
-      },
-      "songOfficial": false
-    }
-  },
-  {
     "id": 102343052,
-    "position": 27,
+    "position": 26,
     "name": "Space Invaders",
     "difficulty": "Hard",
-    "rating": 10.21,
+    "rating": 10.18,
     "publisher": "DeeperSpace",
     "creators": [
       "DeeperSpace"
@@ -1079,6 +1041,44 @@ window.DEMONS = [
         "id": "865364",
         "name": "Teminite & MDK - Space Invaders",
         "artist": "Teminite",
+        "link": "-"
+      },
+      "songOfficial": false
+    }
+  },
+  {
+    "id": 104968496,
+    "position": 27,
+    "name": "Tidal Line",
+    "difficulty": "Hard",
+    "rating": 10.15,
+    "publisher": "Sp4rce",
+    "creators": [
+      "Sp4rce"
+    ],
+    "verifier": "Nigel",
+    "videoUrl": "https://www.youtube.com/watch?v=cfXQ1ZrKiNY",
+    "thumbnailUrl": "https://i.ytimg.com/vi/cfXQ1ZrKiNY/maxresdefault.jpg",
+    "levelId": 104968496,
+    "description": "175k Obj solo level, a Dancing Line version of Tidal Wave! Original level built by OniLink & More. Tap to change direction! Verified by: NatikosOriginal",
+    "requirementPercent": 100,
+    "records": [
+      {
+        "player": "Nigel",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "IL"
+      }
+    ],
+    "gd": {
+      "length": "Long",
+      "objects": 65535,
+      "gameVersion": "2.2",
+      "inGameDifficulty": "Hard Demon",
+      "song": {
+        "id": "1298724",
+        "name": "[TIDAL WAVE] Dion Timmer - Shiawase VIP (Vorlex Remix)",
+        "artist": "Vorlexium",
         "link": "-"
       },
       "songOfficial": false
@@ -1127,7 +1127,7 @@ window.DEMONS = [
     "position": 29,
     "name": "Entropic Dreams",
     "difficulty": "Hard",
-    "rating": 9.94,
+    "rating": 9.93,
     "publisher": "LepszyGD",
     "creators": [
       "LepszyGD"
@@ -1165,7 +1165,7 @@ window.DEMONS = [
     "position": 30,
     "name": "Biru",
     "difficulty": "Medium",
-    "rating": 9.86,
+    "rating": 9.85,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1360,7 +1360,7 @@ window.DEMONS = [
     "position": 35,
     "name": "potal",
     "difficulty": "Medium",
-    "rating": 6.38,
+    "rating": 6.35,
     "publisher": "Sillow",
     "creators": [
       "Sillow"
@@ -1585,9 +1585,9 @@ window.DEMONS = [
     "name": "Theory of Jumping",
     "difficulty": "Medium",
     "rating": 4.77,
-    "publisher": "Unknown",
+    "publisher": "SpacePark",
     "creators": [
-      "Unknown"
+      "SpacePark"
     ],
     "verifier": "Nigel",
     "videoUrl": "https://www.youtube.com/watch?v=3qdHyNAoUs8",
@@ -1737,7 +1737,7 @@ window.DEMONS = [
     "position": 45,
     "name": "well being spot",
     "difficulty": "Easy",
-    "rating": 3.64,
+    "rating": 3.61,
     "publisher": "2003devin",
     "creators": [
       "2003devin"
@@ -1813,7 +1813,7 @@ window.DEMONS = [
     "position": 47,
     "name": "Problematic",
     "difficulty": "Easy",
-    "rating": 3.12,
+    "rating": 3.13,
     "publisher": "Dhafin",
     "creators": [
       "Dhafin"
@@ -1846,8 +1846,39 @@ window.DEMONS = [
     }
   },
   {
-    "id": 90475473,
+    "id": 2,
     "position": 48,
+    "name": "Theory of Everything 2",
+    "difficulty": "Official",
+    "rating": 3.05,
+    "publisher": "RobTop",
+    "creators": [
+      "RobTop"
+    ],
+    "verifier": "Nigel",
+    "videoUrl": "https://www.youtube.com/watch?v=1YI4oUUiV80",
+    "thumbnailUrl": "https://i.ytimg.com/vi/1YI4oUUiV80/maxresdefault.jpg",
+    "levelId": 2,
+    "description": null,
+    "requirementPercent": 100,
+    "records": [
+      {
+        "player": "Nigel",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "IL"
+      },
+      {
+        "player": "Jack",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "CA"
+      }
+    ]
+  },
+  {
+    "id": 90475473,
+    "position": 49,
     "name": "Change of Scene",
     "difficulty": "Easy",
     "rating": 3.04,
@@ -1882,37 +1913,6 @@ window.DEMONS = [
       },
       "songOfficial": false
     }
-  },
-  {
-    "id": 2,
-    "position": 49,
-    "name": "Theory of Everything 2",
-    "difficulty": "Official",
-    "rating": 3.04,
-    "publisher": "RobTop",
-    "creators": [
-      "RobTop"
-    ],
-    "verifier": "Nigel",
-    "videoUrl": "https://www.youtube.com/watch?v=1YI4oUUiV80",
-    "thumbnailUrl": "https://i.ytimg.com/vi/1YI4oUUiV80/maxresdefault.jpg",
-    "levelId": 2,
-    "description": null,
-    "requirementPercent": 100,
-    "records": [
-      {
-        "player": "Nigel",
-        "progress": 100,
-        "nationality": "US",
-        "subdivision": "IL"
-      },
-      {
-        "player": "Jack",
-        "progress": 100,
-        "nationality": "US",
-        "subdivision": "CA"
-      }
-    ]
   },
   {
     "id": 77292103,
@@ -2032,7 +2032,7 @@ window.DEMONS = [
     "position": 53,
     "name": "Space Circles",
     "difficulty": "Easy",
-    "rating": 2.88,
+    "rating": 2.89,
     "publisher": "SUOMI",
     "creators": [
       "SUOMI"
@@ -2101,9 +2101,9 @@ window.DEMONS = [
     "name": "Ruined Planet",
     "difficulty": "Easy",
     "rating": 2.77,
-    "publisher": "Unknown",
+    "publisher": "Ene",
     "creators": [
-      "Unknown"
+      "Ene"
     ],
     "verifier": "Nigel",
     "videoUrl": "https://www.youtube.com/watch?v=b0R2QrkSLTU",
@@ -2137,7 +2137,7 @@ window.DEMONS = [
     "position": 56,
     "name": "Endless Descent",
     "difficulty": "Easy",
-    "rating": 2.71,
+    "rating": 2.68,
     "publisher": "Ph4lip",
     "creators": [
       "Ph4lip"
@@ -2176,9 +2176,9 @@ window.DEMONS = [
     "name": "invisible clubstep",
     "difficulty": "Easy",
     "rating": 2.61,
-    "publisher": "Unknown",
+    "publisher": "J4cKy",
     "creators": [
-      "Unknown"
+      "J4cKy"
     ],
     "verifier": "Nigel",
     "videoUrl": "https://www.youtube.com/watch?v=9UDKGs6-FQ8",
@@ -2287,7 +2287,7 @@ window.DEMONS = [
     "position": 60,
     "name": "Ship",
     "difficulty": "Easy",
-    "rating": 1.92,
+    "rating": 1.91,
     "publisher": "SerpTop",
     "creators": [
       "SerpTop"
@@ -2363,7 +2363,7 @@ window.DEMONS = [
     "position": 62,
     "name": "The Farewell",
     "difficulty": "Easy",
-    "rating": 1.78,
+    "rating": 1.79,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -2632,7 +2632,7 @@ window.DEMONS = [
     "position": 69,
     "name": "Shiver",
     "difficulty": "Easy",
-    "rating": 1.16,
+    "rating": 1.17,
     "publisher": "SpKale",
     "creators": [
       "SpKale"
@@ -2744,7 +2744,7 @@ window.DEMONS = [
     "position": 72,
     "name": "SCORIGAMI",
     "difficulty": "Easy",
-    "rating": 1.09,
+    "rating": 1.08,
     "publisher": "TornadoMan616",
     "creators": [
       "TornadoMan616"
