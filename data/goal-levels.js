@@ -16,7 +16,7 @@ window.GOAL_LEVELS = {
     "name": "Congregation",
     "publisher": "Presta",
     "difficulty": "Extreme",
-    "rating": 31.63,
+    "rating": 31.52,
     "levelId": 68668045,
     "description": "verified by floofle",
     "requirementPercent": 100,
@@ -29,7 +29,8 @@ window.GOAL_LEVELS = {
       "song": {
         "id": "895761",
         "name": "Purgatori",
-        "artist": "Koraii"
+        "artist": "Koraii",
+        "link": "https://geometrydashcontent.b-cdn.net/songs/895761.mp3"
       }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/Fuxe0O10s-E/maxresdefault.jpg",
@@ -156,11 +157,11 @@ window.GOAL_LEVELS = {
     "name": "Down Bass",
     "publisher": "Spectruh",
     "difficulty": "Extreme",
-    "rating": 23.76,
+    "rating": 23.77,
     "levelId": 8147005,
     "description": "Another generic NC level",
     "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=gyRjfhKYQeU",
+    "videoUrl": "https://www.youtube.com/watch?v=XXGJHjGlqGk",
     "gd": {
       "length": "Long",
       "objects": 16603,
@@ -172,14 +173,14 @@ window.GOAL_LEVELS = {
         "artist": "Rukkus"
       }
     },
-    "thumbnailUrl": "https://i.ytimg.com/vi/gyRjfhKYQeU/maxresdefault.jpg",
+    "thumbnailUrl": "https://i.ytimg.com/vi/XXGJHjGlqGk/maxresdefault.jpg",
     "palette": {
-      "accent": "#7ca904",
-      "deep": "#313e0f",
+      "accent": "#72a904",
+      "deep": "#2e3e0f",
       "wash": "#f8fbf2",
-      "mist": "#eef3e2",
-      "onAccent": "#111111",
-      "ink": "#3c471f"
+      "mist": "#edf3e2",
+      "onAccent": "#ffffff",
+      "ink": "#3a471f"
     },
     "writeup": {
       "text": "The green one. Spectra's lone classic — a Nine Circles level that started life as \"Lime Circles,\" bookended by sunset skylines full of cranes and towers. An easy cube into a gap-riddled ship, and then the wave hits: spam, mini and dual patterns that demand machine-gun tapping and zero hesitation. Twenty-seven updates deep; it was #19 on the Demonlist back in 2017.",
@@ -191,7 +192,7 @@ window.GOAL_LEVELS = {
     "name": "rauchkammer",
     "publisher": "Devilmine",
     "difficulty": "Extreme",
-    "rating": 19.85,
+    "rating": 19.84,
     "levelId": 146399247,
     "description": "Level made with 3 random generated colors (i allowed hue shifts cuz holy cooked)",
     "requirementPercent": 100,
@@ -262,11 +263,11 @@ window.GOAL_LEVELS = {
     "name": "LIMBO",
     "publisher": "MindCap",
     "difficulty": "Extreme",
-    "rating": 36.94,
+    "rating": 36.89,
     "levelId": 86084399,
-    "description": "                                            FOCUS",
+    "description": "FOCUS",
     "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=MqXTDKXzfQw",
+    "videoUrl": "https://www.youtube.com/watch?v=munuzC7ymR0",
     "gd": {
       "length": "XL",
       "objects": 65535,
@@ -278,14 +279,14 @@ window.GOAL_LEVELS = {
         "artist": "NightHawk22"
       }
     },
-    "thumbnailUrl": "https://i.ytimg.com/vi/MqXTDKXzfQw/maxresdefault.jpg",
+    "thumbnailUrl": "https://i.ytimg.com/vi/munuzC7ymR0/maxresdefault.jpg",
     "palette": {
-      "accent": "#4b1ff9",
-      "deep": "#180f3e",
-      "wash": "#f4f2fb",
-      "mist": "#e5e2f3",
+      "accent": "#b11ff9",
+      "deep": "#2e0f3e",
+      "wash": "#f8f2fb",
+      "mist": "#ede2f3",
       "onAccent": "#ffffff",
-      "ink": "#271f47"
+      "ink": "#3a1f47"
     },
     "writeup": {
       "text": "A 2.1 memory monster hosted by MindCap, verified by BGram after 109,490 attempts. Built in 1.9 style with an indigo, dark-blue and red palette, it asks you to memorise orb sequences and invisible blocks with nothing to hide behind — and then at 87% drops you into a randomised key puzzle with 128 possible combinations. Peaked at #7 on the Demonlist and lives near the top of every \"greatest levels of all time\" list.",

@@ -134,6 +134,12 @@ def yt_id(url):
 
 demons_src = io.open(os.path.join(DATA, "demons.js"), encoding="utf-8").read()
 listed = {int(m.group(1)) for m in re.finditer(r'"levelId":\s*(\d+)', demons_src)}
+# showcase priority: a goal's own `video:` > tools/showcase-overrides.json (Nigel's
+# channel, see apply-showcases.py) > the list's own video > gdladder's Showcase
+_ov = os.path.join(HERE, "showcase-overrides.json")
+SHOWCASES = json.load(io.open(_ov, encoding="utf-8")) if os.path.exists(_ov) else {}
+listed_video = {int(m.group(2)): m.group(1) for m in re.finditer(
+    r'"videoUrl":\s*"([^"]*)",\s*"thumbnailUrl":\s*(?:"[^"]*"|null),\s*"levelId":\s*(\d+)', demons_src)}
 
 # carry hand-written editorial fields over from the existing file
 KEEP = ("writeup",)
@@ -156,7 +162,8 @@ for lid in level_ids:
     meta = gl.get("Meta", {}) or {}
     song = meta.get("Song", {}) or {}
 
-    showcase = yt_id(video_override.get(lid)) or gl.get("Showcase") or None
+    showcase = (yt_id(video_override.get(lid)) or SHOWCASES.get(str(lid))
+                or yt_id(listed_video.get(lid)) or gl.get("Showcase") or None)
     rating = round(gl.get("Rating", 0) or 0, 2) or None
     difficulty = meta.get("Difficulty") or (gb.get("difficulty") or "").replace(" Demon", "") or "Extreme"
 
