@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
-<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stats Viewer · Nigel's Demonlist</title>
 <meta name="description" content="Player rankings for Nigel's Demonlist.">
 
@@ -81,7 +81,7 @@
       <button type="button" data-map="out" aria-label="Zoom out">&minus;</button>
       <button type="button" data-map="reset" aria-label="Reset view">&#8635;</button>
     </div>
-    <p class="map-hint">Use +/&minus; or shift&#8209;scroll to zoom &middot; drag to pan &middot; click a country</p>
+    <p class="map-hint"><span class="hint-mouse">Use +/&minus; or shift&#8209;scroll to zoom &middot; drag to pan &middot; click a country</span><span class="hint-touch">Pinch or +/&minus; to zoom &middot; drag to pan &middot; tap a country</span></p>
   </section>
 
   <div class="flex m-center">
@@ -89,7 +89,7 @@
     <section class="panel fade" id="statsviewer" style="overflow:initial">
       <h2 class="underlined pad">Stats Viewer<span id="sv-scope"></span></h2>
       <div class="flex viewer">
-        <div class="flex col paginator" style="max-width:35%">
+        <div class="flex col paginator">
           <div class="search js-search seperated no-stretch" style="margin-bottom:5px">
             <input placeholder="Filter..." type="text" style="height:1em">
           </div>

@@ -253,17 +253,55 @@
       self._applyTransform();
     }, { passive: false });
 
-    // touch: one finger pans
-    var lastTouch = { x: 0, y: 0 };
+    // touch: one finger pans, two fingers pinch-zoom (and pan) around their
+    // midpoint - same maths as the shift-wheel zoom above
+    var lastTouch = { x: 0, y: 0 }, pinch = null;
+    function pinchState(t) {
+      var origin = self.wrapper.getBoundingClientRect();
+      return {
+        dist: Math.max(1, Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)),
+        x: (t[0].clientX + t[1].clientX) / 2 - origin.left,
+        y: (t[0].clientY + t[1].clientY) / 2 - origin.top
+      };
+    }
+    function startPan(t) {
+      self.isDragging = true;
+      lastTouch.x = t.pageX;
+      lastTouch.y = t.pageY;
+    }
     this.svg.addEventListener("touchstart", function (e) {
       if (e.touches.length === 1) {
-        self.isDragging = true;
-        lastTouch.x = e.touches[0].pageX;
-        lastTouch.y = e.touches[0].pageY;
+        pinch = null;
+        startPan(e.touches[0]);
+      } else if (e.touches.length === 2) {
+        self.isDragging = false;
+        pinch = pinchState(e.touches);
       }
     });
-    this.svg.addEventListener("touchend", function () { self.isDragging = false; self.dragDistance = 0; });
+    this.svg.addEventListener("touchend", function (e) {
+      // lifting one finger of a pinch carries on as a one-finger pan
+      if (e.touches.length === 1) {
+        pinch = null;
+        startPan(e.touches[0]);
+        return;
+      }
+      self.isDragging = false;
+      self.dragDistance = 0;
+      pinch = null;
+    });
     this.svg.addEventListener("touchmove", function (e) {
+      if (pinch && e.touches.length === 2) {
+        e.preventDefault();
+        var now = pinchState(e.touches);
+        var zoom = Math.max(0.5, Math.min(12, self.zoom * now.dist / pinch.dist));
+        // keep the map point that was under the old midpoint under the new one
+        self.translate.x += now.x / zoom - pinch.x / self.zoom;
+        self.translate.y += now.y / zoom - pinch.y / self.zoom;
+        self.zoom = zoom;
+        pinch = now;
+        self._applyTransform();
+        return;
+      }
       if (!self.isDragging || e.touches.length !== 1) return;
       e.preventDefault();
       var dx = e.touches[0].pageX - lastTouch.x, dy = e.touches[0].pageY - lastTouch.y;

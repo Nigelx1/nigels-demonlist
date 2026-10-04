@@ -429,8 +429,10 @@
     var tier = DL.tierOf(demon.position);
     var req = demon.requirementPercent || 100;
 
+    // phones size the name by its longest word (see #demon-heading in demonlist.css)
+    var longestWord = Math.max.apply(null, demon.name.split(/\s+/).map(function (w) { return w.length; }));
     var heading =
-      '<h1 id="demon-heading" style="overflow:hidden">' +
+      '<h1 id="demon-heading" style="overflow:hidden; --longest-word:' + longestWord + '">' +
       (prev ? '<a href="' + DL.demonUrl(prev.id) + '"><i class="fa fa-chevron-left" style="padding-right:5%"></i></a>' : "") +
       DL.escapeHtml(demon.name) +
       (next ? '<a href="' + DL.demonUrl(next.id) + '"><i class="fa fa-chevron-right" style="padding-left:5%"></i></a>' : "") +

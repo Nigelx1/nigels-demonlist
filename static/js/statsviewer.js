@@ -315,6 +315,14 @@
         li.addEventListener("click", function () {
           if (mode === "nations") selectNation(li.dataset.id);
           else selectPlayer(li.dataset.id);
+          // phones: the profile sits below the list, so bring it into view
+          // (minus the fixed 70px header)
+          if (window.matchMedia("(max-width: 767px)").matches) {
+            window.scrollTo({
+              top: contentEl.getBoundingClientRect().top + window.pageYOffset - 80,
+              behavior: "smooth"
+            });
+          }
         });
       });
       markActive();

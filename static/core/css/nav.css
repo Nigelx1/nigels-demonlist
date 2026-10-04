@@ -218,4 +218,10 @@ footer * {
   footer .flex {
     flex-wrap: wrap;
   }
+
+  /* stacked footer links: give each one a finger-sized row */
+  footer nav a.link {
+    display: inline-block;
+    padding: 5px 6px;
+  }
 }

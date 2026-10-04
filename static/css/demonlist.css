@@ -75,7 +75,39 @@ tr:nth-child(even) {
   .flex.container > aside {
     flex-basis: 100%;
     max-width: none;
+    min-width: 0; /* a long one-word name mustn't widen the page */
     margin-left: 0;
+  }
+
+  /* the sidebar is full-width here, so its teaser text doesn't need to be
+     squeezed to desktop-sidebar size */
+  #changelog-teaser .changelog-list {
+    font-size: 1.08em;
+  }
+}
+
+/* Phones: keep the prev / next chevrons on the name's line (instead of
+   wrapping above and below a long name) and scale the name to the screen. */
+@media (max-width: 767px) {
+  #demon-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    /* 6.4vw, unless the longest word (~0.62em a letter) wouldn't fit between
+       the chevrons - e.g. "iSpyWithMyLittleEye" - then just small enough */
+    font-size: max(1em, min(clamp(1.25em, 6.4vw, 1.9em), calc((100vw - 120px) / 0.62 / var(--longest-word, 1))));
+    overflow-wrap: anywhere;
+  }
+
+  #demon-heading > a {
+    flex: 0 0 auto;
+    padding: 6px 2px;
+    font-size: 0.8em;
+  }
+
+  #demon-heading > a i {
+    padding: 0 !important;
   }
 }
 
@@ -254,6 +286,66 @@ tr:nth-child(even) {
 #history-table tr.moved-down {
   background: var(--color-error-bg);
   color: var(--color-error-text);
+}
+
+/* phones: use the whole panel width, keep the date on one line, and let a
+   long level name in a reason break rather than push the table off-panel */
+@media (max-width: 767px) {
+  #history-table {
+    width: 100%;
+    margin: 0;
+    font-size: 0.8em;
+  }
+
+  #history-table th {
+    padding: 6px 3px;
+    font-size: 0.9em;
+  }
+
+  #history-table td {
+    line-height: 1.35;
+    padding: 7px 3px;
+    text-indent: 0;
+    overflow-wrap: anywhere;
+  }
+
+  #history-table td:first-child {
+    white-space: nowrap;
+  }
+}
+
+/* narrow phones: each row turns into two lines - date / change / position on
+   top, the reason across the full width underneath - instead of a squeezed
+   fourth column that splits words */
+@media (max-width: 479px) {
+  #history-table,
+  #history-table tbody {
+    display: block;
+  }
+
+  #history-table tr {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr 1fr;
+  }
+
+  /* grid cells aren't table cells any more: centre the header text by hand */
+  #history-table th {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: auto;
+    min-height: 2.6em;
+  }
+
+  #history-table th:nth-child(4) {
+    display: none;
+  }
+
+  #history-table td:nth-child(4) {
+    grid-column: 1 / -1;
+    padding-top: 0;
+    font-weight: normal;
+  }
 }
 
 /* --- changelog ------------------------------------------------------- */
