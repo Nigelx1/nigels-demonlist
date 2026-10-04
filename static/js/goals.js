@@ -64,6 +64,24 @@
     return Math.max(best, seg >= 100 ? 90 : seg * 0.6);
   }
 
+  // chip label for a goal tracked only as practice runs: the fewest runs that
+  // chain to the end ("in 3 parts" - overlapping runs chain, you just switch
+  // start pos inside the overlap), or the longest run if they never reach 100%
+  function runsLabel(segments) {
+    var s = segments.slice().sort(function (a, b) { return a[0] - b[0] || b[1] - a[1]; });
+    var reach = s[0][1], parts = 1, i = 1;
+    while (reach < 100) {
+      var next = reach;
+      while (i < s.length && s[i][0] <= reach + 1) next = Math.max(next, s[i++][1]);
+      if (next === reach) break; // a gap - they don't chain to the end
+      reach = next;
+      parts++;
+    }
+    if (reach >= 100) return "in " + parts + " part" + (parts === 1 ? "" : "s");
+    var longest = s.reduce(function (b, x) { return x[1] - x[0] > b[1] - b[0] ? x : b; });
+    return longest[0] + "–" + longest[1] + "%";
+  }
+
   DL.goalAnchor = function (name) {
     return "grind-" + encodeURIComponent(name).replace(/%/g, "");
   };
@@ -80,7 +98,7 @@
           g.best != null
             ? g.best + "%"
             : g.segments && g.segments.length
-            ? "in " + g.segments.length + " part" + (g.segments.length === 1 ? "" : "s")
+            ? runsLabel(g.segments)
             : "not started";
         return (
           '<a class="grind-chip" href="goal.html?level=' +

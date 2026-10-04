@@ -26,6 +26,12 @@
 
 window.CHANGELOG = [
   {
+    date: "2026-10-04",
+    items: [
+      { kind: "add", demon: "Zafari", demonId: 29619645, at: 40, text: "Nigel's clear - Rustam's first 2.1 level, an Easy Demon" },
+    ],
+  },
+  {
     date: "2026-09-06",
     items: [
       // high position -> low so the position-history replay inserts low -> high
