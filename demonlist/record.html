@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Record · Nigel's Demonlist</title>
+<meta name="description" content="A record video on Nigel's Demonlist, hosted right on the site.">
+
+<script src="../static/core/js/vendor/jquery.min.js"></script>
+<script src="../static/core/js/vendor/jquery-ui.min.js"></script>
+<script src="../data/config.js"></script>
+<script src="../data/demons.js"></script>
+<script src="../data/changelog.js"></script>
+<script src="../static/js/list-utils.js"></script>
+<script src="../static/js/demonlist.js"></script>
+
+<link rel="stylesheet" href="../static/core/css/icon.css">
+<link rel="stylesheet" href="../static/core/css/nav.css">
+<link rel="stylesheet" href="../static/core/css/main.css">
+<link rel="stylesheet" href="../static/core/css/ui.css">
+<link rel="stylesheet" href="../static/core/css/core.css">
+<link rel="stylesheet" href="../static/core/css/fa.all.min.css">
+<link rel="stylesheet" href="../static/css/demonlist.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat|Montserrat:light,bold">
+</head>
+<body>
+<div id="bg" aria-hidden="true"></div>
+<div class="content">
+<header>
+<nav class="center collapse underlined see-through">
+  <div class="nav-icon nav-nohide" style="margin-right:auto">
+    <a href="../index.html" aria-label="Go to homepage" style="font-weight:800;letter-spacing:.02em;font-size:1.1rem">Nigel's Demonlist</a>
+  </div>
+  <div class="nav-group">
+    <a class="nav-item hover white" href="index.html">
+      <span class="flex col"><span style="font-size:50%">Geometry Dash</span><span>DEMONLIST</span></span>
+      <i class="fas fa-sort-down" style="height:50%; padding-left:5px"></i>
+    </a>
+    <ul class="nav-hover-dropdown">
+      <li><a class="white hover" href="../guidelines/index.html">Guidelines</a></li>
+      <li><a class="white hover" href="../changelog/index.html">Changelog</a></li>
+      <li><a class="white hover" href="statsviewer.html">Stats Viewer</a></li>
+    </ul>
+  </div>
+  <div class="nav-item collapse-button nav-nohide">
+    <div class="hamburger hover"><input type="checkbox"><span></span><span></span><span></span></div>
+  </div>
+  <div class="nav-drop-down">
+    <a class="nav-item hover white" href="../index.html">Home</a>
+    <a class="nav-item hover white" href="index.html">
+      <span class="flex col"><span style="font-size:50%">Geometry Dash</span><span>DEMONLIST</span></span>
+    </a>
+    <ul class="nav-hover-dropdown">
+      <li><a class="white hover" href="../guidelines/index.html">Guidelines</a></li>
+      <li><a class="white hover" href="../changelog/index.html">Changelog</a></li>
+      <li><a class="white hover" href="statsviewer.html">Stats Viewer</a></li>
+    </ul>
+  </div>
+</nav>
+<div></div>
+</header>
+
+<nav class="flex wrap m-center fade" id="lists" style="text-align:center"></nav>
+
+<div class="flex m-center container">
+  <main class="left" id="record-detail"></main>
+  <aside class="right" id="sidebar"></aside>
+</div>
+
+<script>
+  // record.html?demon=<levelId>&player=<name> - one record's hosted video
+  var params = new URLSearchParams(location.search);
+  var demon = DL.demonById(params.get("demon"));
+  var record = demon
+    ? (demon.records || []).filter(function (r) { return r.player === params.get("player"); })[0]
+    : null;
+
+  if (!demon || !record || !record.video) {
+    document.getElementById("record-detail").innerHTML =
+      '<section class="panel fade"><h2>Video not found</h2>' +
+      "<p>There's no video for that record.</p>" +
+      '<a class="blue hover button" href="' + (demon ? DL.demonUrl(demon.id) : "index.html") + '">' +
+      (demon ? "All " + DL.escapeHtml(demon.name) + " records" : "Back to the list") + "</a></section>";
+    DL.renderListNav(document.getElementById("lists"), demon || null);
+  } else {
+    document.title = record.player + " – " + demon.name + " · " + window.SITE.name;
+    DL.renderListNav(document.getElementById("lists"), demon);
+    DL.renderRecordPage(document.getElementById("record-detail"), demon, record);
+  }
+
+  DL.renderSidebar(document.getElementById("sidebar"));
+</script>
+</div>
+
+<footer class="center">
+  <span class="overline pad" style="text-align:center">
+    <span id="footer-name"></span><br>
+    A private Geometry Dash Demonlist. Not affiliated with RobTopGamesAB or pointercrate.
+  </span>
+  <div class="flex no-stretch">
+    <nav>
+      <h2>Nigel's Demonlist</h2>
+      <a class="link" href="../index.html">Home</a><br>
+      <a class="link" href="index.html">Demonlist</a><br>
+      <a class="link" href="statsviewer.html">Stats Viewer</a><br>
+    </nav>
+  </div>
+  <script>document.getElementById("footer-name").textContent = "© " + window.SITE.name;</script>
+</footer>
+
+<script src="../static/core/js/ui.js"></script>
+<script src="../static/core/js/misc.js"></script>
+<script src="../static/core/js/nav.js"></script>
+</body>
+</html>

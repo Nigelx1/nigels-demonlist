@@ -396,14 +396,26 @@
     if (!records.length) {
       body = "<h3>No records yet! Be the first to achieve one!</h3>";
     } else {
+      // pointercrate's "Video Proof" column, only when someone here has a video.
+      // The videos are hosted on this site, so the link opens record.html
+      // instead of going out to YouTube; a record without one leaves it blank.
+      var anyVideo = records.some(function (r) { return r.video; });
       body =
         "<table><tbody>" +
-        '<tr><th class="blue"></th><th class="blue">Record Holder</th><th class="blue">Progress</th></tr>' +
+        '<tr><th class="blue"></th><th class="blue">Record Holder</th><th class="blue">Progress</th>' +
+        (anyVideo ? '<th class="blue">Video Proof</th>' : "") + "</tr>" +
         records.map(function (r) {
           var weight = r.progress >= 100 ? ' style="font-weight:bold"' : "";
+          var video = !anyVideo
+            ? ""
+            : "<td>" +
+              (r.video
+                ? '<a class="video-link" href="' + DL.recordUrl(demon.id, r.player) + '">Watch<i class="fas fa-play-circle"></i></a>'
+                : "") +
+              "</td>";
           return (
             "<tr" + weight + "><td>" + DL.flagSpan(r.nationality) + "</td><td>" + DL.playerLink(r.player) +
-            "</td><td>" + r.progress + "%</td></tr>"
+            "</td><td>" + r.progress + "%</td>" + video + "</tr>"
           );
         }).join("") +
         "</tbody></table>";
@@ -420,6 +432,88 @@
       "</section>"
     );
   }
+
+  // --- record videos (demonlist/record.html) -------------------------------
+  // data/demons.js record.video (set by tools/add-video.py): a path from the
+  // site root ("videos/<levelId>/<player>.mp4" - files up to 25 MB are hosted
+  // here) or, for a bigger video, its YouTube / Google Drive link.
+  // record.videoPoster: an optional still for hosted files.
+  DL.recordUrl = function (demonId, player) {
+    return "record.html?demon=" + encodeURIComponent(demonId) + "&player=" + encodeURIComponent(player);
+  };
+
+  function siteAsset(path) {
+    return /^(https?:)?\/\//.test(path) ? path : "../" + String(path).replace(/^\/+/, "");
+  }
+
+  // Where a record's video lives. A file hosted here (or any direct video URL)
+  // plays in <video>; a video over Cloudflare Pages' 25 MB per-file limit is a
+  // YouTube or Google Drive link instead, embedded on the same page.
+  DL.recordVideoSource = function (video) {
+    var s = String(video || "");
+    var yt = s.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/);
+    if (/youtu\.?be/.test(s) && yt) {
+      return { kind: "youtube", id: yt[1], embed: "https://www.youtube.com/embed/" + yt[1],
+               open: "https://www.youtube.com/watch?v=" + yt[1] };
+    }
+    var gd = s.match(/drive\.google\.com\/(?:file\/d\/|open\?(?:[^#]*&)?id=|uc\?(?:[^#]*&)?id=)([\w-]{10,})/);
+    if (gd) {
+      return { kind: "drive", id: gd[1], embed: "https://drive.google.com/file/d/" + gd[1] + "/preview",
+               open: "https://drive.google.com/file/d/" + gd[1] + "/view" };
+    }
+    return { kind: "file", src: siteAsset(s) };
+  };
+
+  function recordPlayerHtml(record) {
+    var vs = DL.recordVideoSource(record.video);
+    if (vs.kind === "file") {
+      var poster = record.videoPoster ? ' poster="' + DL.escapeHtml(siteAsset(record.videoPoster)) + '"' : "";
+      return (
+        '<video class="record-video" controls playsinline preload="metadata"' + poster +
+          ' src="' + DL.escapeHtml(vs.src) + '">' +
+          'This browser can\'t play the video - <a href="' + DL.escapeHtml(vs.src) + '">download it</a> instead.' +
+        "</video>"
+      );
+    }
+    var player =
+      vs.kind === "youtube" && location.protocol === "file:"
+        ? // a YouTube embed won't play on a file:// page (error 153) - thumbnail that opens YouTube instead
+          '<a class="demon-video" href="' + vs.open + '" target="_blank" rel="noopener" aria-label="Watch on YouTube"' +
+          ' style="background-image:url(https://i.ytimg.com/vi/' + vs.id + '/hqdefault.jpg)"><span class="demon-video-play"></span></a>'
+        : '<iframe class="record-video" src="' + vs.embed + '" title="Record video" allowfullscreen' +
+          ' allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>';
+    return (
+      player +
+      '<p class="demon-video-link"><a class="link" href="' + vs.open + '" target="_blank" rel="noopener">' +
+      (vs.kind === "youtube" ? "Watch on YouTube" : "Open in Google Drive") + "</a></p>"
+    );
+  }
+
+  // same layout as the demon page's top panel: heading, byline, the video
+  // where the showcase sits, then the facts row
+  DL.renderRecordPage = function (root, demon, record) {
+    var tier = DL.tierOf(demon.position);
+    var demonLink = '<a href="' + DL.demonUrl(demon.id) + '">' + DL.escapeHtml(demon.name) + "</a>";
+    function bit(label, value) {
+      return "<span><b>" + label + "</b><br>" + value + "</span>";
+    }
+
+    root.innerHTML =
+      '<section class="panel fade">' +
+        '<div class="underlined">' +
+          '<h1 id="record-heading">' + (tier !== "legacy" ? "#" + demon.position + " – " : "") + demonLink + "</h1>" +
+          "<h3>" + DL.flagSpan(record.nationality) + DL.playerLink(record.player) + " &middot; " + record.progress + "%</h3>" +
+        "</div>" +
+        recordPlayerHtml(record) +
+        '<div class="underlined pad flex wrap" id="level-info">' +
+          bit("Record Holder", DL.playerLink(record.player)) +
+          bit("Progress", record.progress + "%") +
+          bit("Demon", demonLink) +
+          bit("List", tier === "main" ? "Main List" : tier === "extended" ? "Extended List" : "Legacy List") +
+        "</div>" +
+        '<a class="blue hover button" href="' + DL.demonUrl(demon.id) + '">All ' + DL.escapeHtml(demon.name) + " records</a>" +
+      "</section>";
+  };
 
   DL.renderDemonDetail = function (root, demon) {
     var all = DL.sortedDemons();

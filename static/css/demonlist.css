@@ -481,3 +481,69 @@ tr:nth-child(even) {
   margin: 6px 0 4px;
   font-size: 85%;
 }
+
+/* records table "Video Proof": pointercrate's column, but the videos are
+   hosted here - the link opens record.html, so a play icon instead of the
+   external-link one */
+a.video-link {
+  color: var(--color-link);
+  white-space: nowrap;
+}
+
+a.video-link i {
+  margin-left: 5px;
+}
+
+/* phones: with a Video Proof column the records table has 4 columns - use the
+   whole panel and tighter cells */
+@media (max-width: 479px) {
+  .records table {
+    width: 100%;
+    margin: 0;
+    font-size: 0.9em;
+  }
+
+  .records th,
+  .records td {
+    padding-left: 3px;
+    padding-right: 3px;
+    text-indent: 0;
+  }
+}
+
+/* smallest phones: just the play icon */
+@media (max-width: 359px) {
+  .records table {
+    font-size: 0.85em;
+  }
+
+  a.video-link {
+    font-size: 0;
+  }
+
+  a.video-link i {
+    margin-left: 0;
+    font-size: 15px;
+  }
+}
+
+/* record.html: the hosted video sits where the demon page's showcase does */
+.record-video {
+  display: block;
+  width: 90%;
+  margin: 15px 5%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+@media (max-width: 767px) {
+  .record-video {
+    width: 100%;
+    margin: 12px 0;
+  }
+
+  #record-heading {
+    font-size: clamp(1.25em, 6.4vw, 1.9em);
+    overflow-wrap: anywhere;
+  }
+}
