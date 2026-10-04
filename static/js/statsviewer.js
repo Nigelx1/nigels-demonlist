@@ -73,9 +73,6 @@
       })
       .filter(Boolean);
   }
-  function runText(run) {
-    return run[0] === 0 ? run[1] + "%" : run[0] + "–" + run[1] + "%";
-  }
   // the level's Grind page (at one player's card), bold if it's a Main List demon
   function grindLink(levelId, playerName) {
     var lv = DL.goalLevel(levelId);
@@ -87,7 +84,8 @@
     return listed && DL.tierOf(listed.position) === "main" ? "<b>" + a + "</b>" : a;
   }
   // grind rows for everyone in `names`, skipping levels in `skip` (already beaten
-  // / already a real progress record); several players on one level -> one entry
+  // / already a real progress record); several players on one level -> one
+  // entry. Just the level name, no run (the Grind page has the runs).
   function grindProgressRows(names, skip) {
     var rows = {}, order = [];
     names.forEach(function (name) {
@@ -95,18 +93,16 @@
         var id = x.goal.levelId;
         if (skip[id]) return;
         if (!rows[id]) {
-          rows[id] = { levelId: id, players: [], run: x.run };
+          rows[id] = { levelId: id, players: [] };
           order.push(id);
         }
         rows[id].players.push(name);
-        if (x.run[1] - x.run[0] > rows[id].run[1] - rows[id].run[0]) rows[id].run = x.run;
       });
     });
     return order.map(function (id) {
       var r = rows[id];
       var link = grindLink(r.levelId, r.players.length === 1 ? r.players[0] : null);
-      return (names.length > 1 ? '<span title="' + DL.escapeHtml(r.players.join(", ")) + '">' + link + "</span>" : link) +
-        " (" + runText(r.run) + ")";
+      return names.length > 1 ? '<span title="' + DL.escapeHtml(r.players.join(", ")) + '">' + link + "</span>" : link;
     });
   }
   function demonIds(rows) {
