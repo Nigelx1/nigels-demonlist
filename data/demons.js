@@ -133,7 +133,8 @@ window.DEMONS = [
         "player": "Nigel",
         "progress": 100,
         "nationality": "US",
-        "subdivision": "IL"
+        "subdivision": "IL",
+        "video": "https://youtu.be/_kCR7M6Fr8c"
       }
     ],
     "gd": {
@@ -435,7 +436,8 @@ window.DEMONS = [
         "player": "Nigel",
         "progress": 100,
         "nationality": "US",
-        "subdivision": "IL"
+        "subdivision": "IL",
+        "video": "https://youtu.be/pKfilX2PyyY"
       }
     ],
     "gd": {
@@ -511,7 +513,8 @@ window.DEMONS = [
         "player": "Nigel",
         "progress": 100,
         "nationality": "US",
-        "subdivision": "IL"
+        "subdivision": "IL",
+        "video": "https://youtu.be/4RZtxK-aUEE"
       }
     ],
     "gd": {
@@ -549,7 +552,8 @@ window.DEMONS = [
         "player": "Nigel",
         "progress": 100,
         "nationality": "US",
-        "subdivision": "IL"
+        "subdivision": "IL",
+        "video": "https://youtu.be/k3J1FgsJ6hg"
       },
       {
         "player": "ufplayer",
@@ -742,7 +746,8 @@ window.DEMONS = [
         "player": "Nigel",
         "progress": 100,
         "nationality": "US",
-        "subdivision": "IL"
+        "subdivision": "IL",
+        "video": "https://youtu.be/fU-bDInjAhM"
       },
       {
         "player": "Jack",
@@ -824,7 +829,8 @@ window.DEMONS = [
         "player": "Nigel",
         "progress": 100,
         "nationality": "US",
-        "subdivision": "IL"
+        "subdivision": "IL",
+        "video": "https://youtu.be/VQgKfiaoA2M"
       }
     ],
     "gd": {
