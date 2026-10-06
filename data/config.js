@@ -50,11 +50,11 @@ window.SITE = {
   about: [
     {
       title: "The list",
-      text: "Every non-platformer Geometry Dash demon anyone in our community has beaten, ranked hardest-first by GD Demon Ladder's difficulty rating. The top 20 are the Main List and everything after that is the Extended List.",
+      text: "Every non-platformer Geometry Dash demon anyone in our community has beaten, ranked hardest-first: extremes in AREDL order, everything else by GD Demon Ladder's difficulty rating on the same scale. The top 20 are the Main List and everything after that is the Extended List.",
     },
     {
       title: "Scoring",
-      text: "Each demon is worth points based on its GD Demon Ladder difficulty rating, on a steep curve fit to the AREDL - the hardest demons are worth far more than the rest. Your score is the sum of every demon you've completed.",
+      text: "Each demon is worth points based on how hard it is - for an extreme, its AREDL placement, turned into a GD Demon Ladder-style rating by a curve fit to the whole AREDL; for everything else, its GD Demon Ladder rating - on a steep curve fit to the AREDL. The hardest demons are worth far more than the rest. Your score is the sum of every demon you've completed.",
     },
     {
       title: "The community",
@@ -71,10 +71,16 @@ window.SITE = {
     "Mods/hacks that trivialize gameplay are not allowed unless explicitly permitted for that level.",
   ],
 
+  // AREDL FIT - tools/refresh-order.py fits a GD Demon Ladder-style rating to
+  // an AREDL placement over the whole AREDL: rating = a + b * position^exponent.
+  // Extremes on the AREDL are ordered and scored by it (DL.demonRating), so the
+  // list follows AREDL placement; everything else uses its own GDDL rating.
+  aredlFit: { a: 43.8741, b: -1.473263, exponent: 0.38, points: 1575, r2: 0.9724, fitted: "2026-10-06" },
   // ---------------------------------------------------------------------------
   // SCORING
   // A 100% completion of the #1 (highest-rated) demon is worth `topScore`.
-  // Everything else falls off exponentially by gdladder difficulty `rating`
+  // Everything else falls off exponentially by DL.demonRating: an extreme's
+  // AREDL placement through aredlFit, otherwise its gdladder difficulty `rating`
   // (in data/demons.js):
   //
   //     points(rating) = topScore * base ^ (rating - topRating)

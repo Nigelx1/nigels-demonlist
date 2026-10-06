@@ -73,7 +73,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 347
   },
   {
     "id": 78248443,
@@ -110,7 +111,8 @@ window.DEMONS = [
         "artist": "CreoMusic"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 643
   },
   {
     "id": 10565740,
@@ -148,7 +150,8 @@ window.DEMONS = [
         "link": "https://geometrydashcontent.b-cdn.net/songs/467339.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 845
   },
   {
     "id": 93752979,
@@ -186,7 +189,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 934
   },
   {
     "id": 89976481,
@@ -224,7 +228,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 1122
   },
   {
     "id": 119653522,
@@ -262,7 +267,8 @@ window.DEMONS = [
         "link": "https://geometrydashcontent.b-cdn.net/songs/580470.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 1215
   },
   {
     "id": 30219145,
@@ -299,7 +305,8 @@ window.DEMONS = [
         "artist": "ColBreakz"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 1380
   },
   {
     "id": 114933189,
@@ -337,7 +344,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": 1592
   },
   {
     "id": 61137742,
@@ -375,7 +383,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 59948178,
@@ -412,7 +421,8 @@ window.DEMONS = [
         "artist": "CreoMusic"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 37259527,
@@ -450,7 +460,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 126213470,
@@ -488,7 +499,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 32885972,
@@ -526,7 +538,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 4706930,
@@ -569,7 +582,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 59858021,
@@ -607,7 +621,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 15122517,
@@ -644,7 +659,8 @@ window.DEMONS = [
         "artist": "Cacola"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 87932531,
@@ -681,7 +697,8 @@ window.DEMONS = [
         "artist": "WaxTerk"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 7054561,
@@ -719,7 +736,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 56568010,
@@ -763,7 +781,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 47620786,
@@ -801,7 +820,8 @@ window.DEMONS = [
         "link": "https://audio.ngfiles.com/806000/806733_Circus-Contraption---Come-.mp3?f1526820551"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 4545425,
@@ -838,14 +858,15 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 43945511,
     "position": 22,
     "name": "Game Time",
     "difficulty": "Insane",
-    "rating": 15.05,
+    "rating": 15.06,
     "publisher": "SimilarAMZ",
     "creators": [
       "SimilarAMZ"
@@ -876,7 +897,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 11402965,
@@ -913,14 +935,15 @@ window.DEMONS = [
         "link": "http://audio.ngfiles.com/478000/478283_-Haunted-woods-.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 44062068,
     "position": 24,
     "name": "Future Funk",
     "difficulty": "Hard",
-    "rating": 12.95,
+    "rating": 12.96,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -957,7 +980,8 @@ window.DEMONS = [
         "link": "https://geometrydashcontent.b-cdn.net/songs/701013.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 4284013,
@@ -1006,11 +1030,51 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
+  },
+  {
+    "id": 104968496,
+    "position": 26,
+    "name": "Tidal Line",
+    "difficulty": "Hard",
+    "rating": 10.22,
+    "publisher": "Sp4rce",
+    "creators": [
+      "Sp4rce"
+    ],
+    "verifier": "Nigel",
+    "videoUrl": "https://www.youtube.com/watch?v=cfXQ1ZrKiNY",
+    "thumbnailUrl": "https://i.ytimg.com/vi/cfXQ1ZrKiNY/maxresdefault.jpg",
+    "levelId": 104968496,
+    "description": "175k Obj solo level, a Dancing Line version of Tidal Wave! Original level built by OniLink & More. Tap to change direction! Verified by: NatikosOriginal",
+    "requirementPercent": 100,
+    "records": [
+      {
+        "player": "Nigel",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "IL"
+      }
+    ],
+    "gd": {
+      "length": "Long",
+      "objects": 65535,
+      "gameVersion": "2.2",
+      "inGameDifficulty": "Hard Demon",
+      "song": {
+        "id": "1298724",
+        "name": "[TIDAL WAVE] Dion Timmer - Shiawase VIP (Vorlex Remix)",
+        "artist": "Vorlexium",
+        "link": "-"
+      },
+      "songOfficial": false
+    },
+    "aredlPosition": null
   },
   {
     "id": 102343052,
-    "position": 26,
+    "position": 27,
     "name": "Space Invaders",
     "difficulty": "Hard",
     "rating": 10.18,
@@ -1044,45 +1108,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
-  },
-  {
-    "id": 104968496,
-    "position": 27,
-    "name": "Tidal Line",
-    "difficulty": "Hard",
-    "rating": 10.15,
-    "publisher": "Sp4rce",
-    "creators": [
-      "Sp4rce"
-    ],
-    "verifier": "Nigel",
-    "videoUrl": "https://www.youtube.com/watch?v=cfXQ1ZrKiNY",
-    "thumbnailUrl": "https://i.ytimg.com/vi/cfXQ1ZrKiNY/maxresdefault.jpg",
-    "levelId": 104968496,
-    "description": "175k Obj solo level, a Dancing Line version of Tidal Wave! Original level built by OniLink & More. Tap to change direction! Verified by: NatikosOriginal",
-    "requirementPercent": 100,
-    "records": [
-      {
-        "player": "Nigel",
-        "progress": 100,
-        "nationality": "US",
-        "subdivision": "IL"
-      }
-    ],
-    "gd": {
-      "length": "Long",
-      "objects": 65535,
-      "gameVersion": "2.2",
-      "inGameDifficulty": "Hard Demon",
-      "song": {
-        "id": "1298724",
-        "name": "[TIDAL WAVE] Dion Timmer - Shiawase VIP (Vorlex Remix)",
-        "artist": "Vorlexium",
-        "link": "-"
-      },
-      "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 92742742,
@@ -1120,7 +1147,8 @@ window.DEMONS = [
         "link": "https://audio.ngfiles.com/1163000/1163253_BUTT3RFLi3S-gtwlt.mp3?f1665117424"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 96096712,
@@ -1158,7 +1186,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 47611766,
@@ -1196,7 +1225,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 25706351,
@@ -1233,7 +1263,8 @@ window.DEMONS = [
         "link": "https://geometrydashcontent.b-cdn.net/songs/576177.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 69087510,
@@ -1271,7 +1302,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 40202837,
@@ -1309,7 +1341,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 118509879,
@@ -1353,7 +1386,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 61417747,
@@ -1390,7 +1424,8 @@ window.DEMONS = [
         "artist": "Waterflame"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 17924880,
@@ -1427,7 +1462,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 10972106,
@@ -1464,7 +1500,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 34085027,
@@ -1502,7 +1539,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 95683886,
@@ -1540,7 +1578,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 29619645,
@@ -1577,7 +1616,8 @@ window.DEMONS = [
         "artist": "EagleGuard"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 220369,
@@ -1613,7 +1653,8 @@ window.DEMONS = [
         "artist": "DJ-Nate"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 3,
@@ -1650,7 +1691,8 @@ window.DEMONS = [
         "nationality": "US",
         "subdivision": "CA"
       }
-    ]
+    ],
+    "aredlPosition": null
   },
   {
     "id": 2997354,
@@ -1693,7 +1735,8 @@ window.DEMONS = [
         "link": "http://audio.ngfiles.com/587000/587069_-Endgame-.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 8660411,
@@ -1730,14 +1773,15 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 63277477,
     "position": 45,
     "name": "well being spot",
     "difficulty": "Easy",
-    "rating": 3.61,
+    "rating": 3.62,
     "publisher": "2003devin",
     "creators": [
       "2003devin"
@@ -1768,7 +1812,8 @@ window.DEMONS = [
         "link": "http://audio.ngfiles.com/620000/620959_-Stalker-.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 111286661,
@@ -1806,7 +1851,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 7116121,
@@ -1843,7 +1889,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 2,
@@ -1874,7 +1921,8 @@ window.DEMONS = [
         "nationality": "US",
         "subdivision": "CA"
       }
-    ]
+    ],
+    "aredlPosition": null
   },
   {
     "id": 90475473,
@@ -1912,7 +1960,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 77292103,
@@ -1950,7 +1999,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 14850167,
@@ -1987,7 +2037,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 14000484,
@@ -2025,7 +2076,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 9864147,
@@ -2062,7 +2114,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 1,
@@ -2093,7 +2146,8 @@ window.DEMONS = [
         "nationality": "US",
         "subdivision": "CA"
       }
-    ]
+    ],
+    "aredlPosition": null
   },
   {
     "id": 184880,
@@ -2130,7 +2184,8 @@ window.DEMONS = [
         "artist": "Waterflame"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 82804029,
@@ -2168,7 +2223,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 1347537,
@@ -2204,7 +2260,8 @@ window.DEMONS = [
         "artist": "DJ-Nate"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 49901047,
@@ -2242,7 +2299,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 13037894,
@@ -2280,7 +2338,8 @@ window.DEMONS = [
         "link": "http://audio.ngfiles.com/621000/621144_TheFatRat---Infinite-Power.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 57012656,
@@ -2318,7 +2377,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 89886591,
@@ -2356,7 +2416,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 28352064,
@@ -2394,7 +2455,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 76582313,
@@ -2432,7 +2494,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 848722,
@@ -2468,7 +2531,8 @@ window.DEMONS = [
         "artist": "DJ-Nate"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 80790301,
@@ -2505,7 +2569,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 127078077,
@@ -2543,7 +2608,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 56587109,
@@ -2587,7 +2653,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 128665322,
@@ -2625,7 +2692,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 56210242,
@@ -2663,7 +2731,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 5904109,
@@ -2701,7 +2770,8 @@ window.DEMONS = [
         "link": "http://audio.ngfiles.com/587000/587069_-Endgame-.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 566659,
@@ -2737,7 +2807,8 @@ window.DEMONS = [
         "artist": "Waterflame"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 126762295,
@@ -2774,7 +2845,8 @@ window.DEMONS = [
         "link": "http://audio.ngfiles.com/550000/550054_-Swirl-.mp3"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 55520,
@@ -2811,7 +2883,8 @@ window.DEMONS = [
         "artist": "DJVI"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 88494611,
@@ -2849,7 +2922,8 @@ window.DEMONS = [
         "link": "-"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   },
   {
     "id": 13519,
@@ -2885,6 +2959,7 @@ window.DEMONS = [
         "artist": "Step"
       },
       "songOfficial": false
-    }
+    },
+    "aredlPosition": null
   }
 ];

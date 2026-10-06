@@ -234,7 +234,14 @@ DL.RATING_BY_DIFFICULTY = {
   Official: 3,
 };
 
+// The number a demon is ordered and scored by. An extreme on the AREDL follows
+// its AREDL placement, turned into a GD Demon Ladder-style rating by a curve
+// fit to the whole AREDL (SITE.aredlFit - tools/refresh-order.py fits it and
+// keeps each demon's aredlPosition); everything else uses its own GDDL rating.
 DL.demonRating = function (demon) {
+  var fit = window.SITE && window.SITE.aredlFit;
+  if (fit && typeof demon.aredlPosition === "number")
+    return fit.a + fit.b * Math.pow(demon.aredlPosition, fit.exponent);
   if (typeof demon.rating === "number") return demon.rating;
   return DL.RATING_BY_DIFFICULTY[demon.difficulty] || 3;
 };
@@ -252,7 +259,7 @@ DL.topRating = function () {
 };
 
 // Points for a 100% completion: topScore for the #1 demon, then an exponential
-// fall-off by gdladder rating (curve fit to the AREDL, no floor). See
+// fall-off by DL.demonRating (curve fit to the AREDL, no floor). See
 // data/config.js.
 DL.scoreAt100 = function (demon) {
   var s = window.SITE.scoring;

@@ -26,6 +26,14 @@
 
 window.CHANGELOG = [
   {
+    date: "2026-10-06",
+    items: [
+      { kind: "note", text: "The list follows the AREDL now: extremes are ordered and scored by their AREDL placement, and everything else by its GD Demon Ladder rating on the same scale (a curve fit to the whole AREDL turns a placement into a rating). Points shift for everyone." },
+      { kind: "note", text: "GD Demon Ladder ratings refreshed - 4 levels drifted (Game Time 15.05 → 15.06, Future Funk 12.95 → 12.96, Tidal Line 10.15 → 10.22, well being spot 3.61 → 3.62)." },
+      { kind: "move", demon: "Tidal Line", demonId: 104968496, from: 27, to: 26, text: "GD Demon Ladder rating refresh - Tidal Line 10.15 → 10.22" },
+    ],
+  },
+  {
     date: "2026-10-04",
     items: [
       // newest first: the rating refresh came after Zafari went in
