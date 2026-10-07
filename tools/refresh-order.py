@@ -19,6 +19,9 @@ data/changelog.js as a move with its reason, so Position History follows it.
 
     python tools/refresh-order.py            refresh, re-sort, log, write
     python tools/refresh-order.py --dry-run  print what would change
+    python tools/refresh-order.py --no-drift-note
+        no changelog note for GD Demon Ladder rating drift (the scheduled upkeep:
+        tiny drifts every few days would bury the changelog; moves are still logged)
 
 This file is the same on both sites (Nigel's Demonlist and Aceabase).
 """
@@ -224,7 +227,7 @@ def main():
         notes.append({"kind": "note", "text": "The list follows the AREDL now: extremes are ordered and scored by their AREDL "
                       "placement, and everything else by its GD Demon Ladder rating on the same scale (a curve fit to the "
                       "whole AREDL turns a placement into a rating). Points shift for everyone."})
-    if drift:
+    if drift and "--no-drift-note" not in sys.argv:
         notes.append({"kind": "note", "text": f"GD Demon Ladder ratings refreshed - {len(drift)} level"
                       f"{'s' if len(drift) != 1 else ''} drifted ({', '.join(f'{d['name']} {o} → {n}' for d, o, n in drift)})."})
     items = notes + list(reversed(moves))  # newest first: the replay applies them bottom-up
