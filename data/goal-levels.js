@@ -78,9 +78,9 @@ window.GOAL_LEVELS = {
       "ink": "#241f47"
     },
     "writeup": {
-      "text": "Akunakunn's neon-blue-and-gold odyssey, run to jeffusan's \"Tokyo Nights.\" A dense 2.1 Extreme built on tight straight-fly, sharp waves and unforgiving transitions crammed into 1:41. Leslie put it down in 2023 and called it the hardest thing she'd ever verified — the in-game description still roasts a player named luigidb about it. Sits around #234 on the Demonlist.",
+      "text": "Akunakunn's blue-and-yellow solo extreme, set to jeffusan's \"Tokyo Nights\": a slow-paced memory level packed with doodle-like decoration and wacky gimmicks, the wave at 24% most of all. Leslie verified it in May 2023, and it sits around #237 on the Demonlist.",
       "source": "Pointercrate Demonlist",
-      "url": "https://pointercrate.com/demonlist/234/"
+      "url": "https://pointercrate.com/demonlist/237/"
     }
   },
   "118697760": {
@@ -113,9 +113,9 @@ window.GOAL_LEVELS = {
       "ink": "#47471f"
     },
     "writeup": {
-      "text": "Four and a half minutes. Wave and mini-wave, and nothing else. BombCraft2010's endurance monster is a marathon of narrow corridors and pixel-thin gaps where a single twitch ends the run — the kind of Extreme people keep insisting should be an Insane, right up until they try to hold it together for the full length. Wave mains only.",
-      "source": "GD Demon Ladder",
-      "url": "https://gdladder.com/level/118697760"
+      "text": "Four minutes of wave and nothing else. BombCraft2010's all-wave extreme, set to cYsmix's \"FATES\", gets faster and more intense as it goes, and most of its difficulty is staying consistent and holding your nerve.",
+      "source": "AREDL",
+      "url": "https://aredl.net"
     }
   },
   "20761188": {
@@ -183,9 +183,9 @@ window.GOAL_LEVELS = {
       "ink": "#3a471f"
     },
     "writeup": {
-      "text": "The green one. Spectra's lone classic — a Nine Circles level that started life as \"Lime Circles,\" bookended by sunset skylines full of cranes and towers. An easy cube into a gap-riddled ship, and then the wave hits: spam, mini and dual patterns that demand machine-gun tapping and zero hesitation. Twenty-seven updates deep; it was #19 on the Demonlist back in 2017.",
-      "source": "Geometry Dash Wiki — Nine Circles Levels",
-      "url": "https://geometrydash.wiki.gg/wiki/Nine_Circles_Levels"
+      "text": "Spectra's lime-green entry in the Nine Circles family: a 2.0 Extreme built for fast, high-CPS wave play, set to Rukkus's remix of DEV's \"Bass Down Low\" - since pulled from Newgrounds, so it now needs a NONG. It was once in the Demonlist's top 150; today it sits on Pointercrate's legacy list.",
+      "source": "Pointercrate Demonlist",
+      "url": "https://pointercrate.com/demonlist/552/"
     }
   },
   "146399247": {
@@ -219,9 +219,9 @@ window.GOAL_LEVELS = {
       "ink": "#47471f"
     },
     "writeup": {
-      "text": "Devilmine handed the palette to a random number generator — three colours, hue shifts allowed — and built an Extreme Demon around whatever came out. Short, sharp, and set to Waterflame's \"-Killstealer-,\" it landed in August 2026 wearing the crown of easiest Extreme Demon in the game. Still an Extreme.",
-      "source": "GD Demon Ladder",
-      "url": "https://gdladder.com/level/146399247"
+      "text": "Devilmine built it around just three randomly generated colours. A short, skill-based extreme set to Waterflame's \"-Killstealer-\": straightforward at first, then the ship and wave in the second half spike hard - which is why it's not one to pick as a first extreme.",
+      "source": "AREDL",
+      "url": "https://aredl.net"
     }
   },
   "113220284": {
@@ -254,9 +254,9 @@ window.GOAL_LEVELS = {
       "ink": "#471f1f"
     },
     "writeup": {
-      "text": "Dolabill's would-be Top 5 — showcased as an upcoming monster, then nerfed toward Tartarus tier and still landing near #80 on the Demonlist. Fifty-two thousand objects of dark, churning red set to Korsak's \"green eyes.\" Dolabill's own 100% made him the best non-American player in the game, eleven years in. This is the hard one on the board.",
+      "text": "Dolabill's atmospheric, floaty vortex of a level, set to Korsak's washed-out \"green eyes\" and loosely inspired by White Space - with an ending you won't forget: a realistic hand. Gokill verified it, and it sits around #84 on the Demonlist.",
       "source": "Pointercrate Demonlist",
-      "url": "https://pointercrate.com/demonlist/79/"
+      "url": "https://pointercrate.com/demonlist/84/"
     }
   },
   "86084399": {
