@@ -146,6 +146,11 @@
     var subdivisionCheckbox = el("show-subdivisions-checkbox");
     var scopeEl = el("sv-scope");
 
+    // A country-only list (SITE.subdivisions === false - Aceabase): no state
+    // borders on the map, no state picker or state rows. Countries are the
+    // smallest place a player is from.
+    var useSubdivisions = !(window.SITE && window.SITE.subdivisions === false);
+
     var mode = "individual";
     var filter = { continent: "", nation: "", subdivision: "" };
     var selected = null; // { kind: "player"|"nation", id }
@@ -161,13 +166,13 @@
       }
     }
     if (map) {
-      map.showSubdivisions();
+      if (useSubdivisions) map.showSubdivisions();
 
       map.addSelectionListener(function (country, sub) {
-        if (mode === "nations") sub = undefined; // states aren't ranked
+        if (mode === "nations" || !useSubdivisions) sub = undefined; // states aren't ranked
         filter.nation = country;
         filter.subdivision = sub || "";
-        if (mode === "nations" && sub === undefined) map.select(country); // move highlight off the state
+        if ((mode === "nations" || !useSubdivisions) && sub === undefined) map.select(country); // move highlight off the state
         populateSubdivisions(country);
         if (subdivisionSelect) subdivisionSelect.value = sub || "";
         onFilterChanged();
@@ -193,6 +198,10 @@
       // continent needs the map's grouping; the subdivision toggle is map-only
       hidePanel("continent-panel");
       hidePanel("subdivision-toggle-panel");
+    }
+    if (!useSubdivisions) {
+      hidePanel("subdivision-toggle-panel");
+      hidePanel("subdivision-panel");
     }
 
     // --- continent dropdown -------------------------------------------------
@@ -582,7 +591,7 @@
       togglePanel("subdivision-panel", mode === "individual");
       el("players-row").style.display = mode === "nations" ? "" : "none";
       el("unbeaten-row").style.display = mode === "nations" ? "" : "none";
-      if (el("subdivisions-row")) el("subdivisions-row").style.display = mode === "nations" ? "" : "none";
+      if (el("subdivisions-row")) el("subdivisions-row").style.display = mode === "nations" && useSubdivisions ? "" : "none";
       hide("grind-row"); // repopulated when a player is picked
 
       // start the new mode from a clean slate (keep only the continent view)
