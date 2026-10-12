@@ -33,6 +33,23 @@
 
 window.CHANGELOG = [
   {
+    "date": "2026-10-12",
+    "items": [
+      {
+        "kind": "note",
+        "text": "GD Demon Ladder ratings refreshed - 18 levels drifted (Bloodbath 23.97 → 23.98, Steel Terrors 21.52 → 21.5, Bad Trip 17.92 → 17.93, BuTiTi II 17.8 → 17.79, Nilscapes 17.04 → 17.03, Dream Travel 16.78 → 16.79, CraZy II 15.3 → 15.31, Stalemate 15.2 → 15.21, Game Time 15.06 → 15.08, Future Funk 12.96 → 12.95, Tidal Line 10.22 → 10.24, Space Invaders 10.18 → 10.17, Entropic Dreams 9.93 → 9.94, Biru 9.85 → 9.86, penguin industries 5.31 → 5.3, Zafari 4.92 → 4.91, Change of Scene 3.04 → 3.05, Horizon 2.89 → 2.9)."
+      },
+      {
+        "kind": "move",
+        "demon": "Horizon",
+        "demonId": 14850167,
+        "from": 51,
+        "to": 50,
+        "text": "GD Demon Ladder rating refresh - Horizon 2.89 → 2.9"
+      }
+    ]
+  },
+  {
     "date": "2026-10-06",
     "items": [
       {

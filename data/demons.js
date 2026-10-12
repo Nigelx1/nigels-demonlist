@@ -74,7 +74,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 347
+    "aredlPosition": 348
   },
   {
     "id": 78248443,
@@ -112,14 +112,14 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 643
+    "aredlPosition": 644
   },
   {
     "id": 10565740,
     "position": 3,
     "name": "Bloodbath",
     "difficulty": "Extreme",
-    "rating": 23.97,
+    "rating": 23.98,
     "publisher": "Riot",
     "creators": [
       "Riot"
@@ -151,7 +151,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 845
+    "aredlPosition": 846
   },
   {
     "id": 93752979,
@@ -190,7 +190,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 934
+    "aredlPosition": 935
   },
   {
     "id": 89976481,
@@ -229,14 +229,14 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1122
+    "aredlPosition": 1123
   },
   {
     "id": 119653522,
     "position": 6,
     "name": "Steel Terrors",
     "difficulty": "Extreme",
-    "rating": 21.52,
+    "rating": 21.5,
     "publisher": "DreamZoneGD",
     "creators": [
       "DreamZoneGD"
@@ -268,7 +268,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1215
+    "aredlPosition": 1216
   },
   {
     "id": 30219145,
@@ -306,7 +306,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1380
+    "aredlPosition": 1381
   },
   {
     "id": 114933189,
@@ -345,7 +345,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1592
+    "aredlPosition": 1593
   },
   {
     "id": 61137742,
@@ -391,7 +391,7 @@ window.DEMONS = [
     "position": 10,
     "name": "Bad Trip",
     "difficulty": "Insane",
-    "rating": 17.92,
+    "rating": 17.93,
     "publisher": "Loltad",
     "creators": [
       "Loltad"
@@ -429,7 +429,7 @@ window.DEMONS = [
     "position": 11,
     "name": "BuTiTi II",
     "difficulty": "Insane",
-    "rating": 17.8,
+    "rating": 17.79,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -468,7 +468,7 @@ window.DEMONS = [
     "position": 12,
     "name": "Nilscapes",
     "difficulty": "Insane",
-    "rating": 17.04,
+    "rating": 17.03,
     "publisher": "L413",
     "creators": [
       "L413"
@@ -590,7 +590,7 @@ window.DEMONS = [
     "position": 15,
     "name": "Dream Travel",
     "difficulty": "Insane",
-    "rating": 16.78,
+    "rating": 16.79,
     "publisher": "SuprianGD",
     "creators": [
       "SuprianGD"
@@ -789,7 +789,7 @@ window.DEMONS = [
     "position": 20,
     "name": "CraZy II",
     "difficulty": "Insane",
-    "rating": 15.3,
+    "rating": 15.31,
     "publisher": "DavJT",
     "creators": [
       "DavJT"
@@ -828,7 +828,7 @@ window.DEMONS = [
     "position": 21,
     "name": "Stalemate",
     "difficulty": "Insane",
-    "rating": 15.2,
+    "rating": 15.21,
     "publisher": "Nox",
     "creators": [
       "Nox"
@@ -866,7 +866,7 @@ window.DEMONS = [
     "position": 22,
     "name": "Game Time",
     "difficulty": "Insane",
-    "rating": 15.06,
+    "rating": 15.08,
     "publisher": "SimilarAMZ",
     "creators": [
       "SimilarAMZ"
@@ -943,7 +943,7 @@ window.DEMONS = [
     "position": 24,
     "name": "Future Funk",
     "difficulty": "Hard",
-    "rating": 12.96,
+    "rating": 12.95,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1038,7 +1038,7 @@ window.DEMONS = [
     "position": 26,
     "name": "Tidal Line",
     "difficulty": "Hard",
-    "rating": 10.22,
+    "rating": 10.24,
     "publisher": "Sp4rce",
     "creators": [
       "Sp4rce"
@@ -1077,7 +1077,7 @@ window.DEMONS = [
     "position": 27,
     "name": "Space Invaders",
     "difficulty": "Hard",
-    "rating": 10.18,
+    "rating": 10.17,
     "publisher": "DeeperSpace",
     "creators": [
       "DeeperSpace"
@@ -1155,7 +1155,7 @@ window.DEMONS = [
     "position": 29,
     "name": "Entropic Dreams",
     "difficulty": "Hard",
-    "rating": 9.93,
+    "rating": 9.94,
     "publisher": "LepszyGD",
     "creators": [
       "LepszyGD"
@@ -1194,7 +1194,7 @@ window.DEMONS = [
     "position": 30,
     "name": "Biru",
     "difficulty": "Medium",
-    "rating": 9.85,
+    "rating": 9.86,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1547,7 +1547,7 @@ window.DEMONS = [
     "position": 39,
     "name": "penguin industries",
     "difficulty": "Medium",
-    "rating": 5.31,
+    "rating": 5.3,
     "publisher": "Unknown1276",
     "creators": [
       "Unknown1276"
@@ -1586,7 +1586,7 @@ window.DEMONS = [
     "position": 40,
     "name": "Zafari",
     "difficulty": "Easy",
-    "rating": 4.92,
+    "rating": 4.91,
     "publisher": "Rustam",
     "creators": [
       "Rustam"
@@ -1929,7 +1929,7 @@ window.DEMONS = [
     "position": 49,
     "name": "Change of Scene",
     "difficulty": "Easy",
-    "rating": 3.04,
+    "rating": 3.05,
     "publisher": "bli",
     "creators": [
       "bli"
@@ -1964,8 +1964,46 @@ window.DEMONS = [
     "aredlPosition": null
   },
   {
-    "id": 77292103,
+    "id": 14850167,
     "position": 50,
+    "name": "Horizon",
+    "difficulty": "Easy",
+    "rating": 2.9,
+    "publisher": "Mylon",
+    "creators": [
+      "Mylon"
+    ],
+    "verifier": "Nigel",
+    "videoUrl": "https://www.youtube.com/watch?v=V3nqPzwHOPU",
+    "thumbnailUrl": "https://i.ytimg.com/vi/V3nqPzwHOPU/maxresdefault.jpg",
+    "levelId": 14850167,
+    "description": "...",
+    "requirementPercent": 100,
+    "records": [
+      {
+        "player": "Nigel",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "IL"
+      }
+    ],
+    "gd": {
+      "length": "Long",
+      "gameVersion": "2.0",
+      "inGameDifficulty": "Easy Demon",
+      "song": {
+        "id": "576166",
+        "name": "This Game RmX Off Vocal",
+        "artist": "dj-Jo",
+        "link": "-"
+      },
+      "songOfficial": false
+    },
+    "aredlPosition": null
+  },
+  {
+    "id": 77292103,
+    "position": 51,
     "name": "White Space",
     "difficulty": "Easy",
     "rating": 2.89,
@@ -1996,44 +2034,6 @@ window.DEMONS = [
         "id": "951493",
         "name": "Something Different (feat. Talurre)",
         "artist": "DerpCatOfficial",
-        "link": "-"
-      },
-      "songOfficial": false
-    },
-    "aredlPosition": null
-  },
-  {
-    "id": 14850167,
-    "position": 51,
-    "name": "Horizon",
-    "difficulty": "Easy",
-    "rating": 2.89,
-    "publisher": "Mylon",
-    "creators": [
-      "Mylon"
-    ],
-    "verifier": "Nigel",
-    "videoUrl": "https://www.youtube.com/watch?v=V3nqPzwHOPU",
-    "thumbnailUrl": "https://i.ytimg.com/vi/V3nqPzwHOPU/maxresdefault.jpg",
-    "levelId": 14850167,
-    "description": "...",
-    "requirementPercent": 100,
-    "records": [
-      {
-        "player": "Nigel",
-        "progress": 100,
-        "nationality": "US",
-        "subdivision": "IL"
-      }
-    ],
-    "gd": {
-      "length": "Long",
-      "gameVersion": "2.0",
-      "inGameDifficulty": "Easy Demon",
-      "song": {
-        "id": "576166",
-        "name": "This Game RmX Off Vocal",
-        "artist": "dj-Jo",
         "link": "-"
       },
       "songOfficial": false
