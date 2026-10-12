@@ -40,6 +40,7 @@ window.SITE = {
   // from functions/editors.json, which is what it logs people in with.
   editors: [
     { name: "Nigel", head: true },
+    { name: "Juice", head: true },
   ],
   helpers: [],
 
