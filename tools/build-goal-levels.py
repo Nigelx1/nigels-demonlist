@@ -192,10 +192,31 @@ for lid in level_ids:
     sid = gb.get("songID") or song.get("ID")
     sname = gb.get("songName") or song.get("Name")
     if sid and sname and re.match(r"^\d+$", str(sid)):
-        gd["song"] = {"id": str(sid), "name": sname, "artist": gb.get("songAuthor") or song.get("ArtistName") or ""}
+        gd["song"] = {"id": str(sid), "name": sname,
+                      "artist": gb.get("songAuthor") or song.get("Author") or song.get("ArtistName") or ""}
         sl = gb.get("songLink")
         if sl and sl != "-":
             gd["song"]["link"] = sl
+    # A source that didn't answer keeps what this level had before instead of
+    # blanking it. Every Grind edit, showcase check and upkeep rebuilds this file,
+    # so one bad gdbrowser/gdladder answer would otherwise take a creator, song or
+    # "Created In" off a Grind page until the next good rebuild (2026-10-12).
+    old = prev.get(str(lid)) or {}
+    kept = []
+    if old:
+        if not gb and old.get("gd"):  # gdbrowser's facts: length, objects, version, song
+            for k, v in old["gd"].items():
+                if gd.get(k) != v:
+                    gd[k] = v
+                    kept.append("gd." + k)
+        for k in ("name", "publisher", "description", "rating", "difficulty"):
+            blank = (not entry.get(k) or (k == "name" and entry[k] == f"Level {lid}")
+                     or (k == "difficulty" and not meta.get("Difficulty") and not gb.get("difficulty")))
+            if blank and old.get(k) and entry.get(k) != old[k]:
+                entry[k] = old[k]
+                kept.append(k)
+    if kept:
+        print(f"  KEPT {lid} {entry['name']}: {', '.join(kept)}")
     entry["gd"] = gd
 
     if showcase:
@@ -213,6 +234,11 @@ for lid in level_ids:
 
     out[str(lid)] = entry
     print(f"  {lid}  {entry['name']:<26} r{rating}  {difficulty:<8} accent={entry.get('palette', {}).get('accent', '?')}")
+
+# Numeric order: tools/apply-edit.py writes this file back through node, which
+# orders number-like keys that way, so both writers agree (a different order
+# made every other rebuild a whole-file diff and broke undo of Grind edits).
+out = dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 header = (
     '"use strict";\n'

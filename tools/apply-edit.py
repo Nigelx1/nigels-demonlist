@@ -865,6 +865,7 @@ class Engine:
         print("  apply-showcases.py " + CHANNEL)
         r = run_tool(self.root, ["apply-showcases.py", CHANNEL])
         out = (r.stdout or "") + (r.stderr or "")
+        self.say_kept(out)
         if r.returncode or " uploads" not in out:
             self.say("Couldn't read Nigel's YouTube channel this time, so showcases weren't checked.")
             return
@@ -911,14 +912,23 @@ class Engine:
         # edit reversed, written to no working tree), so line endings and nearby
         # changes don't matter; a real conflict (a newer edit changed the same
         # lines) exits 1.
-        r = git("merge-tree", "--write-tree", "--no-messages", f"--merge-base={sha}", "HEAD", f"{sha}^", check=False)
-        if r.returncode == 1:
+        r = git("merge-tree", "--write-tree", "--no-messages", "--name-only", f"--merge-base={sha}", "HEAD",
+                f"{sha}^", check=False)
+        got = [x.strip() for x in r.stdout.split("\n") if x.strip()]
+        # data/goal-levels.js is derived (rebuilt from goals.js by every Grind edit,
+        # showcase check and upkeep), so it is never reversed: it is rebuilt below,
+        # and a conflict in it alone doesn't stop the undo.
+        derived = "data/goal-levels.js"
+        if r.returncode == 1 and set(got[1:]) - {derived}:
             raise Refuse("a later edit changed the same part of the list, so this one can't be undone on its own - "
                          "undo the newer edits first")
-        if r.returncode:
+        if r.returncode not in (0, 1) or not got:
             raise Refuse("couldn't work out how to undo that edit: " + (r.stderr or r.stdout).strip()[:200])
-        tree = r.stdout.split()[0]
+        tree = got[0]
         paths = [x for x in git("diff", "--name-only", "-z", "HEAD", tree).stdout.split("\0") if x]
+        if derived in paths:
+            paths.remove(derived)
+            self.goals_touched = True
         if not paths:
             raise Refuse("that edit didn't change anything that's still there to undo")
         for rel in paths:
@@ -1047,6 +1057,16 @@ class Engine:
             got = subprocess.run(["curl", "-sS", "-f", "-o", flag, FLAG_SRC + f"{cc.lower()}.svg"], capture_output=True)
             if got.returncode:
                 self.say(f"(No flag picture exists for {cc} - the name shows without one.)")
+        if sub:  # the state's flag, where add-records.py puts it (flags/us/il.svg)
+            sflag = os.path.join(self.root, "static", "images", "flags", cc.lower(), f"{sub.lower()}.svg")
+            if not os.path.exists(sflag):
+                os.makedirs(os.path.dirname(sflag), exist_ok=True)
+                got = subprocess.run(["curl", "-sS", "-f", "-o", sflag, FLAG_SRC + f"{cc.lower()}/{sub.lower()}.svg"],
+                                     capture_output=True)
+                if got.returncode:
+                    if os.path.exists(sflag) and not os.path.getsize(sflag):
+                        os.remove(sflag)
+                    self.say(f"(No flag picture exists for {cc}-{sub} - it shows without one.)")
         self.say(f"{who} is now from {where} ({len(recs)} record{'s' if len(recs) != 1 else ''}).")
         self.subjects.append(f"{who} is from {cc}" + (f"-{sub}" if sub else ""))
 
@@ -1176,10 +1196,17 @@ class Engine:
         if "\n".join(lines) != text:
             write(self.root, "data/goals.js", "\n".join(lines))
 
+    def say_kept(self, out):
+        """build-goal-levels.py's KEPT lines: facts a level kept because gdladder or
+        gdbrowser didn't answer (it keeps the saved ones rather than blanking them)."""
+        for m in re.finditer(r"^\s*KEPT \d+ (.+?): (.+)$", out or "", re.M):
+            self.say(f"  gdladder/gdbrowser didn't answer for {m.group(1)} - kept its saved {m.group(2)}.")
+
     def rebuild_goal_levels(self):
         before = load_state(self.root)["GOAL_LEVELS"]
         print("  build-goal-levels.py")
         r = run_tool(self.root, ["build-goal-levels.py"])
+        self.say_kept(r.stdout)
         if r.returncode:
             raise Refuse("rebuilding the Grind pages failed: " + ((r.stderr or r.stdout).strip().splitlines() or ["?"])[-1].strip())
         after_state = load_state(self.root)
@@ -1368,6 +1395,8 @@ def main():
         if not git("status", "--porcelain").stdout.strip():
             report(f"Edit {p['requestId']} by {p['editor']}: nothing to change", e.lines or ["Nothing to change."], True)
             return
+        if not e.subjects:  # only the Grind pages' downloaded facts changed
+            e.subjects.append("Refresh the Grind pages")
         msg = subject(e.subjects, p["editor"]) + "\n\n" + "\n".join(e.lines) + f"\n\nRequest: {p['requestId']}\n"
         env = dict(os.environ, GIT_AUTHOR_NAME=BOT_NAME, GIT_AUTHOR_EMAIL=BOT_EMAIL,
                    GIT_COMMITTER_NAME=BOT_NAME, GIT_COMMITTER_EMAIL=BOT_EMAIL)

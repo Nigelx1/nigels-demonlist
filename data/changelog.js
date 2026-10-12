@@ -24,80 +24,167 @@
 // row's reason verbatim.
 // -----------------------------------------------------------------------------
 
+// Notes on the entries below (moved here when the file became the JSON layout
+// the mod page writes, 2026-10-12):
+//   newest first: the rating refresh came after Zafari went in
+//   high position -> low so the position-history replay inserts low -> high
+//   ordered high position number -> low so the position-history replay
+//   (which reverses items within an entry) inserts them low -> high
+
 window.CHANGELOG = [
   {
-    date: "2026-10-06",
-    items: [
-      { kind: "note", text: "The list follows the AREDL now: extremes are ordered and scored by their AREDL placement, and everything else by its GD Demon Ladder rating on the same scale (a curve fit to the whole AREDL turns a placement into a rating). Points shift for everyone." },
-      { kind: "note", text: "GD Demon Ladder ratings refreshed - 4 levels drifted (Game Time 15.05 → 15.06, Future Funk 12.95 → 12.96, Tidal Line 10.15 → 10.22, well being spot 3.61 → 3.62)." },
-      { kind: "move", demon: "Tidal Line", demonId: 104968496, from: 27, to: 26, text: "GD Demon Ladder rating refresh - Tidal Line 10.15 → 10.22" },
-    ],
+    "date": "2026-10-06",
+    "items": [
+      {
+        "kind": "note",
+        "text": "The list follows the AREDL now: extremes are ordered and scored by their AREDL placement, and everything else by its GD Demon Ladder rating on the same scale (a curve fit to the whole AREDL turns a placement into a rating). Points shift for everyone."
+      },
+      {
+        "kind": "note",
+        "text": "GD Demon Ladder ratings refreshed - 4 levels drifted (Game Time 15.05 → 15.06, Future Funk 12.95 → 12.96, Tidal Line 10.15 → 10.22, well being spot 3.61 → 3.62)."
+      },
+      {
+        "kind": "move",
+        "demon": "Tidal Line",
+        "demonId": 104968496,
+        "from": 27,
+        "to": 26,
+        "text": "GD Demon Ladder rating refresh - Tidal Line 10.15 → 10.22"
+      }
+    ]
   },
   {
-    date: "2026-10-04",
-    items: [
-      // newest first: the rating refresh came after Zafari went in
-      { kind: "note", text: "GDDL ratings refreshed - 29 levels had drifted since they were added, so everyone's points shift a little." },
-      { kind: "move", demon: "Theory of Everything 2", demonId: 2, from: 49, to: 48, text: "GDDL rating refresh - Theory of Everything 2 3.04 → 3.05, Change of Scene 3.04" },
-      { kind: "move", demon: "Space Invaders", demonId: 102343052, from: 27, to: 26, text: "GDDL rating refresh - Space Invaders 10.21 → 10.18, Tidal Line 10.23 → 10.15" },
-      { kind: "add", demon: "Zafari", demonId: 29619645, at: 40, text: "Nigel's clear - Rustam's first 2.1 level, an Easy Demon" },
-    ],
+    "date": "2026-10-04",
+    "items": [
+      {
+        "kind": "note",
+        "text": "GDDL ratings refreshed - 29 levels had drifted since they were added, so everyone's points shift a little."
+      },
+      {
+        "kind": "move",
+        "demon": "Theory of Everything 2",
+        "demonId": 2,
+        "from": 49,
+        "to": 48,
+        "text": "GDDL rating refresh - Theory of Everything 2 3.04 → 3.05, Change of Scene 3.04"
+      },
+      {
+        "kind": "move",
+        "demon": "Space Invaders",
+        "demonId": 102343052,
+        "from": 27,
+        "to": 26,
+        "text": "GDDL rating refresh - Space Invaders 10.21 → 10.18, Tidal Line 10.23 → 10.15"
+      },
+      {
+        "kind": "add",
+        "demon": "Zafari",
+        "demonId": 29619645,
+        "at": 40,
+        "text": "Nigel's clear - Rustam's first 2.1 level, an Easy Demon"
+      }
+    ]
   },
   {
-    date: "2026-09-06",
-    items: [
-      // high position -> low so the position-history replay inserts low -> high
-      { kind: "add", demon: "Lit Fuse", demonId: 15122517, at: 16, text: "ufplayer's clear - KrmaL's first solo, an Insane Demon" },
-      { kind: "add", demon: "Bad Trip", demonId: 59948178, at: 10, text: "ufplayer's clear - Loltad's one-man megacollab" },
-      { kind: "add", demon: "HyperSonic", demonId: 30219145, at: 7, text: "ufplayer's clear - the ViPriN Sonic megacollab" },
-      { kind: "add", demon: "Steel Terrors", demonId: 119653522, at: 6, text: "ufplayer's clear - a DreamZoneGD Extreme Demon" },
+    "date": "2026-09-06",
+    "items": [
       {
-        kind: "note",
-        text: "ufplayer also cleared Supersonic (already #14). They move to #2 on the leaderboard, past Juice.",
+        "kind": "add",
+        "demon": "Lit Fuse",
+        "demonId": 15122517,
+        "at": 16,
+        "text": "ufplayer's clear - KrmaL's first solo, an Insane Demon"
       },
-    ],
+      {
+        "kind": "add",
+        "demon": "Bad Trip",
+        "demonId": 59948178,
+        "at": 10,
+        "text": "ufplayer's clear - Loltad's one-man megacollab"
+      },
+      {
+        "kind": "add",
+        "demon": "HyperSonic",
+        "demonId": 30219145,
+        "at": 7,
+        "text": "ufplayer's clear - the ViPriN Sonic megacollab"
+      },
+      {
+        "kind": "add",
+        "demon": "Steel Terrors",
+        "demonId": 119653522,
+        "at": 6,
+        "text": "ufplayer's clear - a DreamZoneGD Extreme Demon"
+      },
+      {
+        "kind": "note",
+        "text": "ufplayer also cleared Supersonic (already #14). They move to #2 on the leaderboard, past Juice."
+      }
+    ]
   },
   {
-    date: "2026-09-04",
-    items: [
-      // ordered high position number -> low so the position-history replay
-      // (which reverses items within an entry) inserts them low -> high
-      { kind: "add", demon: "tower descent", demonId: 92742742, at: 24, text: "ufplayer's clear - a pocke Hard Demon" },
-      { kind: "add", demon: "CraZy II", demonId: 47620786, at: 16, text: "ufplayer's clear - DavJT's Insane Demon" },
-      { kind: "add", demon: "Fool Moon Paranoid", demonId: 87932531, at: 13, text: "ufplayer's clear - an unne Insane Demon" },
-      { kind: "add", demon: "Worse Trip", demonId: 78248443, at: 2, text: "ufplayer's clear - Loltad's Extreme Demon, straight in at #2" },
+    "date": "2026-09-04",
+    "items": [
       {
-        kind: "note",
-        text: "New member: ufplayer, from Mexico. Trying to beat LIMBO.",
+        "kind": "add",
+        "demon": "tower descent",
+        "demonId": 92742742,
+        "at": 24,
+        "text": "ufplayer's clear - a pocke Hard Demon"
       },
-    ],
+      {
+        "kind": "add",
+        "demon": "CraZy II",
+        "demonId": 47620786,
+        "at": 16,
+        "text": "ufplayer's clear - DavJT's Insane Demon"
+      },
+      {
+        "kind": "add",
+        "demon": "Fool Moon Paranoid",
+        "demonId": 87932531,
+        "at": 13,
+        "text": "ufplayer's clear - an unne Insane Demon"
+      },
+      {
+        "kind": "add",
+        "demon": "Worse Trip",
+        "demonId": 78248443,
+        "at": 2,
+        "text": "ufplayer's clear - Loltad's Extreme Demon, straight in at #2"
+      },
+      {
+        "kind": "note",
+        "text": "New member: ufplayer, from Mexico. Trying to beat LIMBO."
+      }
+    ]
   },
   {
-    date: "2026-09-01",
-    items: [
+    "date": "2026-09-01",
+    "items": [
       {
-        kind: "add",
-        demon: "HeLL",
-        demonId: 25706351,
-        at: 23,
-        text: "jd's clear - a Serponge Medium Demon",
+        "kind": "add",
+        "demon": "HeLL",
+        "demonId": 25706351,
+        "at": 23,
+        "text": "jd's clear - a Serponge Medium Demon"
       },
       {
-        kind: "note",
-        text: "Jack (now listed from California) logged clears on Future Funk, Nine Circles, Skeletal Shenanigans, DeCode, Deadlocked, ToE2 and Clubstep.",
+        "kind": "note",
+        "text": "Jack (now listed from California) logged clears on Future Funk, Nine Circles, Skeletal Shenanigans, DeCode, Deadlocked, ToE2 and Clubstep."
       },
       {
-        kind: "note",
-        text: "List created - 65 demons imported from our gdladder.com profiles (every non-platformer completion), ranked hardest-first by GD Demon Ladder's difficulty rating.",
+        "kind": "note",
+        "text": "List created - 65 demons imported from our gdladder.com profiles (every non-platformer completion), ranked hardest-first by GD Demon Ladder's difficulty rating."
       },
       {
-        kind: "note",
-        text: "Tiers set: the top 20 are the Main List and everything after that is the Extended List. No Legacy tier.",
+        "kind": "note",
+        "text": "Tiers set: the top 20 are the Main List and everything after that is the Extended List. No Legacy tier."
       },
       {
-        kind: "note",
-        text: "Every demon now has its GD Demon Ladder showcase video and thumbnail.",
-      },
-    ],
-  },
+        "kind": "note",
+        "text": "Every demon now has its GD Demon Ladder showcase video and thumbnail."
+      }
+    ]
+  }
 ];

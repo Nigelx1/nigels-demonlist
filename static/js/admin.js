@@ -405,9 +405,11 @@
       var where = lv.onList === true ? "On the list at #" + lv.position + "." : lv.onList === false ? "Not on the list yet." : "";
       var warn = [];
       if (forClear) {
-        var allowed = SITE.allowedDifficulties || ["Extreme", "Insane"];
+        // Only a list that limits difficulties (SITE.allowedDifficulties) refuses the rest.
+        var allowed = SITE.allowedDifficulties;
         if (lv.platformer) warn.push("It's a platformer level - the list doesn't take those, so this would be refused.");
-        else if (allowed.indexOf(lv.tier) < 0) warn.push("It's " + (lv.difficulty || "not a demon") + " - the list only takes " + allowed.join(" and ") + " Demons, so this would be refused.");
+        else if (!lv.tier) warn.push("It's not a demon - the list only takes demons, so this would be refused.");
+        else if (allowed && allowed.indexOf(lv.tier) < 0) warn.push("It's " + (lv.difficulty || "not a demon") + " - the list only takes " + allowed.join(" and ") + " Demons, so this would be refused.");
         else if (lv.onList === false) warn.push("Only a 100% can put it on the list.");
       }
       clear(box);
