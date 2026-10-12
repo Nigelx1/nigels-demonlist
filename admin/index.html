@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Mod Page · Nigel's Demonlist</title>
+<meta name="description" content="Where the list editors update Nigel's Demonlist.">
+
+<script src="../static/core/js/vendor/jquery.min.js"></script>
+<script src="../data/config.js"></script>
+<script src="../data/demons.js"></script>
+<script src="../data/goal-levels.js"></script>
+<script src="../data/goals.js"></script>
+<script src="../static/js/list-utils.js"></script>
+
+<link rel="stylesheet" href="../static/core/css/icon.css">
+<link rel="stylesheet" href="../static/core/css/nav.css">
+<link rel="stylesheet" href="../static/core/css/main.css">
+<link rel="stylesheet" href="../static/core/css/ui.css">
+<link rel="stylesheet" href="../static/core/css/core.css">
+<link rel="stylesheet" href="../static/core/css/fa.all.min.css">
+<link rel="stylesheet" href="../static/css/admin.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat|Montserrat:light,bold">
+</head>
+<body>
+<div id="bg" aria-hidden="true"></div>
+<div class="content">
+<header>
+<nav class="center collapse underlined see-through">
+  <div class="nav-icon nav-nohide" style="margin-right:auto">
+    <a href="../index.html" aria-label="Go to homepage" style="font-weight:800;letter-spacing:.02em;font-size:1.1rem">Nigel's Demonlist</a>
+  </div>
+  <div class="nav-group">
+    <a class="nav-item hover white" href="../demonlist/index.html">
+      <span class="flex col"><span style="font-size:50%">Geometry Dash</span><span>DEMONLIST</span></span>
+      <i class="fas fa-sort-down" style="height:50%; padding-left:5px"></i>
+    </a>
+    <ul class="nav-hover-dropdown">
+      <li><a class="white hover" href="../guidelines/index.html">Guidelines</a></li>
+      <li><a class="white hover" href="../changelog/index.html">Changelog</a></li>
+      <li><a class="white hover" href="../demonlist/statsviewer.html">Stats Viewer</a></li>
+      <li class="mod-nav"><a class="white hover" href="/api/login">Mod login</a></li>
+    </ul>
+  </div>
+  <div class="nav-item collapse-button nav-nohide">
+    <div class="hamburger hover"><input type="checkbox"><span></span><span></span><span></span></div>
+  </div>
+  <div class="nav-drop-down">
+    <a class="nav-item hover white" href="../index.html">Home</a>
+    <a class="nav-item hover white" href="../demonlist/index.html">
+      <span class="flex col"><span style="font-size:50%">Geometry Dash</span><span>DEMONLIST</span></span>
+    </a>
+    <ul class="nav-hover-dropdown">
+      <li><a class="white hover" href="../guidelines/index.html">Guidelines</a></li>
+      <li><a class="white hover" href="../changelog/index.html">Changelog</a></li>
+      <li><a class="white hover" href="../demonlist/statsviewer.html">Stats Viewer</a></li>
+      <li class="mod-nav"><a class="white hover" href="/api/login">Mod login</a></li>
+    </ul>
+  </div>
+</nav>
+<div></div>
+</header>
+
+<div class="container" id="admin-page">
+  <section class="panel fade">
+    <h1 class="underlined pad">Mod Page</h1>
+    <p id="who" class="who">Checking if you're logged in...</p>
+  </section>
+
+  <!-- shown when not logged in -->
+  <section class="panel fade" id="login-panel" hidden>
+    <h2 class="underlined pad">Log in</h2>
+    <div id="login-problem" class="info-red" hidden></div>
+    <div id="denied" class="info-yellow" hidden>
+      <p>The Discord account <b id="denied-user"></b> isn't on the editor list yet.</p>
+      <p>Send Nigel this ID so he can add you:</p>
+      <div class="copy-row">
+        <code id="denied-id"></code>
+        <button type="button" class="button white hover small" id="denied-copy">Copy</button>
+      </div>
+    </div>
+    <p>Only the list editors can make changes here. Log in with your Discord account to start.</p>
+    <a class="button blue hover big-button" id="login-button" href="/api/login">Log in with Discord</a>
+  </section>
+
+  <!-- shown when the server isn't set up or can't be reached -->
+  <section class="panel fade" id="down-panel" hidden>
+    <h2 class="underlined pad">Not available</h2>
+    <p id="down-msg" class="info-red"></p>
+  </section>
+
+  <div id="tools" hidden>
+    <nav class="panel fade jump" aria-label="Tools">
+      <a href="#panel-clear">Add a clear</a>
+      <a href="#panel-grind">Grind</a>
+      <a href="#panel-members">Members</a>
+      <a href="#panel-videos">Clears &amp; videos</a>
+      <a href="#panel-order">List order</a>
+      <a href="#panel-edits">Recent edits</a>
+      <a href="#panel-mods" hidden>Mods</a>
+    </nav>
+
+    <datalist id="player-names"></datalist>
+
+    <!-- 1. Add a clear -->
+    <section class="panel fade tool" id="panel-clear">
+      <h2 class="underlined pad">Add a clear</h2>
+      <p class="hint">A finished run (100%), or progress on a level that's already on the list.</p>
+      <label class="field">
+        <span>Player</span>
+        <input type="text" id="clear-player" list="player-names" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Name on the list">
+      </label>
+      <div id="clear-new" class="new-player" hidden>
+        <p class="hint" id="clear-new-text">New player - they'll be added to the list too. Pick their country:</p>
+        <select id="clear-country" class="country-select"></select>
+        <select id="clear-subdivision" class="country-select" hidden></select>
+      </div>
+      <div class="field">
+        <label for="clear-level">Level</label>
+        <div class="level-row">
+          <input type="text" id="clear-level" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Level ID or gdladder / gdbrowser link">
+          <button type="button" class="button white hover" id="clear-check">Check</button>
+        </div>
+        <div class="level-info" id="clear-level-info" hidden></div>
+      </div>
+      <div class="two">
+        <label class="field">
+          <span>Progress %</span>
+          <input type="number" id="clear-progress" min="1" max="100" step="1" inputmode="numeric" value="100">
+        </label>
+        <label class="field">
+          <span>Video link <i>(optional)</i></span>
+          <input type="url" id="clear-video" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="YouTube or Google Drive">
+        </label>
+      </div>
+      <button type="button" class="button blue hover save" id="clear-save">Save clear</button>
+      <div class="msg" id="clear-msg" hidden></div>
+    </section>
+
+    <!-- 2. The Grind -->
+    <section class="panel fade tool" id="panel-grind">
+      <h2 class="underlined pad">Grind</h2>
+      <p class="hint">The levels players are working on. Pick a player to see what they're grinding now.</p>
+      <label class="field">
+        <span>Player</span>
+        <input type="text" id="grind-player" list="player-names" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Name on the list">
+      </label>
+      <div id="grind-current" class="current" hidden></div>
+      <div id="grind-editing" class="info-yellow" hidden></div>
+      <div class="field">
+        <label for="grind-level">Level</label>
+        <div class="level-row">
+          <input type="text" id="grind-level" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Level ID or gdladder / gdbrowser link">
+          <button type="button" class="button white hover" id="grind-check">Check</button>
+        </div>
+        <div class="level-info" id="grind-level-info" hidden></div>
+      </div>
+      <fieldset class="field best">
+        <legend>Best run from 0%</legend>
+        <div class="choices">
+          <label><input type="radio" name="grind-best" value="num" checked> <span>Best run</span></label>
+          <label><input type="radio" name="grind-best" value="zero"> <span>Not started</span></label>
+          <label><input type="radio" name="grind-best" value="null"> <span>Don't know</span></label>
+        </div>
+        <div class="best-num" id="grind-best-num-row">
+          <input type="number" id="grind-best-num" min="0" max="100" step="1" inputmode="numeric" placeholder="e.g. 45"> <span>%</span>
+        </div>
+      </fieldset>
+      <div class="field">
+        <span class="label">Runs <i>(practice runs, like 42–100)</i></span>
+        <div id="grind-runs" class="runs"></div>
+        <button type="button" class="button white hover small" id="grind-add-run">+ Add a run</button>
+      </div>
+      <div class="rules info-yellow">
+        <b>Grind rules</b>
+        <ul>
+          <li>Only add a run that isn't completely inside another one. If they have 5–26, leave out 5–25.</li>
+          <li>Leave out runs inside their best from 0% too (with a best of 40%, 10–30 doesn't go in).</li>
+          <li>Did the same run more than once? Put that in the note, like "48% twice."</li>
+        </ul>
+      </div>
+      <label class="field">
+        <span>Note <i>(optional, one line)</i></span>
+        <input type="text" id="grind-note" autocomplete="off" placeholder="e.g. 48% twice.">
+        <small class="counter" id="grind-note-count"></small>
+      </label>
+      <div class="buttons">
+        <button type="button" class="button blue hover save" id="grind-save">Save grind</button>
+        <button type="button" class="button white hover" id="grind-clear">Clear the form</button>
+      </div>
+      <div class="msg" id="grind-msg" hidden></div>
+    </section>
+
+    <!-- 3. Members -->
+    <section class="panel fade tool" id="panel-members">
+      <h2 class="underlined pad">Members</h2>
+      <h3>Add a member</h3>
+      <p class="hint">For someone with no clears yet. (Adding a clear for a new name adds them too.)</p>
+      <div class="two">
+        <label class="field">
+          <span>Name</span>
+          <input type="text" id="member-name" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Their name on the list">
+        </label>
+        <label class="field">
+          <span>Country</span>
+          <select id="member-country" class="country-select"></select>
+        </label>
+        <label class="field" id="member-subdivision-row" hidden>
+          <span>State / province</span>
+          <select id="member-subdivision" class="country-select"></select>
+        </label>
+      </div>
+      <button type="button" class="button blue hover save" id="member-save">Add member</button>
+      <div class="msg" id="member-msg" hidden></div>
+      <h3>Everyone on the list</h3>
+      <ul class="roster" id="roster"></ul>
+    </section>
+
+    <!-- 4. Clears & videos -->
+    <section class="panel fade tool" id="panel-videos">
+      <h2 class="underlined pad">Clears &amp; videos</h2>
+      <p class="hint">Add or remove the video on a clear, or take off a clear that was added by mistake.</p>
+      <label class="field">
+        <span>Player</span>
+        <input type="text" id="video-player" list="player-names" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Name on the list">
+      </label>
+      <label class="field" id="video-record-row" hidden>
+        <span>Clear</span>
+        <select id="video-record"></select>
+      </label>
+      <p class="hint" id="video-none" hidden></p>
+      <div id="video-tools" hidden>
+        <p class="current-video" id="video-current"></p>
+        <label class="field">
+          <span>Video link</span>
+          <input type="url" id="video-url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="YouTube or Google Drive">
+        </label>
+        <div class="buttons">
+          <button type="button" class="button blue hover save" id="video-save">Save video</button>
+          <button type="button" class="button white hover" id="video-remove">Remove video</button>
+        </div>
+        <div class="danger">
+          <button type="button" class="button red hover" id="record-remove">Remove this clear</button>
+          <span class="hint">Only for a clear added by mistake.</span>
+        </div>
+      </div>
+      <div class="msg" id="video-msg" hidden></div>
+    </section>
+
+    <!-- 5. List order -->
+    <section class="panel fade tool" id="panel-order">
+      <h2 class="underlined pad">List order</h2>
+      <p>Re-checks every demon's placement on the AREDL and GD Demon Ladder and re-sorts the list to match. Takes a couple of minutes.</p>
+      <button type="button" class="button blue hover save" id="order-save">Refresh the order</button>
+      <div class="msg" id="order-msg" hidden></div>
+      <p>Checks Nigel's YouTube channel and puts his showcase on every level that has one. It also runs by itself on Mondays and Thursdays.</p>
+      <button type="button" class="button blue hover save" id="showcase-save">Check Nigel's channel</button>
+      <div class="msg" id="showcase-msg" hidden></div>
+    </section>
+
+    <!-- 6. Recent edits -->
+    <section class="panel fade tool" id="panel-edits">
+      <h2 class="underlined pad">Recent edits</h2>
+      <p class="hint">Every edit from this page, newest first. Reload the page once one is live to see it in the tools above.</p>
+      <ul class="edits" id="edits"><li class="hint">Loading...</li></ul>
+      <button type="button" class="button white hover small" id="edits-refresh">Refresh</button>
+    </section>
+
+    <!-- 7. Mods (Nigel only; the server refuses everyone else) -->
+    <section class="panel fade tool" id="panel-mods" hidden>
+      <h2 class="underlined pad">Mods</h2>
+      <p class="hint">Only you can see this. It sets who can log in here and the List Mods panel on the list. A change counts a minute or two after it's live, once the site has redeployed.</p>
+      <h3>Add a mod</h3>
+      <p class="hint">Their Discord ID: in Discord, turn on Developer Mode (Settings &gt; Advanced), then right-click their name and pick Copy User ID. Or have them try to log in here: the page shows them their ID with a Copy button. Saving an ID that's already a mod changes their name or rank.</p>
+      <div class="two">
+        <label class="field">
+          <span>Discord ID</span>
+          <input type="text" id="mod-id" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="17-20 digits">
+        </label>
+        <label class="field">
+          <span>Name</span>
+          <input type="text" id="mod-name" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="As it shows in List Mods">
+        </label>
+      </div>
+      <label class="field">
+        <span>Rank</span>
+        <select id="mod-role">
+          <option value="mod">Mod</option>
+          <option value="head">Head mod</option>
+        </select>
+      </label>
+      <button type="button" class="button blue hover save" id="mod-save">Save mod</button>
+      <div class="msg" id="mod-msg" hidden></div>
+      <h3>The mod team</h3>
+      <ul class="mods" id="mod-team"><li class="hint">Loading...</li></ul>
+    </section>
+  </div>
+</div>
+</div>
+
+<footer class="center">
+  <span class="overline pad" style="text-align:center">
+    <span id="footer-name"></span><br>
+    A private Geometry Dash Demonlist. Not affiliated with RobTopGamesAB or pointercrate.
+  </span>
+  <div class="flex no-stretch">
+    <nav>
+      <h2>Nigel's Demonlist</h2>
+      <a class="link" href="../index.html">Home</a><br>
+      <a class="link" href="../demonlist/index.html">Demonlist</a><br>
+      <a class="link" href="../guidelines/index.html">Guidelines</a><br>
+      <a class="link" href="../changelog/index.html">Changelog</a><br>
+    </nav>
+  </div>
+  <script>document.getElementById("footer-name").textContent = "© " + window.SITE.name;</script>
+</footer>
+
+<script src="../static/core/js/nav.js"></script>
+<script src="../static/js/modnav.js"></script>
+<script src="../static/js/admin.js"></script>
+</body>
+</html>

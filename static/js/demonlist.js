@@ -163,19 +163,28 @@
     var players = DL.aggregatePlayers();
     var html = "";
 
-    // --- List Editors / Helpers ---
+    // --- List Mods / Helpers --- in the site's own font (not pointercrate's small
+    // caps): head mods in bold on the first line, the rest on the next, each in
+    // config.js's order.
+    var mods = cfg.editors || [];
+    // One centred, wrapping row per tier (#editors ul in demonlist.css, minus its
+    // small caps); separate items, so a wrap never leaves a dangling separator.
+    function modLine(list, bold) {
+      if (!list.length) return "";
+      return '<ul style="font-variant: normal; line-height: 1.9">' +
+        list.map(function (e) {
+          var name = DL.escapeHtml(e.name);
+          return '<li style="margin: 0 7px">' + (bold ? "<b>" + name + "</b>" : name) + "</li>";
+        }).join("") + "</ul>";
+    }
+    var heads = mods.filter(function (e) { return e.head; });
+    var rest = mods.filter(function (e) { return !e.head; });
     html += sidebarPanel(
       "editors",
-      "List Editors",
-      "<p>The people who keep the list in order. Poke one of them if a placement looks off or a record needs fixing.</p>" +
-        (cfg.editors.length
-          ? '<p class="staff-names">' +
-              cfg.editors
-                .map(function (e) {
-                  return DL.escapeHtml(e.name) + (e.role ? " <i>(" + DL.escapeHtml(e.role) + ")</i>" : "");
-                })
-                .join(" &middot; ") +
-              "</p>"
+      "List Mods",
+      "<p>Contact any of these people to get your clears or grind progress added, or if something on the list looks wrong.</p>" +
+        (mods.length
+          ? modLine(heads, true) + modLine(rest, false)
           : "<p><i>Not listed.</i></p>") +
         (cfg.helpers.length
           ? '<div class="underlined"><h2>List Helpers</h2></div>' +

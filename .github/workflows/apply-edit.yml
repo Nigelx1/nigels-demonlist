@@ -1,0 +1,49 @@
+# Applies one edit from the mod page (/admin/). The page's Cloudflare Function
+# sends a repository_dispatch "edit" with the edit in client_payload; this runs
+# tools/apply-edit.py on it, which edits the data files through the same tools
+# used by hand, checks everything, commits and pushes to master - and
+# Cloudflare Pages deploys that push.
+#
+# The run title carries the request id: the mod page's status API finds the
+# run for a request by it.
+#
+# No concurrency group on purpose: GitHub cancels a pending run when another
+# one joins the group, which would drop an edit. Two edits at once are fine -
+# the one that loses the push race starts over on top of the other.
+name: Apply edit
+run-name: "Edit ${{ github.event.client_payload.requestId }} by ${{ github.event.client_payload.editor }}"
+
+on:
+  repository_dispatch:
+    types: [edit]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # build-goal-levels.py reads thumbnail colours with Pillow; node and curl are on the runner
+      - run: pip install pillow
+
+      # The payload only ever reaches the script through an environment variable
+      # written to a file - never pasted into the script text, where an editor's
+      # input could become shell code. It goes outside the checkout so the tree
+      # stays clean for the commit.
+      - name: Apply the edit
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: |
+          printf '%s' "$PAYLOAD" > "$RUNNER_TEMP/payload.json"
+          python tools/apply-edit.py "$RUNNER_TEMP/payload.json"

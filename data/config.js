@@ -35,14 +35,28 @@ window.SITE = {
   // or leave as null to hide it.
   discordInvite: null,
 
-  // List staff shown in the sidebar "List Editors" / "List Helpers" panel.
-  // Leave empty and the panel is skipped. Do NOT fill these in with guesses -
-  // only add real names you provide.
+  // Sidebar "List Mods" (pointercrate's List Editors panel): head: true = head mod,
+  // shown first and in bold. The mod page's Mods panel (Nigel only) rebuilds this
+  // from functions/editors.json, which is what it logs people in with.
   editors: [
-    { name: "Nigel" },
+    { name: "Nigel", head: true },
   ],
-  helpers: [
-    // { name: "SomeHelper" },
+  helpers: [],
+
+  // States and provinces: shown here (the stats viewer's subdivision controls,
+  // and the mod page asks for one with a country). Aceabase has this off.
+  subdivisions: true,
+
+  // The community roster (the mod page's Members). Everyone with a clear or a
+  // Grind goal; members with no clears yet still get a 0-point spot in the
+  // stats viewer.
+  members: [
+    { name: "Jack", nationality: "US", subdivision: "CA" },
+    { name: "jd", nationality: "US" },
+    { name: "Juice", nationality: "US", subdivision: "IN" },
+    { name: "Nigel", nationality: "US", subdivision: "IL" },
+    { name: "ufplayer", nationality: "MX" },
+    { name: "xPapita", nationality: "US" },
   ],
 
   // Short blurbs shown as columns on the home page under the stats bar. Keep

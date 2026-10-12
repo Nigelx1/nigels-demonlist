@@ -1,0 +1,56 @@
+# The scheduled upkeep, run on GitHub's servers (Nigel's PC can be off):
+#   - re-sorts the list from the AREDL and GD Demon Ladder (tools/refresh-order.py
+#     without its rating-drift note; every position move is still logged, so
+#     each demon's Position History follows it);
+#   - puts Nigel's own showcase on every level his channel has one for
+#     (tools/apply-showcases.py @nigelx1).
+# Both go through tools/apply-edit.py, the mod page's engine: the same checks,
+# one commit (by github-actions[bot], "(scheduled upkeep)"), the same retry if a
+# mod's edit lands at the same moment. Upkeep mode skips a part when the AREDL
+# or YouTube doesn't answer instead of failing; nothing to change = no commit.
+#
+# Run it by hand from the Actions tab (Run workflow); a dry run is the default
+# there. GitHub pauses schedules in a public repo after 60 days with no commits:
+# any edit to the list keeps it going (re-enable it from the Actions tab if not).
+name: Upkeep
+run-name: "Upkeep${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && ' (dry run)' || '' }}"
+
+on:
+  schedule:
+    - cron: "23 11 * * 1,4"  # Mondays and Thursdays, 11:23 UTC (6:23 in Chicago, summer time)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: show what would change, save nothing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  upkeep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: pip install pillow
+
+      - name: Re-sort the list and use Nigel's showcases
+        env:
+          DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          python -c 'import json, secrets; print(json.dumps({"requestId": secrets.token_hex(8), "editor": "Upkeep", "role": "head", "upkeep": True, "ops": [{"op": "refresh_order"}, {"op": "refresh_showcases"}]}))' > "$RUNNER_TEMP/payload.json"
+          if [ "$DRY" = "true" ]; then
+            python tools/apply-edit.py "$RUNNER_TEMP/payload.json" --dry-run
+          else
+            python tools/apply-edit.py "$RUNNER_TEMP/payload.json"
+          fi

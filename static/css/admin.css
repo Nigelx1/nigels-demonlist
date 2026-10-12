@@ -1,0 +1,528 @@
+/* The mod page (admin/index.html). Built on the site's own ui.css / core.css
+   (panels, .button.blue/.white/.red, .info-green/-yellow/-red); this file only
+   lays out the forms. Phones first: editors mostly use it on a phone, so every
+   control is full width and at least 16px text (smaller makes iOS zoom in). */
+
+#admin-page {
+  max-width: 760px;
+  margin: 10px auto 0;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+#admin-page [hidden] {
+  display: none !important;
+}
+
+#admin-page .panel {
+  text-align: left;
+  margin: 20px 4px;
+}
+
+#admin-page h1,
+#admin-page h2 {
+  text-align: center;
+}
+
+#admin-page h3 {
+  margin: 20px 0 6px;
+  font-size: 1.05em;
+}
+
+#admin-page .who {
+  text-align: center;
+  margin: 10px 0 0;
+}
+
+#admin-page .hint,
+#admin-page .muted {
+  color: #777;
+  font-size: 0.9em;
+}
+
+#admin-page .muted {
+  margin-left: 4px;
+}
+
+/* --- fields --- */
+
+#admin-page .field {
+  display: block;
+  margin: 12px 0;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+#admin-page .field > span,
+#admin-page .field > label,
+#admin-page .field > legend,
+#admin-page .label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 4px;
+  padding: 0;
+}
+
+#admin-page .field i {
+  font-weight: normal;
+  color: #777;
+}
+
+#admin-page input[type="text"],
+#admin-page input[type="number"],
+#admin-page input[type="url"],
+#admin-page select {
+  width: 100%;
+  height: 2.6em;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+#admin-page input:focus,
+#admin-page select:focus {
+  border-color: var(--color-pc-button-bg);
+  outline: 2px solid rgba(8, 129, 198, 0.25);
+}
+
+#admin-page button.button {
+  font: inherit;
+  font-size: 15px;
+  border-radius: 3px;
+  min-height: 2.6em;
+}
+
+#admin-page .button.white {
+  border: 1px solid var(--color-border);
+}
+
+#admin-page .button.small {
+  padding: 6px 14px;
+  min-height: 2.2em;
+  font-size: 14px;
+}
+
+#admin-page .button[disabled] {
+  opacity: 0.5;
+}
+
+#admin-page .button.save {
+  margin-top: 6px;
+  min-width: 160px;
+}
+
+#admin-page .big-button {
+  display: flex;
+  margin: 16px auto 6px;
+  max-width: 320px;
+  font-size: 17px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+#admin-page .buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+#admin-page .buttons .button {
+  margin-top: 6px;
+}
+
+#admin-page .two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+#admin-page .level-row {
+  display: flex;
+  gap: 6px;
+}
+
+#admin-page .level-row input {
+  flex: 1 1 auto;
+}
+
+#admin-page .level-row .button {
+  flex: 0 0 auto;
+  padding: 0 16px;
+}
+
+#admin-page .level-info,
+#admin-page .msg {
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  font-size: 0.95em;
+  overflow-wrap: anywhere;
+}
+
+#admin-page .info-plain {
+  background: #f4f8fb;
+  border-color: #d6e4ee;
+}
+
+#admin-page .msg a {
+  color: inherit;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+#admin-page .new-player {
+  margin: -4px 0 12px;
+  padding: 8px 12px;
+  background: var(--color-warn-bg);
+  border: 1px solid var(--color-warn-border);
+}
+
+#admin-page .new-player .hint {
+  margin: 0 0 6px;
+  color: var(--color-warn-text);
+}
+
+/* --- grind --- */
+
+#admin-page .choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#admin-page .choices label {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+#admin-page .choices label:has(input:checked) {
+  border-color: var(--color-pc-button-bg);
+  background: #eaf4fb;
+}
+
+#admin-page .best-num {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  max-width: 160px;
+}
+
+#admin-page .runs .run {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+#admin-page .runs .run input {
+  width: 5.5em;
+  flex: 0 1 5.5em;
+}
+
+#admin-page .runs .dash,
+#admin-page .runs .pct {
+  color: #777;
+}
+
+#admin-page .runs .run-drop {
+  min-height: 2.6em;
+  padding: 0 12px;
+  margin-left: auto;
+}
+
+#admin-page .rules {
+  margin: 12px 0;
+  font-size: 0.92em;
+}
+
+#admin-page .rules ul {
+  margin: 4px 0 2px;
+  padding-left: 18px;
+}
+
+#admin-page .rules li {
+  margin: 3px 0;
+}
+
+#admin-page .counter {
+  display: block;
+  text-align: right;
+  color: #777;
+  font-size: 0.8em;
+  margin-top: 2px;
+}
+
+#admin-page .counter.over {
+  color: #c0392b;
+  font-weight: bold;
+}
+
+#admin-page .current {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: #f7f7f7;
+  border: 1px solid #e4e4e4;
+}
+
+#admin-page .current p {
+  margin: 4px 0;
+}
+
+#admin-page .goal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#admin-page .goal-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid #e4e4e4;
+}
+
+#admin-page .goal-text {
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#admin-page .goal-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+/* --- members --- */
+
+#admin-page .roster {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2 220px;
+  column-gap: 20px;
+}
+
+#admin-page .roster li {
+  break-inside: avoid;
+  padding: 5px 0;
+  border-bottom: 1px solid #eee;
+  overflow-wrap: anywhere;
+}
+
+#admin-page .roster .flag-icon {
+  margin-right: 2px;
+}
+
+/* --- mods (Nigel only) --- */
+
+#admin-page .mods {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#admin-page .mods li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+  overflow-wrap: anywhere;
+}
+
+#admin-page .mods .mod-buttons {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+#admin-page .mods .msg {
+  flex-basis: 100%;
+}
+
+/* --- clears & videos --- */
+
+#admin-page .current-video {
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+}
+
+#admin-page .current-video a {
+  color: var(--color-link);
+}
+
+#admin-page .danger {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px dashed #ddd;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* --- jump links --- */
+
+#admin-page .jump {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  padding: 12px;
+}
+
+#admin-page .jump a {
+  color: var(--color-pc-button-bg);
+  white-space: nowrap;
+}
+
+/* --- recent edits --- */
+
+#admin-page .edits {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+#admin-page .edits li.edit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+#admin-page .edit .what {
+  font-weight: bold;
+  overflow-wrap: anywhere;
+}
+
+#admin-page .edit .meta {
+  grid-column: 1;
+  color: #777;
+  font-size: 0.88em;
+}
+
+#admin-page .edit .state {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+#admin-page .edit .why,
+#admin-page .edit .details {
+  grid-column: 1 / -1;
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+#admin-page .edit .why {
+  color: var(--color-error-text);
+}
+
+#admin-page .edit .details {
+  color: var(--color-link);
+}
+
+#admin-page .badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85em;
+  white-space: nowrap;
+  background: #eee;
+}
+
+#admin-page .edit.working .badge {
+  background: #dcecf8;
+  color: #0b4f78;
+}
+
+#admin-page .edit.done .badge {
+  background: var(--color-ok-bg);
+  color: var(--color-ok-text);
+  border: 1px solid var(--color-ok-border);
+}
+
+#admin-page .edit.failed .badge {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border: 1px solid var(--color-error-border);
+}
+
+/* --- login --- */
+
+#admin-page #denied p {
+  margin: 4px 0;
+}
+
+#admin-page .copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+
+#admin-page .copy-row code {
+  font-size: 1.1em;
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+/* --- phones --- */
+
+@media (max-width: 560px) {
+  #admin-page {
+    padding: 0;
+  }
+
+  #admin-page .panel {
+    margin: 14px 0;
+    padding: 16px 14px;
+  }
+
+  #admin-page .two {
+    grid-template-columns: 1fr;
+  }
+
+  #admin-page .button.save {
+    width: 100%;
+  }
+
+  #admin-page .buttons .button {
+    flex: 1 1 auto;
+  }
+
+  #admin-page .roster {
+    columns: 1;
+  }
+}
+
+#admin-page .who .logout {
+  color: var(--color-link);
+}

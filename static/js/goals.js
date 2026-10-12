@@ -27,8 +27,11 @@
     var listed = (window.DEMONS || []).find(function (d) {
       return d.levelId === levelId || d.id === levelId;
     });
-    if (listed) return listed;
     var g = (window.GOAL_LEVELS || {})[String(levelId)];
+    if (listed) {
+      // list data wins; goal-levels.js only adds the page theme + writeup
+      return g ? Object.assign({}, listed, { palette: g.palette, writeup: g.writeup }) : listed;
+    }
     return g || null;
   };
 
@@ -171,12 +174,13 @@
         return false;
       });
     });
-    if (rec) flag = DL.flagSpan(rec.nationality);
+    var mem = rec || ((window.SITE && window.SITE.members) || []).filter(function (m) { return m.name === name; })[0];
+    if (mem && mem.nationality) flag = DL.flagSpan(mem.nationality);
 
     var stat =
       goal.best != null
         ? '<span class="grind-big">' + goal.best + '<i>%</i></span>'
-        : '<span class="grind-big grind-big-sm">segments<i></i></span>';
+        : '<span class="grind-big grind-big-sm">' + (goal.segments && goal.segments.length ? "segments" : "no progress yet") + "<i></i></span>";
 
     var facts = [];
     if (goal.attempts != null) facts.push("<span><b>" + goal.attempts.toLocaleString() + "</b> attempts</span>");

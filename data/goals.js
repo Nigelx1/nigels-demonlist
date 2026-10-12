@@ -30,64 +30,20 @@
 
 window.GOALS = [
   // --- Nigel ---
-  {
-    player: "Nigel",
-    levelId: 68668045, // Congregation
-    best: 39,
-    segments: [[11, 53], [42, 100]],
-    video: "https://youtu.be/Fuxe0O10s-E",
-  },
-  {
-    player: "Nigel",
-    levelId: 92466083, // Jupiter My Favourite
-    best: 0,
-    note: "Haven't started ✌️",
-    video: "https://youtu.be/wxyYAuMYq5o",
-  },
+  { player: "Nigel", levelId: 68668045, best: 39, segments: [[11, 53], [42, 100]], video: "https://youtu.be/Fuxe0O10s-E" }, // Congregation
+  { player: "Nigel", levelId: 92466083, best: 0, note: "Haven't started ✌️", video: "https://youtu.be/wxyYAuMYq5o" }, // Jupiter My Favourite
 
   // --- Jack ---
-  {
-    player: "Jack",
-    levelId: 118697760, // Wavetrip
-    best: null,
-    segments: [[74, 100]],
-    note: "Can run the back half - 74% to end.",
-  },
+  { player: "Jack", levelId: 118697760, best: null, segments: [[74, 100]], note: "Can run the back half - 74% to end." }, // Wavetrip
 
   // --- jd ---
-  {
-    player: "jd",
-    levelId: 20761188, // Allegiance
-    best: 42,
-    segments: [[17, 78]],
-  },
-  {
-    player: "jd",
-    levelId: 8147005, // Down Bass
-    best: 20,
-    segments: [[20, 42], [72, 100]],
-  },
-  {
-    player: "jd",
-    levelId: 146399247, // rauchkammer
-    best: 56,
-    segments: [[13, 67]],
-  },
+  { player: "jd", levelId: 20761188, best: 42, segments: [[17, 78]] }, // Allegiance
+  { player: "jd", levelId: 8147005, best: 20, segments: [[20, 42], [72, 100]] }, // Down Bass
+  { player: "jd", levelId: 146399247, best: 56, segments: [[13, 67]] }, // rauchkammer
 
   // --- Juice ---
-  {
-    player: "Juice",
-    levelId: 113220284, // The Plunge
-    best: null,
-    segments: [[31, 57], [58, 100]],
-    note: "Has it in two halves - 31–57% and 58–100%.",
-  },
+  { player: "Juice", levelId: 113220284, best: null, segments: [[31, 57], [58, 100]], note: "Has it in two halves - 31–57% and 58–100%." }, // The Plunge
 
   // --- ufplayer ---
-  {
-    player: "ufplayer",
-    levelId: 86084399, // LIMBO
-    best: null,
-    segments: [[51, 78], [68, 100]],
-  },
+  { player: "ufplayer", levelId: 86084399, best: null, segments: [[51, 78], [68, 100]] }, // LIMBO
 ];

@@ -152,9 +152,8 @@ except Exception:
 
 out = {}
 for lid in level_ids:
-    if lid in listed:
-        print(f"  {lid}  (on the Demonlist - skipped, demons.js wins)")
-        continue
+    if lid in listed:  # still built: the goal page takes its palette + writeup from here
+        print(f"  {lid}  (on the Demonlist - its data comes from demons.js)")
 
     gl = curl_json(f"https://gdladder.com/api/levels/{lid}") or {}
     gb = curl_json(f"https://gdbrowser.com/api/level/{lid}")
