@@ -42,6 +42,7 @@ window.SITE = {
     { name: "Nigel", head: true },
     { name: "Juice", head: true },
     { name: "Jack", head: true },
+    { name: "jd" },
   ],
   helpers: [],
 
