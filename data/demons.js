@@ -1200,8 +1200,8 @@ window.DEMONS = [
       "JonathanGD"
     ],
     "verifier": "Nigel",
-    "videoUrl": "https://www.youtube.com/watch?v=IHhftbiGHYg",
-    "thumbnailUrl": "https://i.ytimg.com/vi/IHhftbiGHYg/maxresdefault.jpg",
+    "videoUrl": "https://www.youtube.com/watch?v=VypnuVRxrec",
+    "thumbnailUrl": "https://i.ytimg.com/vi/VypnuVRxrec/maxresdefault.jpg",
     "levelId": 47611766,
     "description": "Full version is finally here! Big thanks to Viprin for giving me 1st place in Viprin's CC9 (unknown) | 116500 objects | 5 min 35 sec | OwO",
     "requirementPercent": 100,
