@@ -41,6 +41,7 @@ window.SITE = {
   editors: [
     { name: "Nigel", head: true },
     { name: "Juice", head: true },
+    { name: "Jack", head: true },
   ],
   helpers: [],
 
