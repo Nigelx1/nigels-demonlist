@@ -74,7 +74,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 348
+    "aredlPosition": 349
   },
   {
     "id": 78248443,
@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 644
+    "aredlPosition": 646
   },
   {
     "id": 10565740,
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 846
+    "aredlPosition": 848
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 935
+    "aredlPosition": 937
   },
   {
     "id": 89976481,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1123
+    "aredlPosition": 1127
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1216
+    "aredlPosition": 1220
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1381
+    "aredlPosition": 1385
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1593
+    "aredlPosition": 1598
   },
   {
     "id": 61137742,
@@ -833,7 +833,7 @@ window.DEMONS = [
     "position": 21,
     "name": "Stalemate",
     "difficulty": "Insane",
-    "rating": 15.21,
+    "rating": 15.2,
     "publisher": "Nox",
     "creators": [
       "Nox"
@@ -872,7 +872,7 @@ window.DEMONS = [
     "position": 22,
     "name": "Game Time",
     "difficulty": "Insane",
-    "rating": 15.08,
+    "rating": 15.06,
     "publisher": "SimilarAMZ",
     "creators": [
       "SimilarAMZ"
@@ -2707,7 +2707,7 @@ window.DEMONS = [
     "position": 69,
     "name": "Shiver",
     "difficulty": "Easy",
-    "rating": 1.17,
+    "rating": 1.16,
     "publisher": "SpKale",
     "creators": [
       "SpKale"
