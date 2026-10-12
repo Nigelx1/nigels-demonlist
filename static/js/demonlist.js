@@ -100,7 +100,7 @@
     }
 
     // Each list says what its sections are in config.js (listBlurbs).
-    var blurbs = cfg.listBlurbs || {};
+    var blurbs = (window.SITE && window.SITE.listBlurbs) || {};
     root.innerHTML =
       group("mainlist", "Main List", main, true, blurbs.main || "The main section of the Demonlist.") +
       group("extended", "Extended List", extended, true,
