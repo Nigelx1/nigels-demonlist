@@ -12,110 +12,39 @@
 // -----------------------------------------------------------------------------
 
 window.GOAL_LEVELS = {
-  "68668045": {
-    "name": "Congregation",
-    "publisher": "Presta",
+  "8147005": {
+    "name": "Down Bass",
+    "publisher": "Spectruh",
     "difficulty": "Extreme",
-    "rating": 31.52,
-    "levelId": 68668045,
-    "description": "verified by floofle",
+    "rating": 23.77,
+    "levelId": 8147005,
+    "description": "Another generic NC level",
     "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=Fuxe0O10s-E",
-    "gd": {
-      "length": "XL",
-      "objects": 17568,
-      "gameVersion": "2.1",
-      "inGameDifficulty": "Extreme Demon",
-      "song": {
-        "id": "895761",
-        "name": "Purgatori",
-        "artist": "Koraii",
-        "link": "https://geometrydashcontent.b-cdn.net/songs/895761.mp3"
-      }
-    },
-    "thumbnailUrl": "https://i.ytimg.com/vi/Fuxe0O10s-E/maxresdefault.jpg",
-    "palette": {
-      "accent": "#3a3adf",
-      "deep": "#0f0f3e",
-      "wash": "#f2f2fb",
-      "mist": "#e2e2f3",
-      "onAccent": "#ffffff",
-      "ink": "#1f1f47"
-    },
-    "writeup": {
-      "text": "A slow-burn descent into timing hell. Presta wraps you in barely-lit blues and near-invisible passages, lulls you with methodical cube and ball work — then the drop detonates into double- and quadruple-speed chaos in searing orange. No ship section the whole way through, an Epic rating earned under the old object cap, and the birthplace of the internet's favourite \"jumpscare\" edit. Peaked around #35 on the Demonlist before sliding to Legacy.",
-      "source": "Geometry Dash Wiki",
-      "url": "https://geometrydash.wiki.gg/wiki/Congregation"
-    }
-  },
-  "92466083": {
-    "name": "Jupiter My Favourite",
-    "publisher": "Akunakunn",
-    "difficulty": "Extreme",
-    "rating": 31.75,
-    "levelId": 92466083,
-    "description": "thank god",
-    "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=wxyYAuMYq5o",
+    "videoUrl": "https://www.youtube.com/watch?v=XXGJHjGlqGk",
     "gd": {
       "length": "Long",
-      "objects": 51608,
-      "gameVersion": "2.2",
+      "objects": 16603,
+      "gameVersion": "2.0",
       "inGameDifficulty": "Extreme Demon",
       "song": {
-        "id": "363217",
-        "name": "Tokyo Nights",
-        "artist": "jeffusan"
+        "id": "429524",
+        "name": "~NK~ DEV-BassDownLow Remix",
+        "artist": "Rukkus"
       }
     },
-    "thumbnailUrl": "https://i.ytimg.com/vi/wxyYAuMYq5o/maxresdefault.jpg",
+    "thumbnailUrl": "https://i.ytimg.com/vi/XXGJHjGlqGk/maxresdefault.jpg",
     "palette": {
-      "accent": "#4d33e6",
-      "deep": "#150f3e",
-      "wash": "#f3f2fb",
-      "mist": "#e4e2f3",
+      "accent": "#72a904",
+      "deep": "#2e3e0f",
+      "wash": "#f8fbf2",
+      "mist": "#edf3e2",
       "onAccent": "#ffffff",
-      "ink": "#241f47"
+      "ink": "#3a471f"
     },
     "writeup": {
-      "text": "Akunakunn's blue-and-yellow solo extreme, set to jeffusan's \"Tokyo Nights\": a slow-paced memory level packed with doodle-like decoration and wacky gimmicks, the wave at 24% most of all. Leslie verified it in May 2023, and it sits around #237 on the Demonlist.",
+      "text": "Spectra's lime-green entry in the Nine Circles family: a 2.0 Extreme built for fast, high-CPS wave play, set to Rukkus's remix of DEV's \"Bass Down Low\" - since pulled from Newgrounds, so it now needs a NONG. It was once in the Demonlist's top 150; today it sits on Pointercrate's legacy list.",
       "source": "Pointercrate Demonlist",
-      "url": "https://pointercrate.com/demonlist/237/"
-    }
-  },
-  "118697760": {
-    "name": "Wavetrip",
-    "publisher": "BombCraft2010",
-    "difficulty": "Extreme",
-    "rating": 20.15,
-    "levelId": 118697760,
-    "description": "Wave only extreme demon, playtested by TheFlyingJet, verified by MiniShoey. Enjoy! :3 #AdvyOut",
-    "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=-G5G7Bl4b9s",
-    "gd": {
-      "length": "XL",
-      "objects": 46039,
-      "gameVersion": "2.2",
-      "inGameDifficulty": "Extreme Demon",
-      "song": {
-        "id": "786343",
-        "name": "cYsmix - FATES",
-        "artist": "cysmix"
-      }
-    },
-    "thumbnailUrl": "https://i.ytimg.com/vi/-G5G7Bl4b9s/maxresdefault.jpg",
-    "palette": {
-      "accent": "#a3a30a",
-      "deep": "#3e3e0f",
-      "wash": "#fbfbf2",
-      "mist": "#f3f3e2",
-      "onAccent": "#111111",
-      "ink": "#47471f"
-    },
-    "writeup": {
-      "text": "Four minutes of wave and nothing else. BombCraft2010's all-wave extreme, set to cYsmix's \"FATES\", gets faster and more intense as it goes, and most of its difficulty is staying consistent and holding your nerve.",
-      "source": "AREDL",
-      "url": "https://aredl.net"
+      "url": "https://pointercrate.com/demonlist/552/"
     }
   },
   "20761188": {
@@ -153,75 +82,75 @@ window.GOAL_LEVELS = {
       "url": "https://geometrydash.wiki.gg/wiki/Allegiance"
     }
   },
-  "8147005": {
-    "name": "Down Bass",
-    "publisher": "Spectruh",
+  "68668045": {
+    "name": "Congregation",
+    "publisher": "Presta",
     "difficulty": "Extreme",
-    "rating": 23.77,
-    "levelId": 8147005,
-    "description": "Another generic NC level",
+    "rating": 31.54,
+    "levelId": 68668045,
+    "description": "verified by floofle",
     "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=XXGJHjGlqGk",
+    "videoUrl": "https://www.youtube.com/watch?v=Fuxe0O10s-E",
     "gd": {
-      "length": "Long",
-      "objects": 16603,
-      "gameVersion": "2.0",
+      "length": "XL",
+      "objects": 17568,
+      "gameVersion": "2.1",
       "inGameDifficulty": "Extreme Demon",
       "song": {
-        "id": "429524",
-        "name": "~NK~ DEV-BassDownLow Remix",
-        "artist": "Rukkus"
+        "id": "895761",
+        "name": "Purgatori",
+        "artist": "Koraii",
+        "link": "https://geometrydashcontent.b-cdn.net/songs/895761.mp3"
       }
     },
-    "thumbnailUrl": "https://i.ytimg.com/vi/XXGJHjGlqGk/maxresdefault.jpg",
+    "thumbnailUrl": "https://i.ytimg.com/vi/Fuxe0O10s-E/maxresdefault.jpg",
     "palette": {
-      "accent": "#72a904",
-      "deep": "#2e3e0f",
-      "wash": "#f8fbf2",
-      "mist": "#edf3e2",
+      "accent": "#3a3adf",
+      "deep": "#0f0f3e",
+      "wash": "#f2f2fb",
+      "mist": "#e2e2f3",
       "onAccent": "#ffffff",
-      "ink": "#3a471f"
+      "ink": "#1f1f47"
     },
     "writeup": {
-      "text": "Spectra's lime-green entry in the Nine Circles family: a 2.0 Extreme built for fast, high-CPS wave play, set to Rukkus's remix of DEV's \"Bass Down Low\" - since pulled from Newgrounds, so it now needs a NONG. It was once in the Demonlist's top 150; today it sits on Pointercrate's legacy list.",
-      "source": "Pointercrate Demonlist",
-      "url": "https://pointercrate.com/demonlist/552/"
+      "text": "A slow-burn descent into timing hell. Presta wraps you in barely-lit blues and near-invisible passages, lulls you with methodical cube and ball work — then the drop detonates into double- and quadruple-speed chaos in searing orange. No ship section the whole way through, an Epic rating earned under the old object cap, and the birthplace of the internet's favourite \"jumpscare\" edit. Peaked around #35 on the Demonlist before sliding to Legacy.",
+      "source": "Geometry Dash Wiki",
+      "url": "https://geometrydash.wiki.gg/wiki/Congregation"
     }
   },
-  "146399247": {
-    "name": "rauchkammer",
-    "publisher": "Devilmine",
+  "86084399": {
+    "name": "LIMBO",
+    "publisher": "MindCap",
     "difficulty": "Extreme",
-    "rating": 19.84,
-    "levelId": 146399247,
-    "description": "Level made with 3 random generated colors (i allowed hue shifts cuz holy cooked)",
+    "rating": 36.89,
+    "levelId": 86084399,
+    "description": "FOCUS",
     "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=-ge89eZ9_5M",
+    "videoUrl": "https://www.youtube.com/watch?v=munuzC7ymR0",
     "gd": {
-      "length": "Medium",
-      "objects": 8251,
+      "length": "XL",
+      "objects": 65535,
       "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
-        "id": "433359",
-        "name": "-Killstealer-",
-        "artist": "Waterflame",
-        "link": "http://audio.ngfiles.com/433000/433359_Killstealer.mp3"
+        "id": "76743",
+        "name": "NH22 - Isolation",
+        "artist": "NightHawk22"
       }
     },
-    "thumbnailUrl": "https://i.ytimg.com/vi/-ge89eZ9_5M/maxresdefault.jpg",
+    "thumbnailUrl": "https://i.ytimg.com/vi/munuzC7ymR0/maxresdefault.jpg",
     "palette": {
-      "accent": "#8b8b28",
-      "deep": "#3b3b11",
-      "wash": "#fbfbf2",
-      "mist": "#f3f3e2",
+      "accent": "#b11ff9",
+      "deep": "#2e0f3e",
+      "wash": "#f8f2fb",
+      "mist": "#ede2f3",
       "onAccent": "#ffffff",
-      "ink": "#47471f"
+      "ink": "#3a1f47"
     },
     "writeup": {
-      "text": "Devilmine built it around just three randomly generated colours. A short, skill-based extreme set to Waterflame's \"-Killstealer-\": straightforward at first, then the ship and wave in the second half spike hard - which is why it's not one to pick as a first extreme.",
-      "source": "AREDL",
-      "url": "https://aredl.net"
+      "text": "A 2.1 memory monster hosted by MindCap, verified by BGram after 109,490 attempts. Built in 1.9 style with an indigo, dark-blue and red palette, it asks you to memorise orb sequences and invisible blocks with nothing to hide behind — and then at 87% drops you into a randomised key puzzle with 128 possible combinations. Peaked at #7 on the Demonlist and lives near the top of every \"greatest levels of all time\" list.",
+      "source": "Geometry Dash Wiki",
+      "url": "https://geometrydash.wiki.gg/wiki/LIMBO"
     }
   },
   "113220284": {
@@ -259,39 +188,75 @@ window.GOAL_LEVELS = {
       "url": "https://pointercrate.com/demonlist/84/"
     }
   },
-  "86084399": {
-    "name": "LIMBO",
-    "publisher": "MindCap",
+  "118697760": {
+    "name": "Wavetrip",
+    "publisher": "BombCraft2010",
     "difficulty": "Extreme",
-    "rating": 36.89,
-    "levelId": 86084399,
-    "description": "FOCUS",
+    "rating": 20.16,
+    "levelId": 118697760,
+    "description": "Wave only extreme demon, playtested by TheFlyingJet, verified by MiniShoey. Enjoy! :3 #AdvyOut",
     "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=munuzC7ymR0",
+    "videoUrl": "https://www.youtube.com/watch?v=-G5G7Bl4b9s",
     "gd": {
       "length": "XL",
-      "objects": 65535,
+      "objects": 46039,
       "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
-        "id": "76743",
-        "name": "NH22 - Isolation",
-        "artist": "NightHawk22"
+        "id": "786343",
+        "name": "cYsmix - FATES",
+        "artist": "cysmix"
       }
     },
-    "thumbnailUrl": "https://i.ytimg.com/vi/munuzC7ymR0/maxresdefault.jpg",
+    "thumbnailUrl": "https://i.ytimg.com/vi/-G5G7Bl4b9s/maxresdefault.jpg",
     "palette": {
-      "accent": "#b11ff9",
-      "deep": "#2e0f3e",
-      "wash": "#f8f2fb",
-      "mist": "#ede2f3",
-      "onAccent": "#ffffff",
-      "ink": "#3a1f47"
+      "accent": "#a3a30a",
+      "deep": "#3e3e0f",
+      "wash": "#fbfbf2",
+      "mist": "#f3f3e2",
+      "onAccent": "#111111",
+      "ink": "#47471f"
     },
     "writeup": {
-      "text": "A 2.1 memory monster hosted by MindCap, verified by BGram after 109,490 attempts. Built in 1.9 style with an indigo, dark-blue and red palette, it asks you to memorise orb sequences and invisible blocks with nothing to hide behind — and then at 87% drops you into a randomised key puzzle with 128 possible combinations. Peaked at #7 on the Demonlist and lives near the top of every \"greatest levels of all time\" list.",
-      "source": "Geometry Dash Wiki",
-      "url": "https://geometrydash.wiki.gg/wiki/LIMBO"
+      "text": "Four minutes of wave and nothing else. BombCraft2010's all-wave extreme, set to cYsmix's \"FATES\", gets faster and more intense as it goes, and most of its difficulty is staying consistent and holding your nerve.",
+      "source": "AREDL",
+      "url": "https://aredl.net"
+    }
+  },
+  "146399247": {
+    "name": "rauchkammer",
+    "publisher": "Devilmine",
+    "difficulty": "Extreme",
+    "rating": 19.85,
+    "levelId": 146399247,
+    "description": "Level made with 3 random generated colors (i allowed hue shifts cuz holy cooked)",
+    "requirementPercent": 100,
+    "videoUrl": "https://www.youtube.com/watch?v=-ge89eZ9_5M",
+    "gd": {
+      "length": "Medium",
+      "objects": 8251,
+      "gameVersion": "2.2",
+      "inGameDifficulty": "Extreme Demon",
+      "song": {
+        "id": "433359",
+        "name": "-Killstealer-",
+        "artist": "Waterflame",
+        "link": "http://audio.ngfiles.com/433000/433359_Killstealer.mp3"
+      }
+    },
+    "thumbnailUrl": "https://i.ytimg.com/vi/-ge89eZ9_5M/maxresdefault.jpg",
+    "palette": {
+      "accent": "#8b8b28",
+      "deep": "#3b3b11",
+      "wash": "#fbfbf2",
+      "mist": "#f3f3e2",
+      "onAccent": "#ffffff",
+      "ink": "#47471f"
+    },
+    "writeup": {
+      "text": "Devilmine built it around just three randomly generated colours. A short, skill-based extreme set to Waterflame's \"-Killstealer-\": straightforward at first, then the ship and wave in the second half spike hard - which is why it's not one to pick as a first extreme.",
+      "source": "AREDL",
+      "url": "https://aredl.net"
     }
   }
 };

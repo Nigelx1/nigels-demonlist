@@ -31,7 +31,6 @@
 window.GOALS = [
   // --- Nigel ---
   { player: "Nigel", levelId: 68668045, best: 39, segments: [[11, 53], [42, 100]], video: "https://youtu.be/Fuxe0O10s-E" }, // Congregation
-  { player: "Nigel", levelId: 92466083, best: 0, note: "Haven't started ✌️", video: "https://youtu.be/wxyYAuMYq5o" }, // Jupiter My Favourite
 
   // --- Jack ---
   { player: "Jack", levelId: 118697760, best: null, segments: [[74, 100]], note: "Can run the back half - 74% to end." }, // Wavetrip
