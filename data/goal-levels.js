@@ -153,6 +153,36 @@ window.GOAL_LEVELS = {
       "url": "https://geometrydash.wiki.gg/wiki/LIMBO"
     }
   },
+  "115151904": {
+    "name": "ta1LSD0ll",
+    "publisher": "ta1lsdoll",
+    "difficulty": "Extreme",
+    "rating": 33,
+    "levelId": 115151904,
+    "description": "ekzels / angarariver. spkgmd / masterz77 / antobyy / kcool101 / zgalliard / mirugene / classic10 / rply / robtobfreak / pastelpink / 2003devin / pixelllolka. arshadow",
+    "requirementPercent": 100,
+    "videoUrl": "https://www.youtube.com/watch?v=2h6t46is1vM",
+    "gd": {
+      "length": "Medium",
+      "objects": 65535,
+      "gameVersion": "2.2",
+      "inGameDifficulty": "Extreme Demon",
+      "song": {
+        "id": "1346205",
+        "name": "Feel The Rush",
+        "artist": "g2961"
+      }
+    },
+    "thumbnailUrl": "https://i.ytimg.com/vi/2h6t46is1vM/maxresdefault.jpg",
+    "palette": {
+      "accent": "#2d9b2d",
+      "deep": "#113b11",
+      "wash": "#f2fbf2",
+      "mist": "#e2f3e2",
+      "onAccent": "#ffffff",
+      "ink": "#1f471f"
+    }
+  },
   "118697760": {
     "name": "Wavetrip",
     "publisher": "BombCraft2010",
