@@ -153,41 +153,6 @@ window.GOAL_LEVELS = {
       "url": "https://geometrydash.wiki.gg/wiki/LIMBO"
     }
   },
-  "113220284": {
-    "name": "The Plunge",
-    "publisher": "Dolabill",
-    "difficulty": "Extreme",
-    "rating": 36,
-    "levelId": 113220284,
-    "description": "All the elements pull us apart. But I'm holding on. Know your hands by heart. As I'm reaching out into the dark.",
-    "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=S_pBi3nlEDo",
-    "gd": {
-      "length": "Long",
-      "objects": 52644,
-      "gameVersion": "2.2",
-      "inGameDifficulty": "Extreme Demon",
-      "song": {
-        "id": "1135786",
-        "name": "???????????????????????????????????? - green eyes",
-        "artist": "Korsak"
-      }
-    },
-    "thumbnailUrl": "https://i.ytimg.com/vi/S_pBi3nlEDo/maxresdefault.jpg",
-    "palette": {
-      "accent": "#cb4d4d",
-      "deep": "#3b1111",
-      "wash": "#fbf2f2",
-      "mist": "#f3e2e2",
-      "onAccent": "#ffffff",
-      "ink": "#471f1f"
-    },
-    "writeup": {
-      "text": "Dolabill's atmospheric, floaty vortex of a level, set to Korsak's washed-out \"green eyes\" and loosely inspired by White Space - with an ending you won't forget: a realistic hand. Gokill verified it, and it sits around #84 on the Demonlist.",
-      "source": "Pointercrate Demonlist",
-      "url": "https://pointercrate.com/demonlist/84/"
-    }
-  },
   "118697760": {
     "name": "Wavetrip",
     "publisher": "BombCraft2010",

@@ -41,7 +41,6 @@ window.GOALS = [
   { player: "jd", levelId: 146399247, best: 56, segments: [[13, 67]] }, // rauchkammer
 
   // --- Juice ---
-  { player: "Juice", levelId: 113220284, best: null, segments: [[31, 57], [58, 100]], note: "Has it in two halves - 31–57% and 58–100%." }, // The Plunge
 
   // --- ufplayer ---
   { player: "ufplayer", levelId: 86084399, best: null, segments: [[51, 78], [68, 100]] }, // LIMBO
