@@ -33,7 +33,7 @@ window.GOALS = [
   { player: "Nigel", levelId: 68668045, best: 39, segments: [[11, 53], [42, 100]], video: "https://youtu.be/Fuxe0O10s-E" }, // Congregation
 
   // --- Jack ---
-  { player: "Jack", levelId: 118697760, best: null, segments: [[74, 100]], note: "Can run the back half - 74% to end." }, // Wavetrip
+  { player: "Jack", levelId: 118697760, best: null, segments: [[55, 100]] }, // Wavetrip
 
   // --- jd ---
   { player: "jd", levelId: 20761188, best: 42, segments: [[17, 78]] }, // Allegiance
