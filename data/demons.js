@@ -794,7 +794,7 @@ window.DEMONS = [
     "position": 20,
     "name": "CraZy II",
     "difficulty": "Insane",
-    "rating": 15.31,
+    "rating": 15.3,
     "publisher": "DavJT",
     "creators": [
       "DavJT"
@@ -1045,7 +1045,7 @@ window.DEMONS = [
     "position": 26,
     "name": "Tidal Line",
     "difficulty": "Hard",
-    "rating": 10.24,
+    "rating": 10.23,
     "publisher": "Sp4rce",
     "creators": [
       "Sp4rce"
@@ -1084,7 +1084,7 @@ window.DEMONS = [
     "position": 27,
     "name": "Space Invaders",
     "difficulty": "Hard",
-    "rating": 10.17,
+    "rating": 10.16,
     "publisher": "DeeperSpace",
     "creators": [
       "DeeperSpace"
@@ -1162,7 +1162,7 @@ window.DEMONS = [
     "position": 29,
     "name": "Entropic Dreams",
     "difficulty": "Hard",
-    "rating": 9.94,
+    "rating": 9.95,
     "publisher": "LepszyGD",
     "creators": [
       "LepszyGD"
@@ -1554,7 +1554,7 @@ window.DEMONS = [
     "position": 39,
     "name": "penguin industries",
     "difficulty": "Medium",
-    "rating": 5.3,
+    "rating": 5.31,
     "publisher": "Unknown1276",
     "creators": [
       "Unknown1276"
@@ -2275,7 +2275,7 @@ window.DEMONS = [
     "position": 58,
     "name": "End Line",
     "difficulty": "Easy",
-    "rating": 1.99,
+    "rating": 1.98,
     "publisher": "dongchi",
     "creators": [
       "dongchi"
@@ -2470,7 +2470,7 @@ window.DEMONS = [
     "position": 63,
     "name": "The Long Walk Home",
     "difficulty": "Easy",
-    "rating": 1.72,
+    "rating": 1.73,
     "publisher": "Renn241",
     "creators": [
       "Renn241"

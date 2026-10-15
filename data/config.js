@@ -93,7 +93,7 @@ window.SITE = {
   // an AREDL placement over the whole AREDL: rating = a + b * position^exponent.
   // Extremes on the AREDL are ordered and scored by it (DL.demonRating), so the
   // list follows AREDL placement; everything else uses its own GDDL rating.
-  aredlFit: { a: 43.8744, b: -1.47098, exponent: 0.38, points: 1577, r2: 0.9724, fitted: "2026-10-12" },
+  aredlFit: { a: 43.8735, b: -1.470918, exponent: 0.38, points: 1577, r2: 0.9724, fitted: "2026-10-15" },
   // ---------------------------------------------------------------------------
   // SCORING
   // A 100% completion of the #1 (highest-rated) demon is worth `topScore`.
