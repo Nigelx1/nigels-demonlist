@@ -74,7 +74,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 349
+    "aredlPosition": 350
   },
   {
     "id": 78248443,
@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 646
+    "aredlPosition": 647
   },
   {
     "id": 10565740,
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 848
+    "aredlPosition": 849
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 937
+    "aredlPosition": 939
   },
   {
     "id": 89976481,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1127
+    "aredlPosition": 1128
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1220
+    "aredlPosition": 1222
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1385
+    "aredlPosition": 1387
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1598
+    "aredlPosition": 1599
   },
   {
     "id": 61137742,
@@ -2349,8 +2349,45 @@ window.DEMONS = [
     "aredlPosition": null
   },
   {
-    "id": 57012656,
+    "id": 11317271,
     "position": 60,
+    "name": "Blue Hell",
+    "difficulty": "Easy",
+    "rating": 1.92,
+    "publisher": "LaZye",
+    "creators": [
+      "LaZye"
+    ],
+    "verifier": "Nigel",
+    "videoUrl": "https://www.youtube.com/watch?v=KAg9xLqoLYc",
+    "thumbnailUrl": "https://i.ytimg.com/vi/KAg9xLqoLYc/maxresdefault.jpg",
+    "levelId": 11317271,
+    "description": "Back to normal",
+    "requirementPercent": 100,
+    "records": [
+      {
+        "player": "Nigel",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "IL"
+      }
+    ],
+    "gd": {
+      "length": "Long",
+      "objects": 9873,
+      "inGameDifficulty": "Easy Demon",
+      "song": {
+        "id": "21749",
+        "name": "Helix - Archetype",
+        "artist": ""
+      },
+      "songOfficial": false
+    },
+    "aredlPosition": null
+  },
+  {
+    "id": 57012656,
+    "position": 61,
     "name": "Ship",
     "difficulty": "Easy",
     "rating": 1.91,
@@ -2389,7 +2426,7 @@ window.DEMONS = [
   },
   {
     "id": 89886591,
-    "position": 61,
+    "position": 62,
     "name": "iSpyWithMyLittleEye",
     "difficulty": "Easy",
     "rating": 1.87,
@@ -2428,7 +2465,7 @@ window.DEMONS = [
   },
   {
     "id": 28352064,
-    "position": 62,
+    "position": 63,
     "name": "The Farewell",
     "difficulty": "Easy",
     "rating": 1.79,
@@ -2467,7 +2504,7 @@ window.DEMONS = [
   },
   {
     "id": 76582313,
-    "position": 63,
+    "position": 64,
     "name": "The Long Walk Home",
     "difficulty": "Easy",
     "rating": 1.73,
@@ -2506,7 +2543,7 @@ window.DEMONS = [
   },
   {
     "id": 848722,
-    "position": 64,
+    "position": 65,
     "name": "Lights And Thunder",
     "difficulty": "Easy",
     "rating": 1.62,
@@ -2543,7 +2580,7 @@ window.DEMONS = [
   },
   {
     "id": 80790301,
-    "position": 65,
+    "position": 66,
     "name": "Permafrost Mountain",
     "difficulty": "Easy",
     "rating": 1.59,
@@ -2581,7 +2618,7 @@ window.DEMONS = [
   },
   {
     "id": 127078077,
-    "position": 66,
+    "position": 67,
     "name": "Volcano",
     "difficulty": "Easy",
     "rating": 1.24,
@@ -2620,7 +2657,7 @@ window.DEMONS = [
   },
   {
     "id": 56587109,
-    "position": 67,
+    "position": 68,
     "name": "phjork",
     "difficulty": "Easy",
     "rating": 1.2,
@@ -2665,7 +2702,7 @@ window.DEMONS = [
   },
   {
     "id": 128665322,
-    "position": 68,
+    "position": 69,
     "name": "red alert",
     "difficulty": "Easy",
     "rating": 1.18,
@@ -2704,7 +2741,7 @@ window.DEMONS = [
   },
   {
     "id": 56210242,
-    "position": 69,
+    "position": 70,
     "name": "Shiver",
     "difficulty": "Easy",
     "rating": 1.16,
@@ -2743,7 +2780,7 @@ window.DEMONS = [
   },
   {
     "id": 5904109,
-    "position": 70,
+    "position": 71,
     "name": "Platinum Adventure",
     "difficulty": "Easy",
     "rating": 1.13,
@@ -2782,7 +2819,7 @@ window.DEMONS = [
   },
   {
     "id": 566659,
-    "position": 71,
+    "position": 72,
     "name": "demon mixed",
     "difficulty": "Easy",
     "rating": 1.11,
@@ -2819,7 +2856,7 @@ window.DEMONS = [
   },
   {
     "id": 126762295,
-    "position": 72,
+    "position": 73,
     "name": "SCORIGAMI",
     "difficulty": "Easy",
     "rating": 1.08,
@@ -2857,7 +2894,7 @@ window.DEMONS = [
   },
   {
     "id": 55520,
-    "position": 73,
+    "position": 74,
     "name": "THE LIGHTNING ROAD",
     "difficulty": "Easy",
     "rating": 1.05,
@@ -2895,7 +2932,7 @@ window.DEMONS = [
   },
   {
     "id": 88494611,
-    "position": 74,
+    "position": 75,
     "name": "Eternal",
     "difficulty": "Easy",
     "rating": 1.04,
@@ -2934,7 +2971,7 @@ window.DEMONS = [
   },
   {
     "id": 13519,
-    "position": 75,
+    "position": 76,
     "name": "The Nightmare",
     "difficulty": "Easy",
     "rating": 1.04,
