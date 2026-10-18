@@ -128,9 +128,9 @@ window.GOAL_LEVELS = {
     "requirementPercent": 100,
     "videoUrl": "https://www.youtube.com/watch?v=munuzC7ymR0",
     "gd": {
+      "inGameDifficulty": "Extreme Demon",
       "length": "XL",
       "objects": 65535,
-      "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "76743",
         "name": "NH22 - Isolation",
