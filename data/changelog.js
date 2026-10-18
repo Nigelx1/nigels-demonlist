@@ -36,6 +36,10 @@ window.CHANGELOG = [
     "date": "2026-10-18",
     "items": [
       {
+        "kind": "note",
+        "text": "GD Demon Ladder ratings refreshed - 2 levels drifted (Nilscapes 17.03 → 17.04, Poltergeist 15.94 → 15.95)."
+      },
+      {
         "kind": "add",
         "demon": "Blue Hell",
         "demonId": 11317271,

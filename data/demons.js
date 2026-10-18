@@ -470,7 +470,7 @@ window.DEMONS = [
     "position": 12,
     "name": "Nilscapes",
     "difficulty": "Insane",
-    "rating": 17.03,
+    "rating": 17.04,
     "publisher": "L413",
     "creators": [
       "L413"
@@ -709,7 +709,7 @@ window.DEMONS = [
     "position": 18,
     "name": "Poltergeist",
     "difficulty": "Insane",
-    "rating": 15.94,
+    "rating": 15.95,
     "publisher": "Andromeda GMD",
     "creators": [
       "Andromeda GMD"
