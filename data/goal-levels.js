@@ -24,13 +24,13 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "Long",
       "objects": 16603,
+      "gameVersion": "2.0",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "429524",
         "name": "~NK~ DEV-BassDownLow Remix",
         "artist": "Rukkus"
-      },
-      "gameVersion": "2.0"
+      }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/XXGJHjGlqGk/maxresdefault.jpg",
     "palette": {
@@ -59,13 +59,13 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "Long",
       "objects": 62018,
+      "gameVersion": "2.0",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "672264",
         "name": "I Got No Time",
         "artist": "TheLivingTombstone"
-      },
-      "gameVersion": "2.0"
+      }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/lHf6buYpbXU/maxresdefault.jpg",
     "palette": {
@@ -94,14 +94,14 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "XL",
       "objects": 17568,
+      "gameVersion": "2.1",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "895761",
         "name": "Purgatori",
         "artist": "Koraii",
         "link": "https://geometrydashcontent.b-cdn.net/songs/895761.mp3"
-      },
-      "gameVersion": "2.1"
+      }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/Fuxe0O10s-E/maxresdefault.jpg",
     "palette": {
@@ -124,19 +124,19 @@ window.GOAL_LEVELS = {
     "difficulty": "Extreme",
     "rating": 36.89,
     "levelId": 86084399,
-    "description": "                                                               FOCUS",
+    "description": "FOCUS",
     "requirementPercent": 100,
     "videoUrl": "https://www.youtube.com/watch?v=munuzC7ymR0",
     "gd": {
-      "inGameDifficulty": "Extreme Demon",
       "length": "XL",
       "objects": 65535,
+      "gameVersion": "2.2",
+      "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "76743",
         "name": "NH22 - Isolation",
         "artist": "NightHawk22"
-      },
-      "gameVersion": "2.2"
+      }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/munuzC7ymR0/maxresdefault.jpg",
     "palette": {
@@ -165,13 +165,13 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "Medium",
       "objects": 65535,
+      "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "1346205",
         "name": "Feel The Rush",
         "artist": "g2961"
-      },
-      "gameVersion": "2.2"
+      }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/2h6t46is1vM/maxresdefault.jpg",
     "palette": {
@@ -189,19 +189,19 @@ window.GOAL_LEVELS = {
     "difficulty": "Extreme",
     "rating": 20.16,
     "levelId": 118697760,
-    "description": "Wave only extreme demon, playtested by TheFlyingJet, verified by MiniShoey. Enjoy! :3",
+    "description": "Wave only extreme demon, playtested by TheFlyingJet, verified by MiniShoey. Enjoy! :3 #AdvyOut",
     "requirementPercent": 100,
     "videoUrl": "https://www.youtube.com/watch?v=-G5G7Bl4b9s",
     "gd": {
       "length": "XL",
+      "objects": 46039,
+      "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "786343",
         "name": "cYsmix - FATES",
         "artist": "cysmix"
-      },
-      "objects": 46039,
-      "gameVersion": "2.2"
+      }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/-G5G7Bl4b9s/maxresdefault.jpg",
     "palette": {
@@ -224,20 +224,20 @@ window.GOAL_LEVELS = {
     "difficulty": "Extreme",
     "rating": 19.87,
     "levelId": 146399247,
-    "description": "Level made with 3 random generated colors (i allowed hue shifts cuz holy cooked)",
+    "description": "Updated to support Startpositions inside the level",
     "requirementPercent": 100,
     "videoUrl": "https://www.youtube.com/watch?v=-ge89eZ9_5M",
     "gd": {
       "length": "Medium",
+      "objects": 8251,
+      "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "433359",
         "name": "-Killstealer-",
         "artist": "Waterflame",
         "link": "http://audio.ngfiles.com/433000/433359_Killstealer.mp3"
-      },
-      "objects": 8251,
-      "gameVersion": "2.2"
+      }
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/-ge89eZ9_5M/maxresdefault.jpg",
     "palette": {

@@ -1045,7 +1045,7 @@ window.DEMONS = [
     "position": 26,
     "name": "Tidal Line",
     "difficulty": "Hard",
-    "rating": 10.23,
+    "rating": 10.22,
     "publisher": "Sp4rce",
     "creators": [
       "Sp4rce"
@@ -1401,7 +1401,7 @@ window.DEMONS = [
     "position": 35,
     "name": "potal",
     "difficulty": "Medium",
-    "rating": 6.35,
+    "rating": 6.34,
     "publisher": "Sillow",
     "creators": [
       "Sillow"
@@ -1668,7 +1668,7 @@ window.DEMONS = [
     "position": 42,
     "name": "Deadlocked",
     "difficulty": "Official",
-    "rating": 4.68,
+    "rating": 4.67,
     "publisher": "RobTop",
     "creators": [
       "RobTop"
@@ -2161,7 +2161,7 @@ window.DEMONS = [
     "position": 55,
     "name": "Ruined Planet",
     "difficulty": "Easy",
-    "rating": 2.77,
+    "rating": 2.76,
     "publisher": "Ene",
     "creators": [
       "Ene"
