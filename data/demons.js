@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 647
+    "aredlPosition": 646
   },
   {
     "id": 10565740,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1128
+    "aredlPosition": 1129
   },
   {
     "id": 119653522,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1599
+    "aredlPosition": 1600
   },
   {
     "id": 61137742,
@@ -470,7 +470,7 @@ window.DEMONS = [
     "position": 12,
     "name": "Nilscapes",
     "difficulty": "Insane",
-    "rating": 17.04,
+    "rating": 17.03,
     "publisher": "L413",
     "creators": [
       "L413"
@@ -671,7 +671,7 @@ window.DEMONS = [
     "position": 17,
     "name": "Fool Moon Paranoid",
     "difficulty": "Insane",
-    "rating": 16.08,
+    "rating": 16.09,
     "publisher": "unne",
     "creators": [
       "unne"
@@ -872,7 +872,7 @@ window.DEMONS = [
     "position": 22,
     "name": "Game Time",
     "difficulty": "Insane",
-    "rating": 15.06,
+    "rating": 15.08,
     "publisher": "SimilarAMZ",
     "creators": [
       "SimilarAMZ"
@@ -1045,7 +1045,7 @@ window.DEMONS = [
     "position": 26,
     "name": "Tidal Line",
     "difficulty": "Hard",
-    "rating": 10.22,
+    "rating": 10.21,
     "publisher": "Sp4rce",
     "creators": [
       "Sp4rce"
@@ -1162,7 +1162,7 @@ window.DEMONS = [
     "position": 29,
     "name": "Entropic Dreams",
     "difficulty": "Hard",
-    "rating": 9.95,
+    "rating": 9.96,
     "publisher": "LepszyGD",
     "creators": [
       "LepszyGD"
@@ -1278,7 +1278,7 @@ window.DEMONS = [
     "position": 32,
     "name": "evolutionary theory",
     "difficulty": "Medium",
-    "rating": 7.84,
+    "rating": 7.85,
     "publisher": "MAYEROSA",
     "creators": [
       "MAYEROSA"
@@ -1788,7 +1788,7 @@ window.DEMONS = [
     "position": 45,
     "name": "well being spot",
     "difficulty": "Easy",
-    "rating": 3.62,
+    "rating": 3.61,
     "publisher": "2003devin",
     "creators": [
       "2003devin"
@@ -2199,7 +2199,7 @@ window.DEMONS = [
     "position": 56,
     "name": "Endless Descent",
     "difficulty": "Easy",
-    "rating": 2.68,
+    "rating": 2.67,
     "publisher": "Ph4lip",
     "creators": [
       "Ph4lip"
@@ -2507,7 +2507,7 @@ window.DEMONS = [
     "position": 64,
     "name": "The Long Walk Home",
     "difficulty": "Easy",
-    "rating": 1.73,
+    "rating": 1.72,
     "publisher": "Renn241",
     "creators": [
       "Renn241"
