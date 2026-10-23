@@ -183,46 +183,11 @@ window.GOAL_LEVELS = {
       "ink": "#1f471f"
     }
   },
-  "118697760": {
-    "name": "Wavetrip",
-    "publisher": "BombCraft2010",
-    "difficulty": "Extreme",
-    "rating": 20.16,
-    "levelId": 118697760,
-    "description": "Wave only extreme demon, playtested by TheFlyingJet, verified by MiniShoey. Enjoy! :3 #AdvyOut",
-    "requirementPercent": 100,
-    "videoUrl": "https://www.youtube.com/watch?v=-G5G7Bl4b9s",
-    "gd": {
-      "length": "XL",
-      "objects": 46039,
-      "gameVersion": "2.2",
-      "inGameDifficulty": "Extreme Demon",
-      "song": {
-        "id": "786343",
-        "name": "cYsmix - FATES",
-        "artist": "cysmix"
-      }
-    },
-    "thumbnailUrl": "https://i.ytimg.com/vi/-G5G7Bl4b9s/maxresdefault.jpg",
-    "palette": {
-      "accent": "#a3a30a",
-      "deep": "#3e3e0f",
-      "wash": "#fbfbf2",
-      "mist": "#f3f3e2",
-      "onAccent": "#111111",
-      "ink": "#47471f"
-    },
-    "writeup": {
-      "text": "Four minutes of wave and nothing else. BombCraft2010's all-wave extreme, set to cYsmix's \"FATES\", gets faster and more intense as it goes, and most of its difficulty is staying consistent and holding your nerve.",
-      "source": "AREDL",
-      "url": "https://aredl.net"
-    }
-  },
   "146399247": {
     "name": "rauchkammer",
     "publisher": "Devilmine",
     "difficulty": "Extreme",
-    "rating": 19.88,
+    "rating": 19.87,
     "levelId": 146399247,
     "description": "Updated to support Startpositions inside the level",
     "requirementPercent": 100,
