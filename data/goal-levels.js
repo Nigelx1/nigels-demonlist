@@ -153,6 +153,36 @@ window.GOAL_LEVELS = {
       "url": "https://geometrydash.wiki.gg/wiki/LIMBO"
     }
   },
+  "107341811": {
+    "name": "Prismatic",
+    "publisher": "CatGeo",
+    "difficulty": "Extreme",
+    "rating": 20.28,
+    "levelId": 107341811,
+    "description": "After many months of hard work and 13.3k atts I'm proud to present my new best level, PRISMATIC! 65.1k obj - 1.9k groups - 2.9k triggers - 2m 14s - Hope you enjoy! :3",
+    "requirementPercent": 100,
+    "videoUrl": "https://www.youtube.com/watch?v=3vH8jqxdq80",
+    "gd": {
+      "length": "XL",
+      "objects": 65082,
+      "gameVersion": "2.2",
+      "inGameDifficulty": "Extreme Demon",
+      "song": {
+        "id": "941405",
+        "name": "EspiDev - Caramel",
+        "artist": "EspiDev"
+      }
+    },
+    "thumbnailUrl": "https://i.ytimg.com/vi/3vH8jqxdq80/maxresdefault.jpg",
+    "palette": {
+      "accent": "#04a9a9",
+      "deep": "#0f3e3e",
+      "wash": "#f2fbfb",
+      "mist": "#e2f3f3",
+      "onAccent": "#ffffff",
+      "ink": "#1f4747"
+    }
+  },
   "115151904": {
     "name": "ta1LSD0ll",
     "publisher": "ta1lsdoll",
