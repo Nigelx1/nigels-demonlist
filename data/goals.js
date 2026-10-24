@@ -44,5 +44,5 @@ window.GOALS = [
   // --- ufplayer ---
   { player: "ufplayer", levelId: 86084399, best: null, segments: [[51, 78], [68, 100]] }, // LIMBO
   { player: "Juice", levelId: 115151904, best: 37, segments: [[34, 40], [59, 100]] }, // ta1LSD0ll
-  { player: "Jack", levelId: 107341811, best: 39, segments: [[42, 100]] }, // Prismatic
+  { player: "Jack", levelId: 107341811, best: 68, segments: [[42, 100]] }, // Prismatic
 ];
