@@ -36,6 +36,10 @@ window.CHANGELOG = [
     "date": "2026-10-25",
     "items": [
       {
+        "kind": "note",
+        "text": "Jack also cleared CraZy II."
+      },
+      {
         "kind": "add",
         "demon": "Sakupen Egg",
         "demonId": 58002670,
