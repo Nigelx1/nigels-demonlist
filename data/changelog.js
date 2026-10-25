@@ -33,6 +33,18 @@
 
 window.CHANGELOG = [
   {
+    "date": "2026-10-25",
+    "items": [
+      {
+        "kind": "add",
+        "demon": "Sakupen Egg",
+        "demonId": 58002670,
+        "at": 33,
+        "text": "Jack's clear"
+      }
+    ]
+  },
+  {
     "date": "2026-10-18",
     "items": [
       {
