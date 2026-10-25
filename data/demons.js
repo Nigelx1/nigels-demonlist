@@ -486,7 +486,8 @@ window.DEMONS = [
         "player": "Jack",
         "progress": 100,
         "nationality": "US",
-        "subdivision": "CA"
+        "subdivision": "CA",
+        "video": "https://youtu.be/m9djb5s-zyk?is=uI-7FMVbJPJ8sOvf"
       }
     ],
     "gd": {
