@@ -74,7 +74,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 350
+    "aredlPosition": 352
   },
   {
     "id": 78248443,
@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 677
+    "aredlPosition": 682
   },
   {
     "id": 10565740,
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 849
+    "aredlPosition": 854
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 939
+    "aredlPosition": 944
   },
   {
     "id": 89976481,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1129
+    "aredlPosition": 1134
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1222
+    "aredlPosition": 1227
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1387
+    "aredlPosition": 1393
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1600
+    "aredlPosition": 1605
   },
   {
     "id": 61137742,
@@ -2767,6 +2767,12 @@ window.DEMONS = [
         "progress": 100,
         "nationality": "US",
         "subdivision": "IL"
+      },
+      {
+        "player": "Jack",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "CA"
       }
     ],
     "gd": {

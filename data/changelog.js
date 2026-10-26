@@ -33,6 +33,15 @@
 
 window.CHANGELOG = [
   {
+    "date": "2026-10-26",
+    "items": [
+      {
+        "kind": "note",
+        "text": "Jack also cleared red alert."
+      }
+    ]
+  },
+  {
     "date": "2026-10-25",
     "items": [
       {
