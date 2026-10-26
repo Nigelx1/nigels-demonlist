@@ -840,7 +840,7 @@ window.DEMONS = [
     "position": 21,
     "name": "Stalemate",
     "difficulty": "Insane",
-    "rating": 15.2,
+    "rating": 15.21,
     "publisher": "Nox",
     "creators": [
       "Nox"
@@ -879,7 +879,7 @@ window.DEMONS = [
     "position": 22,
     "name": "Game Time",
     "difficulty": "Insane",
-    "rating": 15.08,
+    "rating": 15.06,
     "publisher": "SimilarAMZ",
     "creators": [
       "SimilarAMZ"
@@ -1446,7 +1446,7 @@ window.DEMONS = [
     "position": 36,
     "name": "potal",
     "difficulty": "Medium",
-    "rating": 6.34,
+    "rating": 6.33,
     "publisher": "Sillow",
     "creators": [
       "Sillow"
