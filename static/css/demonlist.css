@@ -202,7 +202,7 @@ tr:nth-child(even) {
   text-decoration: none;
 }
 
-#lists .button.active {
+#lists a.button.active {
   box-shadow: inset 0 -3px 0 var(--color-pc-button-bg);
 }
 

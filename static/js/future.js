@@ -33,12 +33,14 @@
   }
 
   // could the level be on the list at all? (tools/add-records.py's guard: an
-  // allowed difficulty, never a platformer)
+  // allowed difficulty, a demon in game, never a platformer)
   function eligible(lv) {
     var cfg = window.SITE;
     var allowed = cfg.allowedDifficulties || (cfg.extremesOnly ? ["Extreme"] : null);
     if (allowed && allowed.indexOf(lv.difficulty) < 0) return false;
-    return !/^plat/i.test((lv.gd && lv.gd.length) || "");
+    var gd = lv.gd || {};
+    if (gd.inGameDifficulty && !/ Demon$/.test(gd.inGameDifficulty)) return false; // a 9-star "Insane" isn't a demon
+    return !/^plat/i.test(gd.length || "");
   }
 
   // { rows, joining, top, topNow, players }. rows: the Future List in order,
