@@ -181,6 +181,11 @@ window.GOAL_LEVELS = {
       "mist": "#e2f3f3",
       "onAccent": "#ffffff",
       "ink": "#1f4747"
+    },
+    "writeup": {
+      "text": "Two minutes and 14 seconds of rainbow, set to EspiDev's playful Caramel. CatGeo verified their own level in July 2024 - \"many months of hard work and 13.3k atts,\" as the in-game description puts it. Cute as it looks, it plays mostly on timing, the spider sections above all, with a hard dual, a challenge-like first wave and multiple double clicks thrown in. The AREDL placed it at #979 in September 2024; as other levels were placed above it, it slid to #1573 by October 2026.",
+      "source": "AREDL",
+      "url": "https://api.aredl.net/v2/api/aredl/levels/107341811"
     }
   },
   "115151904": {
@@ -211,6 +216,11 @@ window.GOAL_LEVELS = {
       "mist": "#e2f3e2",
       "onAccent": "#ffffff",
       "ink": "#1f471f"
+    },
+    "writeup": {
+      "text": "A 49-second trip through 2.2 shader spam. Published by ta1lsdoll, this 14-creator collab was built to be as psychedelic and otherworldly as possible, piling hyper-flashy effects on fast-paced, high-CPS clicksync and incredibly learny wave sections - plus an endscreen by the mysterious 2003Devin. Arshadow verified it in February 2025 and it debuted at #98 on Pointercrate the next month; today it sits at #213 on the AREDL.",
+      "source": "AREDL",
+      "url": "https://api.aredl.net/v2/api/aredl/levels/115151904"
     }
   },
   "146399247": {
