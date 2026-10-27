@@ -4,7 +4,8 @@
 For every distinct levelId referenced in data/goals.js that ISN'T already on the
 Demonlist (data/demons.js), fetch the level's facts from gdladder + gdbrowser and
 extract a colour palette from its showcase-video thumbnail, so goal.html can
-theme itself off the image.
+theme itself off the image. An extreme also gets its AREDL placement
+(aredlPosition), which the Future List (static/js/future.js) places it by.
 
 Run it whenever you add/change a goal in data/goals.js:
 
@@ -21,12 +22,13 @@ SITE = os.path.abspath(os.path.join(HERE, ".."))
 DATA = os.path.join(SITE, "data")
 
 LEN_CODE = {1: "Tiny", 2: "Short", 3: "Medium", 4: "Long", 5: "XL", 6: "Plat"}
+AREDL = "https://api.aredl.net/v2/api/aredl/levels"
 
 
 def curl_json(url):
     try:
         out = subprocess.run(
-            ["curl", "-sS", "--max-time", "25", url], capture_output=True, text=True, timeout=45
+            ["curl", "-sS", "--max-time", "25", url], capture_output=True, text=True, encoding="utf-8", timeout=45
         ).stdout
         return json.loads(out)
     except Exception as e:
@@ -150,6 +152,15 @@ try:
 except Exception:
     pass
 
+# AREDL placements: the list orders and scores an extreme by its placement
+# (DL.demonRating), so the Future List places a Grind level the same way.
+# None = the AREDL didn't answer, and every level keeps the placement it had.
+_aredl = curl_json(AREDL)
+AREDL_POS = ({x["level_id"]: x["position"] for x in _aredl if isinstance(x, dict) and x.get("level_id")}
+             if isinstance(_aredl, list) and _aredl else None)
+if AREDL_POS is None:
+    print("  the AREDL didn't answer - every level keeps its saved AREDL placement")
+
 out = {}
 for lid in level_ids:
     if lid in listed:  # still built: the goal page takes its palette + writeup from here
@@ -171,10 +182,15 @@ for lid in level_ids:
         "publisher": gb.get("author") or None,
         "difficulty": difficulty,
         "rating": rating,
+    }
+    pos = AREDL_POS.get(lid) if AREDL_POS is not None else (prev.get(str(lid)) or {}).get("aredlPosition")
+    if isinstance(pos, int):
+        entry["aredlPosition"] = pos  # after rating: refresh-order.py writes the same order
+    entry.update({
         "levelId": lid,
         "description": gb.get("description") or meta.get("Description") or None,
         "requirementPercent": 100,
-    }
+    })
     if showcase:
         entry["videoUrl"] = f"https://www.youtube.com/watch?v={showcase}"
 

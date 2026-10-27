@@ -61,15 +61,14 @@
   // tiny runs): a goal in data/goals.js where the player has a run LONGER than
   // that % - from 0, or a practice run like 42-100 - also shows in their
   // "In Progress" row. Display only, never points. Off when the setting is
-  // missing. Returns [{ goal, run: [from, to] }] with the player's longest run.
+  // missing. Returns [{ goal, run: [from, to] }] with the player's longest run
+  // (the rule itself is DL.grindInProgressRun in static/js/goals.js).
   function grindProgress(name) {
-    var min = window.SITE && window.SITE.grindInProgress;
-    if (min == null || !DL.goalsForPlayer) return [];
+    if (!DL.goalsForPlayer || !DL.grindInProgressRun) return [];
     return DL.goalsForPlayer(name)
       .map(function (g) {
-        var runs = (g.best != null ? [[0, g.best]] : []).concat(g.segments || []);
-        var run = runs.reduce(function (b, r) { return !b || r[1] - r[0] > b[1] - b[0] ? r : b; }, null);
-        return run && run[1] - run[0] > min ? { goal: g, run: run } : null;
+        var run = DL.grindInProgressRun(g);
+        return run ? { goal: g, run: run } : null;
       })
       .filter(Boolean);
   }

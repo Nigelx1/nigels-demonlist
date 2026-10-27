@@ -57,6 +57,19 @@
       });
   };
 
+  // SITE.grindInProgress (Aceabase - Poatan's compromise): the goal's longest
+  // run [from, to] - from 0, or a practice run like 42-100 - when it's LONGER
+  // than that %, else null. Such a goal shows in the stats viewer's In Progress
+  // row, and puts an off-list level on the Future List (static/js/future.js).
+  // Always null when the setting is missing.
+  DL.grindInProgressRun = function (goal) {
+    var min = window.SITE && window.SITE.grindInProgress;
+    if (min == null) return null;
+    var runs = (goal.best != null ? [[0, goal.best]] : []).concat(goal.segments || []);
+    var run = runs.reduce(function (b, r) { return !b || r[1] - r[0] > b[1] - b[0] ? r : b; }, null);
+    return run && run[1] - run[0] > min ? run : null;
+  };
+
   // rough "how close" 0-100 for ordering / the chip label
   function reach(goal) {
     var best = goal.best == null ? 0 : goal.best;

@@ -16,6 +16,8 @@ data/config.js (aredlFit) and each demon's aredlPosition.
 Every run re-pulls the AREDL (refitting the curve) and every listed demon's
 GDDL rating, re-sorts, renumbers, and logs each position change in
 data/changelog.js as a move with its reason, so Position History follows it.
+It also brings the Grind levels' AREDL placements (data/goal-levels.js) up to
+date: the Future List (static/js/future.js) places them on the same fit.
 
     python tools/refresh-order.py            refresh, re-sort, log, write
     python tools/refresh-order.py --dry-run  print what would change
@@ -103,6 +105,18 @@ def value(d, fit):
     if isinstance(d.get("rating"), (int, float)):
         return d["rating"]
     return FALLBACK.get(d.get("difficulty"), 3)
+
+
+def with_aredl(entry, pos):
+    """A goal-levels.js entry with aredlPosition right after rating (where
+    build-goal-levels.py puts it), or without it when pos isn't a placement."""
+    out = {}
+    for k, v in entry.items():
+        if k != "aredlPosition":
+            out[k] = v
+        if k == "rating" and isinstance(pos, int):
+            out["aredlPosition"] = pos
+    return out
 
 
 def replay_check(demons, log):
@@ -232,9 +246,22 @@ def main():
                       f"{'s' if len(drift) != 1 else ''} drifted ({', '.join(f'{d['name']} {o} → {n}' for d, o, n in drift)})."})
     items = notes + list(reversed(moves))  # newest first: the replay applies them bottom-up
 
+    gtext = read("goal-levels.js") if os.path.exists(os.path.join(DATA, "goal-levels.js")) else ""
+    gm = re.search(r"window\.GOAL_LEVELS\s*=\s*(\{.*\});\s*$", gtext, re.S)
+    goal_levels = json.loads(gm.group(1)) if gm else {}
+    goal_moves = []
+    for lid, e in goal_levels.items():
+        pos = aredl.get(int(lid))
+        if e.get("aredlPosition") != pos:
+            goal_moves.append(f"  Grind level {str(e.get('name') or lid).strip()}: AREDL #{e.get('aredlPosition')} -> #{pos}")
+            goal_levels[lid] = with_aredl(e, pos)
+
     print(f"rating drift: {len(drift)}; moves: {len(moves)}")
     for m in moves:
         print(f"  {m['demon']}: {m['from']} -> {m['to']} ({m['text']})")
+    print(f"Grind level AREDL placements changed: {len(goal_moves)}")
+    for line in goal_moves:
+        print(line)
     for d in demons:
         before, after = old_val[d["id"]], value(d, fit)
         if had_fit and abs(after - before) > 0.005:
@@ -263,6 +290,10 @@ def main():
     nl = "\r\n" if "\r\n" in read("demons.js") else "\n"
     write("demons.js", dhead + json.dumps(sorted(demons, key=lambda d: d["position"]), indent=2,
                                           ensure_ascii=False).replace("\n", nl) + dtail)
+    if goal_moves:
+        gnl = "\r\n" if "\r\n" in gtext else "\n"
+        write("goal-levels.js", gtext[:gm.start(1)] + json.dumps(goal_levels, indent=2, ensure_ascii=False)
+              .replace("\n", gnl) + gtext[gm.end(1):])
 
     if items:
         text = read("changelog.js")

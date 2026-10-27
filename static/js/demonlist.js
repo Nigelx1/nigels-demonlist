@@ -66,8 +66,10 @@
 
   // The Main/Extended/Legacy dropdown tab bar (nav#lists), reused on both the
   // overview page and the demon detail page. `currentDemon` (optional) gets
-  // the `.active` class in whichever dropdown it belongs to.
-  DL.renderListNav = function (root, currentDemon) {
+  // the `.active` class in whichever dropdown it belongs to. With
+  // SITE.futureList there's a Future List tab too - a link to its own page
+  // (static/js/future.js), marked active there by `futureActive`.
+  DL.renderListNav = function (root, currentDemon, futureActive) {
     var all = DL.sortedDemons();
     var main = all.filter(function (d) { return DL.tierOf(d.position) === "main"; });
     var extended = all.filter(function (d) { return DL.tierOf(d.position) === "extended"; });
@@ -105,7 +107,10 @@
       group("mainlist", "Main List", main, true, blurbs.main || "The main section of the Demonlist.") +
       group("extended", "Extended List", extended, true,
         blurbs.extended || "Official extensions of the Main List. Only 100% completions count.") +
-      (legacy.length ? group("legacy", "Legacy List", legacy, false, "Demons that have fallen off the list.") : "");
+      (legacy.length ? group("legacy", "Legacy List", legacy, false, "Demons that have fallen off the list.") : "") +
+      (window.SITE && window.SITE.futureList
+        ? '<div><a class="button white hover no-shadow' + (futureActive ? " active" : "") + '" href="future.html">Future List</a></div>'
+        : "");
   };
 
   DL.demonPanelHtml = function (demon) {
@@ -161,6 +166,7 @@
     var guidelinesHref = inDemonlist ? "../guidelines/index.html" : "guidelines/index.html";
     var statsHref = inDemonlist ? "statsviewer.html" : "demonlist/statsviewer.html";
     var changelogHref = inDemonlist ? "../changelog/index.html" : "changelog/index.html";
+    var futureHref = inDemonlist ? "future.html" : "demonlist/future.html";
 
     var demons = DL.sortedDemons();
     var players = DL.aggregatePlayers();
@@ -300,6 +306,16 @@
       "<p>Every player and country ranked by points, with an interactive world map. See who's on top and what everyone still has left to beat.</p>" +
         '<a class="blue hover button" href="' + statsHref + '">Open the stats viewer</a>'
     );
+
+    // --- Future List --- (SITE.futureList, static/js/future.js)
+    if (cfg.futureList) {
+      html += sidebarPanel(
+        "future",
+        "Future List",
+        "<p>The list with every level in someone's In Progress added: where each one would land, and what every level would be worth.</p>" +
+          '<a class="blue hover button" href="' + futureHref + '">Open the Future List</a>'
+      );
+    }
 
     // --- Discord ---
     if (cfg.discordInvite) {
