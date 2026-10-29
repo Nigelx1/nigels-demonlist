@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 682
+    "aredlPosition": 684
   },
   {
     "id": 10565740,
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 854
+    "aredlPosition": 855
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 944
+    "aredlPosition": 946
   },
   {
     "id": 89976481,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1134
+    "aredlPosition": 1135
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1227
+    "aredlPosition": 1228
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1393
+    "aredlPosition": 1394
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1605
+    "aredlPosition": 1606
   },
   {
     "id": 61137742,
@@ -392,7 +392,7 @@ window.DEMONS = [
     "position": 10,
     "name": "Bad Trip",
     "difficulty": "Insane",
-    "rating": 17.93,
+    "rating": 17.94,
     "publisher": "Loltad",
     "creators": [
       "Loltad"
@@ -1052,7 +1052,7 @@ window.DEMONS = [
     "position": 26,
     "name": "Tidal Line",
     "difficulty": "Hard",
-    "rating": 10.21,
+    "rating": 10.2,
     "publisher": "Sp4rce",
     "creators": [
       "Sp4rce"
@@ -1208,7 +1208,7 @@ window.DEMONS = [
     "position": 30,
     "name": "Biru",
     "difficulty": "Medium",
-    "rating": 9.86,
+    "rating": 9.87,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1324,7 +1324,7 @@ window.DEMONS = [
     "position": 33,
     "name": "Sakupen Egg",
     "difficulty": "Medium",
-    "rating": 6.97,
+    "rating": 6.96,
     "publisher": "Sivlol",
     "creators": [
       "Sivlol"
@@ -1833,7 +1833,7 @@ window.DEMONS = [
     "position": 46,
     "name": "well being spot",
     "difficulty": "Easy",
-    "rating": 3.61,
+    "rating": 3.62,
     "publisher": "2003devin",
     "creators": [
       "2003devin"
@@ -2435,7 +2435,7 @@ window.DEMONS = [
     "position": 62,
     "name": "Ship",
     "difficulty": "Easy",
-    "rating": 1.91,
+    "rating": 1.9,
     "publisher": "SerpTop",
     "creators": [
       "SerpTop"
@@ -2513,7 +2513,7 @@ window.DEMONS = [
     "position": 64,
     "name": "The Farewell",
     "difficulty": "Easy",
-    "rating": 1.79,
+    "rating": 1.8,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"

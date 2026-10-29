@@ -17,6 +17,7 @@ window.GOAL_LEVELS = {
     "publisher": "Spectruh",
     "difficulty": "Extreme",
     "rating": 23.76,
+    "aredlPosition": 877,
     "levelId": 8147005,
     "description": "Another generic NC level",
     "requirementPercent": 100,
@@ -24,13 +25,13 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "Long",
       "objects": 16603,
-      "gameVersion": "2.0",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "429524",
         "name": "~NK~ DEV-BassDownLow Remix",
         "artist": "Rukkus"
-      }
+      },
+      "gameVersion": "2.0"
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/XXGJHjGlqGk/maxresdefault.jpg",
     "palette": {
@@ -52,6 +53,7 @@ window.GOAL_LEVELS = {
     "publisher": "nikroplays",
     "difficulty": "Extreme",
     "rating": 21.2,
+    "aredlPosition": 1382,
     "levelId": 20761188,
     "description": "Reverified by EndLevel, Fixed the 2.1 Bug :)",
     "requirementPercent": 100,
@@ -59,13 +61,13 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "Long",
       "objects": 62018,
-      "gameVersion": "2.0",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "672264",
         "name": "I Got No Time",
         "artist": "TheLivingTombstone"
-      }
+      },
+      "gameVersion": "2.0"
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/lHf6buYpbXU/maxresdefault.jpg",
     "palette": {
@@ -87,6 +89,7 @@ window.GOAL_LEVELS = {
     "publisher": "Presta",
     "difficulty": "Extreme",
     "rating": 31.54,
+    "aredlPosition": 277,
     "levelId": 68668045,
     "description": "verified by floofle",
     "requirementPercent": 100,
@@ -94,14 +97,14 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "XL",
       "objects": 17568,
-      "gameVersion": "2.1",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "895761",
         "name": "Purgatori",
         "artist": "Koraii",
         "link": "https://geometrydashcontent.b-cdn.net/songs/895761.mp3"
-      }
+      },
+      "gameVersion": "2.1"
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/Fuxe0O10s-E/maxresdefault.jpg",
     "palette": {
@@ -123,20 +126,21 @@ window.GOAL_LEVELS = {
     "publisher": "MindCap",
     "difficulty": "Extreme",
     "rating": 36.89,
+    "aredlPosition": 79,
     "levelId": 86084399,
-    "description": "FOCUS",
+    "description": "                                                               FOCUS",
     "requirementPercent": 100,
     "videoUrl": "https://www.youtube.com/watch?v=munuzC7ymR0",
     "gd": {
       "length": "XL",
       "objects": 65535,
-      "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "76743",
         "name": "NH22 - Isolation",
         "artist": "NightHawk22"
-      }
+      },
+      "gameVersion": "2.2"
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/munuzC7ymR0/maxresdefault.jpg",
     "palette": {
@@ -157,21 +161,22 @@ window.GOAL_LEVELS = {
     "name": "Prismatic",
     "publisher": "CatGeo",
     "difficulty": "Extreme",
-    "rating": 20.28,
+    "rating": 20.29,
+    "aredlPosition": 1573,
     "levelId": 107341811,
-    "description": "After many months of hard work and 13.3k atts I'm proud to present my new best level, PRISMATIC! 65.1k obj - 1.9k groups - 2.9k triggers - 2m 14s - Hope you enjoy! :3",
+    "description": "After many months of hard work and 13.3k atts I'm proud to present my new best level! 65.1k obj - 1.9k groups - 2.9k triggers - 2m 14s - Hope you enjoy! :3",
     "requirementPercent": 100,
     "videoUrl": "https://www.youtube.com/watch?v=3vH8jqxdq80",
     "gd": {
       "length": "XL",
       "objects": 65082,
-      "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "941405",
         "name": "EspiDev - Caramel",
         "artist": "EspiDev"
-      }
+      },
+      "gameVersion": "2.2"
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/3vH8jqxdq80/maxresdefault.jpg",
     "palette": {
@@ -193,6 +198,7 @@ window.GOAL_LEVELS = {
     "publisher": "ta1lsdoll",
     "difficulty": "Extreme",
     "rating": 33,
+    "aredlPosition": 213,
     "levelId": 115151904,
     "description": "ekzels / angarariver. spkgmd / masterz77 / antobyy / kcool101 / zgalliard / mirugene / classic10 / rply / robtobfreak / pastelpink / 2003devin / pixelllolka. arshadow",
     "requirementPercent": 100,
@@ -200,13 +206,13 @@ window.GOAL_LEVELS = {
     "gd": {
       "length": "Medium",
       "objects": 65535,
-      "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "1346205",
         "name": "Feel The Rush",
         "artist": "g2961"
-      }
+      },
+      "gameVersion": "2.2"
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/2h6t46is1vM/maxresdefault.jpg",
     "palette": {
@@ -228,21 +234,22 @@ window.GOAL_LEVELS = {
     "publisher": "Devilmine",
     "difficulty": "Extreme",
     "rating": 19.87,
+    "aredlPosition": 1609,
     "levelId": 146399247,
-    "description": "Updated to support Startpositions inside the level",
+    "description": "Level made with 3 random generated colors (i allowed hue shifts cuz holy cooked)",
     "requirementPercent": 100,
     "videoUrl": "https://www.youtube.com/watch?v=-ge89eZ9_5M",
     "gd": {
       "length": "Medium",
-      "objects": 8251,
-      "gameVersion": "2.2",
       "inGameDifficulty": "Extreme Demon",
       "song": {
         "id": "433359",
         "name": "-Killstealer-",
         "artist": "Waterflame",
         "link": "http://audio.ngfiles.com/433000/433359_Killstealer.mp3"
-      }
+      },
+      "objects": 8251,
+      "gameVersion": "2.2"
     },
     "thumbnailUrl": "https://i.ytimg.com/vi/-ge89eZ9_5M/maxresdefault.jpg",
     "palette": {
