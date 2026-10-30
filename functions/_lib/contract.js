@@ -32,7 +32,15 @@ export const OPS = {
   remove_member: [["name"], []], // only someone with no records left
   set_mod: [["discordId", "name", "role"], []], // Nigel only: add a mod, or rename / re-rank one
   remove_mod: [["discordId"], []], // Nigel only
+  // Rated+ (SITE.ratedPlus, data/unrated.js): head mods only. Clears on an
+  // unrated level are add_record / remove_record with its level id.
+  add_unrated: [["level", "rating"], ["difficulty", "placeBelow", "showcase"]],
+  set_unrated: [["level"], ["rating", "difficulty", "placeBelow", "showcase"]], // at least one of them
+  remove_unrated: [["level"], []],
 };
+
+// What set_unrated can change (it needs at least one).
+const UNRATED_FIELDS = ["rating", "difficulty", "placeBelow", "showcase"];
 
 // ISO 3166-1 alpha-2, the officially assigned codes (the same 249 as apply-edit.py)
 export const ISO = new Set(`AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO
@@ -45,6 +53,8 @@ RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF
 TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW`.split(/\s+/));
 
 export const VIDEO_HOSTS = new Set(["youtube.com", "www.youtube.com", "youtu.be", "drive.google.com"]);
+// An unrated level's showcase: YouTube only (the site makes its thumbnail from the id).
+export const SHOWCASE_HOSTS = new Set(["youtube.com", "www.youtube.com", "youtu.be"]);
 // add-video.py's own patterns: a link has to point at ONE video.
 export const VIDEO_ID = [
   /(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)[A-Za-z0-9_-]{11}/,
@@ -153,6 +163,41 @@ export function checkNote(v) {
   return v.trim();
 }
 
+// A head mod's GD Demon Ladder rating estimate for an unrated level: a number
+// from 1 to 50 with at most 2 decimals (the float noise of 31.1 * 100 is fine).
+export function checkRating(v) {
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 1 || v > 50 || Math.abs(v * 100 - Math.round(v * 100)) > 1e-6) {
+    throw new Refuse(`GDDL estimate must be a number from 1 to 50 with at most 2 decimals, got ${show(v)}`);
+  }
+  return Math.round(v * 100) / 100;
+}
+
+// The tier an unrated level counts as (it has no demon face in game).
+export function checkTier(v) {
+  if (v !== "Extreme" && v !== "Insane") throw new Refuse(`tier ${show(v)} must be "Extreme" or "Insane"`);
+  return v;
+}
+
+// An unrated level's hand-picked spot: null (by its estimate), 0 (the very top)
+// or the level id of the listed demon it sits right below. Whether the spot is
+// inside its window is checked by tools/apply-edit.py, which has the list.
+export function checkPlaceBelow(v) {
+  if (v === null) return null;
+  if (!isInt(v) || v < 0 || v > MAX_LEVEL_ID) throw new Refuse(`placeBelow must be null, 0 (the top) or a level id, got ${show(v)}`);
+  return v;
+}
+
+// An unrated level's showcase: null (none), or a link to one YouTube video.
+export function checkShowcase(v) {
+  if (v === null) return null;
+  const m = typeof v === "string" && len(v) <= 300 && !/\s/u.test(v) ? /^https:\/\/([^/?#]*)/i.exec(v) : null;
+  const host = m ? m[1].toLowerCase() : "";
+  if (!m || host.includes("@") || host.includes(":") || !SHOWCASE_HOSTS.has(host) || !VIDEO_ID[0].test(v)) {
+    throw new Refuse(`showcase ${show(v)} must be a link to one YouTube video`);
+  }
+  return v;
+}
+
 function checkSegments(segs) {
   if (!Array.isArray(segs) || segs.length > 20) throw new Refuse("runs must be a list of at most 20 [from, to] pairs");
   return segs.map((s) => {
@@ -199,6 +244,13 @@ export function validateOps(ops) {
       }
       if (Object.hasOwn(op, "discordId")) o.discordId = checkDiscordId(op.discordId);
       if (Object.hasOwn(op, "role")) o.role = checkModRole(op.role);
+      if (Object.hasOwn(op, "rating")) o.rating = checkRating(op.rating);
+      if (Object.hasOwn(op, "difficulty")) o.difficulty = checkTier(op.difficulty);
+      if (Object.hasOwn(op, "placeBelow")) o.placeBelow = checkPlaceBelow(op.placeBelow);
+      if (Object.hasOwn(op, "showcase")) o.showcase = checkShowcase(op.showcase);
+      if (op.op === "set_unrated" && !UNRATED_FIELDS.some((f) => Object.hasOwn(op, f))) {
+        throw new Refuse("nothing to change - give rating, difficulty, placeBelow or showcase");
+      }
     } catch (e) {
       if (e instanceof Refuse) throw new Refuse(`${where} (${op.op}): ${e.message}`);
       throw e;
@@ -219,6 +271,8 @@ export function validateEditBody(body) {
 // the list, rewrites its order or deletes a clear. Mods do the day-to-day: clears
 // for players already on the list, Grind, videos. tools/apply-edit.py keeps the
 // same list, and also refuses a mod's add_record for a player not on the list.
+// The unrated levels (Rated+, 2026-10-30) are head mods' too; a clear on one is
+// an add_record like any other, so mods can still add those.
 export const HEAD_ONLY = new Map([
   ["add_member", "add members"],
   ["remove_record", "remove clears"],
@@ -228,6 +282,9 @@ export const HEAD_ONLY = new Map([
   ["rename_member", "rename members"],
   ["set_member_country", "change a member's country"],
   ["remove_member", "remove members"],
+  ["add_unrated", "add unrated levels"],
+  ["set_unrated", "edit unrated levels"],
+  ["remove_unrated", "remove unrated levels"],
 ]);
 
 // Nigel's Discord account: the only one that can change the mod team (Nigel,

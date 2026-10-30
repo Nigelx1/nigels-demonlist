@@ -195,15 +195,46 @@ tr:nth-child(even) {
   color: var(--color-pc-button-bg);
 }
 
-/* --- Future List (demonlist/future.html, static/js/future.js) ------------- */
+/* --- List views: the Time / Rating options (static/js/views.js) ----------- */
 
-#lists a.button {
-  color: inherit;
-  text-decoration: none;
+#view-options {
+  gap: 6px 18px;
+  justify-content: center;
+  margin: 0 10px 14px;
 }
 
-#lists a.button.active {
+#view-options[hidden] {
+  display: none;
+}
+
+#view-options .view-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#view-options a.button {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+  min-width: 96px;
+}
+
+#view-options a.button.active {
   box-shadow: inset 0 -3px 0 var(--color-pc-button-bg);
+}
+
+@media (max-width: 767px) {
+  /* phones: each option set gets its own row, its buttons sharing it */
+  #view-options .view-group {
+    flex: 1 1 100%;
+  }
+
+  #view-options a.button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 .future-joining {
@@ -230,8 +261,38 @@ tr:nth-child(even) {
   line-height: 1.6;
 }
 
-#future-intro p {
+#view-intro p {
   text-align: left;
+}
+
+/* Rated+: the unrated levels the head mods count (data/unrated.js) */
+.view-unrated {
+  border-left: 4px solid #7b4bc4;
+}
+
+.future-badge.unrated-badge {
+  background: #7b4bc4;
+}
+
+.unrated-note {
+  text-align: left;
+}
+
+.unrated-link::after {
+  content: "U";
+  font-size: 0.65em;
+  vertical-align: super;
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+/* a view's extras in the Main / Extended dropdowns */
+.dropdown li.view-new-item {
+  box-shadow: inset 3px 0 0 #4a9e2f;
+}
+
+.dropdown li.view-unrated-item {
+  box-shadow: inset 3px 0 0 #7b4bc4;
 }
 
 /* --- overview / demon-page sidebar --------------------------------------- */

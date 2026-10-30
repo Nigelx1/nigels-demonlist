@@ -17,7 +17,9 @@ Every run re-pulls the AREDL (refitting the curve) and every listed demon's
 GDDL rating, re-sorts, renumbers, and logs each position change in
 data/changelog.js as a move with its reason, so Position History follows it.
 It also brings the Grind levels' AREDL placements (data/goal-levels.js) up to
-date: the Future List (static/js/future.js) places them on the same fit.
+date: the Future and Future+ views (static/js/views.js) place them on the same fit.
+It never reads or writes data/unrated.js: unrated levels keep the estimate, tier
+and spot the head mods gave them.
 
     python tools/refresh-order.py            refresh, re-sort, log, write
     python tools/refresh-order.py --dry-run  print what would change

@@ -64,20 +64,46 @@
 
   DL._changelogItemHtml = changelogItemHtml;
 
+  // A list view (static/js/views.js) other than Current + Rated, else null:
+  // every renderer below runs today's code when it gets null.
+  function otherView(view) {
+    return view && typeof view === "object" && !view.isDefault ? view : null;
+  }
+
   // The Main/Extended/Legacy dropdown tab bar (nav#lists), reused on both the
   // overview page and the demon detail page. `currentDemon` (optional) gets
-  // the `.active` class in whichever dropdown it belongs to. With
-  // SITE.futureList there's a Future List tab too, and with SITE.futurePlus a
-  // Future+ tab - links to their page (static/js/future.js), marked active
-  // there by `futureActive` ("future" or "plus").
-  DL.renderListNav = function (root, currentDemon, futureActive) {
+  // the `.active` class in whichever dropdown it belongs to. `view` (optional,
+  // static/js/views.js): list that view's levels instead, in its order - an
+  // unrated level or one joining from the Grind gets a marker on its item.
+  DL.renderListNav = function (root, currentDemon, view) {
+    var V = otherView(view);
     var all = DL.sortedDemons();
     var main = all.filter(function (d) { return DL.tierOf(d.position) === "main"; });
     var extended = all.filter(function (d) { return DL.tierOf(d.position) === "extended"; });
     var legacy = all.filter(function (d) { return DL.tierOf(d.position) === "legacy"; });
+    if (V) {
+      main = V.rows.filter(function (r) { return r.tier === "main"; });
+      extended = V.rows.filter(function (r) { return r.tier === "extended"; });
+      legacy = V.rows.filter(function (r) { return r.tier === "legacy"; });
+    }
+    var currentId = currentDemon ? Number(currentDemon.levelId || currentDemon.id) : null;
+
+    // one view row's item: the same markup as a demon's below
+    function rowItem(r, numbered) {
+      var lv = r.level;
+      var extra = r.kind === "grind" ? " view-new-item" : r.kind === "unrated" ? " view-unrated-item" : "";
+      var active = currentDemon && r.id === currentId ? " active" : "";
+      var display = numbered ? "#" + r.position + " - " + DL.escapeHtml(lv.name) : DL.escapeHtml(lv.name);
+      return (
+        '<li class="hover white' + extra + active + '" title="#' + r.position + " - " + DL.escapeAttr(lv.name) + '">' +
+          '<a href="' + V.url(lv) + '">' + display + "<br><i>" + DL.escapeHtml(lv.publisher) + "</i></a>" +
+        "</li>"
+      );
+    }
 
     function group(id, label, demons, numbered, description) {
       var items = demons.map(function (d) {
+        if (V) return rowItem(d, numbered);
         var active = currentDemon && currentDemon.id === d.id ? " active" : "";
         var display = numbered
           ? "#" + d.position + " - " + DL.escapeHtml(d.name)
@@ -108,15 +134,7 @@
       group("mainlist", "Main List", main, true, blurbs.main || "The main section of the Demonlist.") +
       group("extended", "Extended List", extended, true,
         blurbs.extended || "Official extensions of the Main List. Only 100% completions count.") +
-      (legacy.length ? group("legacy", "Legacy List", legacy, false, "Demons that have fallen off the list.") : "") +
-      (window.SITE && window.SITE.futureList
-        ? '<div><a class="button white hover no-shadow' + (futureActive === true || futureActive === "future" ? " active" : "") +
-          '" href="future.html">Future List</a></div>'
-        : "") +
-      (window.SITE && window.SITE.futurePlus
-        ? '<div><a class="button white hover no-shadow' + (futureActive === "plus" ? " active" : "") +
-          '" href="future.html?plus">Future+</a></div>'
-        : "");
+      (legacy.length ? group("legacy", "Legacy List", legacy, false, "Demons that have fallen off the list.") : "");
   };
 
   DL.demonPanelHtml = function (demon) {
@@ -166,17 +184,25 @@
     );
   }
 
-  DL.renderSidebar = function (root) {
+  // `view` (optional, static/js/views.js): Statistics and Top Players come
+  // from that view, and its rules replace the List Views panel.
+  DL.renderSidebar = function (root, view) {
     var cfg = window.SITE;
+    var V = otherView(view);
     var inDemonlist = location.pathname.indexOf("/demonlist/") !== -1;
+    var onListPage = /\/demonlist\/(?:index\.html)?$/.test(location.pathname);
     var guidelinesHref = inDemonlist ? "../guidelines/index.html" : "guidelines/index.html";
     var statsHref = inDemonlist ? "statsviewer.html" : "demonlist/statsviewer.html";
     var changelogHref = inDemonlist ? "../changelog/index.html" : "changelog/index.html";
-    var futureHref = inDemonlist ? "future.html" : "demonlist/future.html";
+    var listHref = inDemonlist ? "index.html" : "demonlist/index.html";
 
     var demons = DL.sortedDemons();
     var players = DL.aggregatePlayers();
     var html = "";
+
+    function statRow(label, value) {
+      return '<div class="stat-row"><span>' + label + "</span><b>" + value + "</b></div>";
+    }
 
     // --- List Mods / Helpers --- in the site's own font (not pointercrate's small
     // caps): head mods in bold on the first line, the rest on the next, each in
@@ -211,7 +237,37 @@
     );
 
     // --- Statistics ---
-    if (demons.length) {
+    if (V) {
+      if (V.rows.length) {
+        var tierCount = function (tier) {
+          return V.rows.filter(function (r) { return r.tier === tier; }).length;
+        };
+        var viewLegacy = tierCount("legacy");
+        var viewTop = V.players
+          .slice()
+          .sort(function (a, b) { return b.completed.length - a.completed.length; })[0];
+        var first = V.rows[0].level;
+        html += sidebarPanel(
+          "list-stats",
+          "Statistics",
+          statRow("Levels in this view", V.rows.length) +
+            statRow(
+              viewLegacy ? "Main / Extended / Legacy" : "Main / Extended",
+              tierCount("main") + " / " + tierCount("extended") + (viewLegacy ? " / " + viewLegacy : "")
+            ) +
+            statRow(
+              "Completions logged",
+              V.recordLevels.reduce(function (n, d) { return n + (d.records || []).length; }, 0)
+            ) +
+            statRow("Players ranked", V.players.length) +
+            statRow("Hardest level", '<a href="' + V.url(first) + '">' + DL.escapeHtml(first.name) + "</a>") +
+            (viewTop
+              ? statRow("Most completions", DL.escapeHtml(viewTop.name) + " (" + viewTop.completed.length + ")")
+              : "") +
+            statRow("Points on the board", V.players.reduce(function (n, p) { return n + p.score; }, 0).toFixed(0))
+        );
+      }
+    } else if (demons.length) {
       var mainCount = demons.filter(function (d) { return DL.tierOf(d.position) === "main"; }).length;
       var extendedCount = demons.filter(function (d) { return DL.tierOf(d.position) === "extended"; }).length;
       var legacyCount = demons.filter(function (d) { return DL.tierOf(d.position) === "legacy"; }).length;
@@ -221,10 +277,6 @@
         .slice()
         .sort(function (a, b) { return b.completed.length - a.completed.length; })[0];
       var totalScore = players.reduce(function (n, p) { return n + p.score; }, 0);
-
-      function statRow(label, value) {
-        return '<div class="stat-row"><span>' + label + "</span><b>" + value + "</b></div>";
-      }
 
       html += sidebarPanel(
         "list-stats",
@@ -247,32 +299,34 @@
       );
     }
 
-    // --- Top of the leaderboard ---
-    if (players.length) {
+    // --- Top of the leaderboard --- (the view's, with today's score beside it)
+    var ranked = V ? V.players : players;
+    if (ranked.length) {
       html += sidebarPanel(
         "top-players",
         "Top Players",
         '<ol class="mini-ranking">' +
-          players
+          ranked
             .slice(0, 3)
             .map(function (p) {
+              var today =
+                V && p.scoreNow.toFixed(0) !== p.score.toFixed(0) ? " (" + p.scoreNow.toFixed(0) + "&nbsp;today)" : "";
               return (
                 "<li>" +
                 (p.nationality ? DL.flagSpan(p.nationality) : "") +
                 '<a class="underdotted" href="' +
-                statsHref +
-                "?player=" +
-                encodeURIComponent(p.name) +
+                DL.withView(statsHref + "?player=" + encodeURIComponent(p.name)) +
                 '">' +
                 DL.escapeHtml(p.name) +
                 "</a><span>" +
                 p.score.toFixed(0) +
+                today +
                 "</span></li>"
               );
             })
             .join("") +
           "</ol>" +
-          '<a class="blue hover button" href="' + statsHref + '">Full ranking &amp; map</a>'
+          '<a class="blue hover button" href="' + DL.withView(statsHref) + '">Full ranking &amp; map</a>'
       );
     }
 
@@ -310,18 +364,58 @@
       "stats",
       "Stats Viewer",
       "<p>Every player and country ranked by points, with an interactive world map. See who's on top and what everyone still has left to beat.</p>" +
-        '<a class="blue hover button" href="' + statsHref + '">Open the stats viewer</a>'
+        '<a class="blue hover button" href="' + DL.withView(statsHref) + '">Open the stats viewer</a>'
     );
 
-    // --- Future List --- (SITE.futureList, static/js/future.js)
-    if (cfg.futureList) {
+    // --- List Views --- (static/js/views.js): what the other views are, or in
+    // one of them, how it works and the way back
+    var opts = DL.viewOptions();
+    if (V) {
+      var rules = "";
+      if (V.time === "future") {
+        rules +=
+          "<p>Future adds every level in someone's In Progress." +
+          (cfg.grindInProgress != null
+            ? " In Progress means a Grind run longer than " + cfg.grindInProgress +
+              "% (from the start, or a practice run like 42&ndash;100)."
+            : "") +
+          "</p>";
+      } else if (V.time === "plus") {
+        rules += "<p>Future+ adds every level in anyone's Grind, whatever their progress.</p>";
+      }
+      if (V.rating === "plus") {
+        rules +=
+          "<p>Rated+ adds the unrated levels the head mods count as accomplishments. Each one goes where its GD " +
+          "Demon Ladder estimate puts it (or a spot a head mod picked close to it), and its clears count for points here.</p>";
+      }
       html += sidebarPanel(
-        "future",
-        "Future List",
-        "<p>The list with every level in someone's In Progress added: where each one would land, and what every level would be worth." +
-          (cfg.futurePlus ? " Future+ does the same with every level in anyone's Grind." : "") + "</p>" +
-          '<a class="blue hover button" href="' + futureHref + '">Open the Future List</a>' +
-          (cfg.futurePlus ? '<a class="blue hover button" href="' + futureHref + '?plus" style="margin-top:8px">Open Future+</a>' : "")
+        "view-rules",
+        "How this view works",
+        rules +
+          "<p>Every level goes where the list would put it, ranked the same way as everything else, and every " +
+          "level's points and everyone's score are worked out again for this view.</p>" +
+          '<a class="blue hover button" data-view-set href="' +
+          DL.withView(listHref, { time: "current", rating: "rated" }, true) +
+          '">' + "Back to today's list</a>"
+      );
+    } else if (opts.times.length > 1 || opts.ratings.length > 1) {
+      var others = [];
+      if (opts.times.indexOf("future") >= 0) others.push("Future adds every level in someone's In Progress");
+      if (opts.times.indexOf("plus") >= 0) {
+        others.push(others.length ? "Future+ every level in anyone's Grind" : "Future+ adds every level in anyone's Grind");
+      }
+      if (opts.ratings.indexOf("plus") >= 0) {
+        others.push(
+          others.length ? "Rated+ the unrated levels the head mods count" : "Rated+ adds the unrated levels the head mods count"
+        );
+      }
+      html += sidebarPanel(
+        "views",
+        "List Views",
+        "<p>The list and the stats viewer can also show other views: " +
+          (others.length < 2 ? others.join("") : others.slice(0, -1).join(", ") + ", and " + others[others.length - 1]) +
+          ". Every level's points and everyone's score are worked out again for the view. Pick one at the top of the list.</p>" +
+          (onListPage ? "" : '<a class="blue hover button" href="' + DL.withView(listHref) + '">Open the list</a>')
       );
     }
 
@@ -338,6 +432,16 @@
     }
 
     root.innerHTML = html;
+
+    // "Back to today's list": forget the pick, then open the list
+    var back = V && root.querySelector("#view-rules a[data-view-set]");
+    if (back) {
+      back.addEventListener("click", function (e) {
+        if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        DL.setView({ time: "current", rating: "rated" }, listHref);
+      });
+    }
   };
 
   // The demon-panel headline (`h3`), phrased exactly like pointercrate's
@@ -419,12 +523,13 @@
     );
   }
 
-  function recordsTableHtml(demon) {
+  // `tier` (optional): the demon's tier in a list view; today's by default
+  function recordsTableHtml(demon, tier) {
     var records = (demon.records || []).slice().sort(function (a, b) {
       return b.progress - a.progress || a.player.localeCompare(b.player);
     });
     var oneHundred = records.filter(function (r) { return r.progress >= 100; }).length;
-    var tier = DL.tierOf(demon.position);
+    if (tier === undefined) tier = DL.tierOf(demon.position);
     var req = demon.requirementPercent || 100;
     var reqText = tier === "extended" ? "100% required to qualify" : req + "% or better required to qualify";
 
@@ -475,7 +580,7 @@
   // here) or, for a bigger video, its YouTube / Google Drive link.
   // record.videoPoster: an optional still for hosted files.
   DL.recordUrl = function (demonId, player) {
-    return "record.html?demon=" + encodeURIComponent(demonId) + "&player=" + encodeURIComponent(player);
+    return DL.withView("record.html?demon=" + encodeURIComponent(demonId) + "&player=" + encodeURIComponent(player));
   };
 
   function siteAsset(path) {
@@ -526,10 +631,14 @@
   }
 
   // same layout as the demon page's top panel: heading, byline, the video
-  // where the showcase sits, then the facts row
-  DL.renderRecordPage = function (root, demon, record) {
-    var tier = DL.tierOf(demon.position);
-    var demonLink = '<a href="' + DL.demonUrl(demon.id) + '">' + DL.escapeHtml(demon.name) + "</a>";
+  // where the showcase sits, then the facts row. `view` (optional): the
+  // demon's position and list in that list view.
+  DL.renderRecordPage = function (root, demon, record, view) {
+    var V = otherView(view);
+    var tier = V ? V.tier(demon) : DL.tierOf(demon.position);
+    var position = V ? V.pos(demon) : demon.position;
+    var demonHref = V ? V.url(demon) : DL.demonUrl(demon.id);
+    var demonLink = '<a href="' + demonHref + '">' + DL.escapeHtml(demon.name) + "</a>";
     function bit(label, value) {
       return "<span><b>" + label + "</b><br>" + value + "</span>";
     }
@@ -537,7 +646,7 @@
     root.innerHTML =
       '<section class="panel fade">' +
         '<div class="underlined">' +
-          '<h1 id="record-heading">' + (tier !== "legacy" ? "#" + demon.position + " – " : "") + demonLink + "</h1>" +
+          '<h1 id="record-heading">' + (tier !== "legacy" ? "#" + position + " – " : "") + demonLink + "</h1>" +
           "<h3>" + DL.flagSpan(record.nationality) + DL.playerLink(record.player) + " &middot; " + record.progress + "%</h3>" +
         "</div>" +
         recordPlayerHtml(record) +
@@ -547,26 +656,64 @@
           bit("Demon", demonLink) +
           bit("List", tier === "main" ? "Main List" : tier === "extended" ? "Extended List" : "Legacy List") +
         "</div>" +
-        '<a class="blue hover button" href="' + DL.demonUrl(demon.id) + '">All ' + DL.escapeHtml(demon.name) + " records</a>" +
+        '<a class="blue hover button" href="' + demonHref + '">All ' + DL.escapeHtml(demon.name) + " records</a>" +
       "</section>";
   };
 
-  DL.renderDemonDetail = function (root, demon) {
-    var all = DL.sortedDemons();
-    var idx = all.findIndex(function (d) { return d.id === demon.id; });
-    var prev = idx > 0 ? all[idx - 1] : null;
-    var next = idx < all.length - 1 ? all[idx + 1] : null;
-    var tier = DL.tierOf(demon.position);
+  // `view` (optional, static/js/views.js): the demon's neighbors, position,
+  // list and points in that view. An unrated level (data/unrated.js) comes
+  // with a Rated+ view and gets a note on what it is; it has no Position
+  // History (that's for listed demons).
+  DL.renderDemonDetail = function (root, demon, view) {
+    var V = otherView(view);
+    var listed = !!DL.demonById(demon.id);
+    var row = V ? V.row(demon) : null;
+    var prev, next, tier;
+    if (V) {
+      var at = row ? V.rows.indexOf(row) : -1;
+      prev = at > 0 ? V.rows[at - 1].level : null;
+      next = at >= 0 && at < V.rows.length - 1 ? V.rows[at + 1].level : null;
+      tier = V.tier(demon);
+    } else {
+      var all = DL.sortedDemons();
+      var idx = all.findIndex(function (d) { return d.id === demon.id; });
+      prev = idx > 0 ? all[idx - 1] : null;
+      next = idx < all.length - 1 ? all[idx + 1] : null;
+      tier = DL.tierOf(demon.position);
+    }
+    function pageUrl(d) {
+      return V ? V.url(d) : DL.demonUrl(d.id);
+    }
     var req = demon.requirementPercent || 100;
 
     // phones size the name by its longest word (see #demon-heading in demonlist.css)
     var longestWord = Math.max.apply(null, demon.name.split(/\s+/).map(function (w) { return w.length; }));
     var heading =
       '<h1 id="demon-heading" style="overflow:hidden; --longest-word:' + longestWord + '">' +
-      (prev ? '<a href="' + DL.demonUrl(prev.id) + '"><i class="fa fa-chevron-left" style="padding-right:5%"></i></a>' : "") +
+      (prev ? '<a href="' + pageUrl(prev) + '"><i class="fa fa-chevron-left" style="padding-right:5%"></i></a>' : "") +
       DL.escapeHtml(demon.name) +
-      (next ? '<a href="' + DL.demonUrl(next.id) + '"><i class="fa fa-chevron-right" style="padding-left:5%"></i></a>' : "") +
+      (next ? '<a href="' + pageUrl(next) + '"><i class="fa fa-chevron-right" style="padding-left:5%"></i></a>' : "") +
       "</h1>";
+
+    // an unrated level: what it is and where it counts
+    var unratedNote = "";
+    if (!listed && typeof demon.rating === "number") {
+      var spot = "";
+      if (row && row.manual) {
+        var anchor = Number(demon.placeBelow);
+        var below = anchor ? DL.demonById(anchor) : null;
+        spot = anchor === 0
+          ? ", placed by hand at the very top"
+          : below
+          ? ', placed by hand right below <a href="' + pageUrl(below) + '">' + DL.escapeHtml(below.name) + "</a>"
+          : "";
+      }
+      unratedNote =
+        '<div class="underlined pad"><p class="unrated-note"><span class="future-badge unrated-badge">Unrated</span> ' +
+        "Not rated in game yet. It counts as an accomplishment in the Rated+ views, as an " +
+        DL.escapeHtml(demon.difficulty) + " at the head mods' GD Demon Ladder estimate of " + demon.rating.toFixed(2) +
+        spot + ".</p></div>";
+    }
 
     // Hosted: embed the player directly, exactly like pointercrate
     // (iframe.ratio-16-9, width:90% margin:15px 5%). On file:// a YouTube embed
@@ -617,6 +764,10 @@
     if (gd.length) infoBits.push(bit("Level Length", DL.escapeHtml(gd.length)));
     if (gd.objects) infoBits.push(bit("Object Count", gd.objects >= 65535 ? "65535+" : String(gd.objects)));
     infoBits.push(bit("In-Game Difficulty", DL.escapeHtml(gd.inGameDifficulty || DL.difficultyLabel(demon.difficulty))));
+    if (unratedNote) {
+      infoBits.push(bit("GDDL estimate", demon.rating.toFixed(2)));
+      infoBits.push(bit("Counts as", DL.escapeHtml(DL.difficultyLabel(demon.difficulty))));
+    }
     if (gd.gameVersion) infoBits.push(bit("Created In", DL.escapeHtml(gd.gameVersion)));
     if (gd.song && /^\d+$/.test(String(gd.song.id))) {
       var s = gd.song;
@@ -628,7 +779,29 @@
           '<a class="link" href="' + DL.escapeHtml(songHref) + '" target="_blank" rel="noopener">' + songText + "</a></span>"
       );
     }
-    if (tier !== "legacy") {
+    if (V) {
+      // the view's position and points, with today's beside them when they differ
+      if (row) {
+        infoBits.push(
+          bit(
+            "Position (" + DL.escapeHtml(V.title) + ")",
+            "#" + row.position + (listed && row.was !== row.position ? " (#" + row.was + " today)" : "")
+          )
+        );
+        if (tier !== "legacy") {
+          var now = listed ? DL.scoreAt100(demon).toFixed(2) : null;
+          infoBits.push(
+            bit(
+              "Demonlist score (100%)",
+              row.points.toFixed(2) + (now !== null && now !== row.points.toFixed(2) ? " (" + now + " today)" : "")
+            )
+          );
+          if (req < 100) {
+            infoBits.push(bit("Demonlist score (" + req + "%)", V.recordScore(demon, req).toFixed(2)));
+          }
+        }
+      }
+    } else if (tier !== "legacy") {
       infoBits.push(bit("Demonlist score (100%)", DL.scoreAt100(demon).toFixed(2)));
       if (req < 100) {
         infoBits.push(bit("Demonlist score (" + req + "%)", DL.recordScore(demon, req).toFixed(2)));
@@ -638,12 +811,13 @@
     root.innerHTML =
       '<section class="panel fade js-scroll-anim" data-anim="fade">' +
         '<div class="underlined">' + heading + "<h3>" + bylineHtml(demon) + "</h3></div>" +
+        unratedNote +
         (demon.description ? '<div class="underlined pad"><q>' + DL.escapeHtml(demon.description) + "</q></div>" : "") +
         videoHtml +
         '<div class="underlined pad flex wrap" id="level-info">' + infoBits.join("") + "</div>" +
       "</section>" +
-      positionHistoryHtml(demon) +
-      recordsTableHtml(demon);
+      (listed ? positionHistoryHtml(demon) : "") +
+      recordsTableHtml(demon, V ? tier : undefined);
 
     var videoEl = root.querySelector(".js-demon-video");
     if (videoEl) {

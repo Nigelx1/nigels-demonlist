@@ -307,12 +307,292 @@ DL.formatDemonLink = function (demon) {
   return '<i style="opacity:.5">' + inner + "</i>";
 };
 
+// -----------------------------------------------------------------------------
+// LIST VIEWS (Nigel and Dihmaster500, 2026-10-30). The list and the stats
+// viewer show one option from each of two sets, in any combination:
+//   time:   "current" (today's list) | "future" (SITE.futureList) | "plus" (Future+, SITE.futurePlus)
+//   rating: "rated" (today's list) | "plus" (Rated+, SITE.ratedPlus)
+// static/js/views.js builds a view (DL.listView); this part keeps track of
+// which one a page shows. A URL with a valid ?time= / ?rating= decides it (a
+// missing one means its default), then the viewer's last pick (localStorage
+// "list_view" = "time|rating", written only when they click an option), then
+// Current + Rated. The defaults go into a URL (as time=current) only where a
+// link has to open today's list for a viewer whose last pick is another view
+// (DL.pinDefault). So with Current + Rated and nothing picked - and on a list
+// with none of the flags (Nigel's Demonlist) - every URL and every page stays
+// exactly as it was. Safe in node's vm: nothing here touches document,
+// location, localStorage or history until a page calls it.
+// -----------------------------------------------------------------------------
+
+DL.VIEW_KEY = "list_view";
+
+// The values each option set offers on this list, defaults first.
+DL.viewOptions = function () {
+  var cfg = window.SITE || {};
+  var times = ["current"];
+  if (cfg.futureList) times.push("future");
+  if (cfg.futurePlus) times.push("plus");
+  var ratings = ["rated"];
+  if (cfg.ratedPlus) ratings.push("plus");
+  return { times: times, ratings: ratings };
+};
+
+DL.isDefaultView = function (v) {
+  return !v || (v.time === "current" && v.rating === "rated");
+};
+
+// { time, rating } with anything invalid or switched off back at its default.
+DL.normalizeView = function (v) {
+  var opts = DL.viewOptions();
+  v = v || {};
+  return {
+    time: opts.times.indexOf(v.time) >= 0 ? v.time : "current",
+    rating: opts.ratings.indexOf(v.rating) >= 0 ? v.rating : "rated",
+  };
+};
+
+// The view a query string ("?time=future&rating=plus") asks for, or null when
+// it has no valid view param. A param whose option is off doesn't count.
+DL.parseView = function (search) {
+  var opts = DL.viewOptions();
+  var time = null, rating = null, seen = {};
+  String(search || "").replace(/^\?/, "").split("&").forEach(function (part) {
+    if (!part) return;
+    var eq = part.indexOf("=");
+    var key = eq < 0 ? part : part.slice(0, eq);
+    if ((key !== "time" && key !== "rating") || seen[key]) return;
+    seen[key] = true;
+    var value = eq < 0 ? "" : part.slice(eq + 1);
+    try {
+      value = decodeURIComponent(value.replace(/\+/g, " "));
+    } catch (e) {
+      return;
+    }
+    if (key === "time" && opts.times.indexOf(value) >= 0) time = value;
+    if (key === "rating" && opts.ratings.indexOf(value) >= 0) rating = value;
+  });
+  if (time === null && rating === null) return null;
+  return { time: time || "current", rating: rating || "rated" };
+};
+
+// The viewer's last pick, or null (nothing stored, storage blocked, or a pick
+// this list doesn't offer).
+DL.storedView = function () {
+  var raw = null;
+  try {
+    if (typeof localStorage === "undefined" || !localStorage) return null;
+    raw = localStorage.getItem(DL.VIEW_KEY);
+  } catch (e) {
+    return null;
+  }
+  var m = /^([a-z]+)\|([a-z]+)$/.exec(raw || "");
+  if (!m) return null;
+  var opts = DL.viewOptions();
+  if (opts.times.indexOf(m[1]) < 0 || opts.ratings.indexOf(m[2]) < 0) return null;
+  return { time: m[1], rating: m[2] };
+};
+
+DL.storeView = function (v) {
+  try {
+    if (typeof localStorage === "undefined" || !localStorage) return;
+    if (DL.isDefaultView(v)) localStorage.removeItem(DL.VIEW_KEY);
+    else localStorage.setItem(DL.VIEW_KEY, v.time + "|" + v.rating);
+  } catch (e) {
+    /* storage is blocked (some private windows): the pick just isn't remembered */
+  }
+};
+
+// The view this page shows: the URL's, else the stored one, else Current + Rated.
+DL.currentView = function () {
+  if (!DL._view) {
+    var v = null;
+    var opts = DL.viewOptions();
+    if (typeof location === "undefined") return { time: "current", rating: "rated" };
+    if (opts.times.length > 1 || opts.ratings.length > 1) {
+      v = DL.parseView(location.search) || DL.storedView();
+    }
+    DL._view = v || { time: "current", rating: "rated" };
+  }
+  return { time: DL._view.time, rating: DL._view.rating };
+};
+
+// Show another view on this page only (nothing is stored). demon.html uses it
+// for an unrated level, which only the Rated+ views have.
+DL.useView = function (v) {
+  DL._view = DL.normalizeView(v);
+  DL._pin = undefined;
+};
+
+// True when this page shows Current + Rated but the viewer's last pick is
+// another view. A link with no view params would open that pick, so links from
+// here say time=current. Worked out once a page.
+DL.pinDefault = function () {
+  if (DL._pin === undefined) {
+    var opts = DL.viewOptions();
+    DL._pin =
+      (opts.times.length > 1 || opts.ratings.length > 1) &&
+      DL.isDefaultView(DL.currentView()) &&
+      !DL.isDefaultView(DL.storedView());
+  }
+  return DL._pin;
+};
+
+// href with the view's params: every time= / rating= part dropped, then
+// time=X / rating=Y added unless they're the defaults. With pin, the default
+// view is written out too (time=current), for a link that must open today's
+// list whatever the viewer picked last. With v given it's a pure string
+// operation. Without it, it uses this page's view, pinned when DL.pinDefault
+// says so. With the default view, no pin and no view params in href, href
+// comes back exactly as given.
+DL.withView = function (href, v, pin) {
+  if (!v) {
+    v = DL.currentView();
+    if (pin === undefined) pin = DL.pinDefault();
+  }
+  href = String(href);
+  var hash = "", path = href, query = "";
+  var h = path.indexOf("#");
+  if (h >= 0) {
+    hash = path.slice(h);
+    path = path.slice(0, h);
+  }
+  var q = path.indexOf("?");
+  if (q >= 0) {
+    query = path.slice(q + 1);
+    path = path.slice(0, q);
+  }
+  var had = false;
+  var parts = query.split("&").filter(function (part) {
+    if (!part) return false;
+    var key = part.split("=")[0];
+    if (key === "time" || key === "rating") {
+      had = true;
+      return false;
+    }
+    return true;
+  });
+  var plain = v.time === "current" && v.rating === "rated";
+  if (!had && plain && !pin) return href;
+  if (v.time && v.time !== "current") parts.push("time=" + encodeURIComponent(v.time));
+  if (v.rating && v.rating !== "rated") parts.push("rating=" + encodeURIComponent(v.rating));
+  if (plain && pin) parts.push("time=current");
+  return path + (parts.length ? "?" + parts.join("&") : "") + hash;
+};
+
+// The viewer picked a view: remember it and load the page with it. A page
+// showing today's list first gets time=current in its own history entry, so
+// Back (or a reload after it) still shows today's list, not the new pick.
+DL.setView = function (v, href) {
+  if (!DL.isDefaultView(v) && DL.isDefaultView(DL.currentView())) {
+    try {
+      var here = DL.withView(location.href, DL.currentView(), true);
+      if (here !== location.href) history.replaceState(history.state, "", here);
+    } catch (e) {
+      /* opened from disk in a browser that won't: Back shows the new pick */
+    }
+  }
+  DL.storeView(v);
+  location.assign(DL.withView(href || location.href, v));
+};
+
+// Put this page's view into the address bar, so it can be shared as is.
+// Today's list keeps an explicit time=current while the viewer's last pick is
+// another view (DL.pinDefault), so a reload doesn't swap it for that pick.
+DL.syncViewUrl = function () {
+  try {
+    if (typeof location === "undefined" || typeof history === "undefined") return;
+    var want = DL.withView(location.href);
+    if (want !== location.href) history.replaceState(null, "", want);
+  } catch (e) {
+    /* opened from disk in a browser that won't: the page still shows the view */
+  }
+};
+
+// Carry this page's view on every link to the list's pages under root
+// (pinned when DL.pinDefault says so). Links marked data-view-set name their
+// own view and keep it.
+DL.carryView = function (root) {
+  var scope = root || document;
+  var pages = /\/demonlist\/(?:(?:index|statsviewer|demon|record|goal)\.html)?$/;
+  var here;
+  try {
+    here = new URL(location.href);
+  } catch (e) {
+    return;
+  }
+  Array.prototype.forEach.call(scope.querySelectorAll("a[href]"), function (a) {
+    if (a.hasAttribute("data-view-set")) return;
+    var href = a.getAttribute("href");
+    try {
+      var url = new URL(href, here);
+      if (url.origin !== here.origin || !pages.test(url.pathname)) return;
+    } catch (e) {
+      return;
+    }
+    var next = DL.withView(href);
+    if (next !== href) a.setAttribute("href", next);
+  });
+};
+
+if (typeof document !== "undefined" && document.addEventListener) {
+  var _carryView = function () {
+    if (!DL.isDefaultView(DL.currentView()) || DL.pinDefault()) DL.carryView(document);
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _carryView);
+  } else {
+    _carryView();
+  }
+  // Back to a page the browser kept in memory: the viewer may have picked
+  // another view since it loaded, so its links name its view again.
+  if (typeof window !== "undefined" && window.addEventListener) {
+    window.addEventListener("pageshow", function (e) {
+      if (!e.persisted) return;
+      DL._pin = undefined;
+      _carryView();
+    });
+  }
+}
+
+// Unrated levels (SITE.ratedPlus, data/unrated.js - head mods add them on the
+// mod page): [] unless Rated+ is on. They count only in the Rated+ views
+// (static/js/views.js). Never mutated, never given a position.
+DL.unratedLevels = function () {
+  var cfg = window.SITE || {};
+  if (!cfg.ratedPlus || !Array.isArray(window.UNRATED)) return [];
+  var allowed = cfg.allowedDifficulties;
+  return window.UNRATED.filter(function (u) {
+    return (
+      !!u &&
+      typeof u.levelId === "number" && isFinite(u.levelId) &&
+      typeof u.rating === "number" && isFinite(u.rating) &&
+      (!allowed || allowed.indexOf(u.difficulty) >= 0)
+    );
+  });
+};
+
+// The unrated level with this level id, or null. A listed demon always wins.
+DL.unratedById = function (id) {
+  id = Number(id);
+  if (DL.demonById(id)) return null;
+  return (
+    DL.unratedLevels().filter(function (u) {
+      return u.levelId === id;
+    })[0] || null
+  );
+};
+
+// DL.escapeHtml for a double-quoted attribute value.
+DL.escapeAttr = function (str) {
+  return DL.escapeHtml(str).replace(/"/g, "&quot;");
+};
+
 DL.demonUrl = function (id) {
-  return "demon.html?id=" + encodeURIComponent(id);
+  return DL.withView("demon.html?id=" + encodeURIComponent(id));
 };
 
 DL.playerUrl = function (name) {
-  return "statsviewer.html?player=" + encodeURIComponent(name);
+  return DL.withView("statsviewer.html?player=" + encodeURIComponent(name));
 };
 
 DL.playerLink = function (name) {
@@ -437,7 +717,16 @@ DL.subdivisionFlagSpan = function (countryCode, subdivisionCode) {
 // verifier, that still shows up via their created/published/verified lists
 // (computed separately below), it just doesn't fabricate a ranking entry for
 // people who never actually beat anything on your list.
-DL.aggregatePlayers = function () {
+//
+// view (optional, static/js/views.js): rank by a list view instead. Its levels
+// (view.recordLevels: the listed demons, then in Rated+ the unrated levels),
+// its points (view.recordScore) and its order (view.pos) stand in for today's;
+// everything else is the same code. A float-sized score difference is a tie,
+// which keeps today's order. Each player also gets scoreNow / rankNow (today's).
+// No view, or the default one, runs today's code: same loops, same order, same
+// comparator, so today's ranking comes out bit for bit.
+DL.aggregatePlayers = function (view) {
+  var v = view && !view.isDefault ? view : null;
   var byName = {};
 
   function ensure(name) {
@@ -459,7 +748,7 @@ DL.aggregatePlayers = function () {
     return entry;
   }
 
-  window.DEMONS.forEach(function (demon) {
+  (v ? v.recordLevels : window.DEMONS).forEach(function (demon) {
     (demon.records || []).forEach(function (record) {
       var entry = ensure(record.player);
       if (!entry.nationality && record.nationality) {
@@ -467,12 +756,15 @@ DL.aggregatePlayers = function () {
         entry.subdivision = record.subdivision || null;
       }
 
-      entry.score += DL.recordScore(demon, record.progress);
+      entry.score += v ? v.recordScore(demon, record.progress) : DL.recordScore(demon, record.progress);
 
       var withDemon = { demon: demon, progress: record.progress };
       if (record.progress >= 100) {
         entry.completed.push(withDemon);
-        if (!entry.hardest || demon.position < entry.hardest.position) entry.hardest = demon;
+        if (
+          !entry.hardest ||
+          (v ? v.pos(demon) < v.pos(entry.hardest) : demon.position < entry.hardest.position)
+        ) entry.hardest = demon;
       } else {
         entry.progressed.push(withDemon);
       }
@@ -490,7 +782,7 @@ DL.aggregatePlayers = function () {
 
   // Credit created/published/verified only to players who already have a
   // ranking entry (see comment above) - this never creates new entries.
-  window.DEMONS.forEach(function (demon) {
+  (v ? v.recordLevels : window.DEMONS).forEach(function (demon) {
     (demon.creators && demon.creators.length ? demon.creators : [demon.publisher]).forEach(function (name) {
       if (byName[name]) byName[name].created.push(demon);
     });
@@ -502,12 +794,31 @@ DL.aggregatePlayers = function () {
   var players = Object.keys(byName).map(function (name) {
     return byName[name];
   });
-  players.sort(function (a, b) {
-    return b.score - a.score;
-  });
+  if (!v) {
+    players.sort(function (a, b) {
+      return b.score - a.score;
+    });
+  } else {
+    var today = {};
+    DL.aggregatePlayers().forEach(function (p) {
+      today[p.name] = p;
+    });
+    var rankToday = function (name) {
+      return (today[name] && today[name].rank) || 1e9;
+    };
+    players.sort(function (a, b) {
+      return Math.abs(b.score - a.score) < 1e-9 ? rankToday(a.name) - rankToday(b.name) : b.score - a.score;
+    });
+  }
   players.forEach(function (p, i) {
     p.rank = i + 1;
   });
+  if (v) {
+    players.forEach(function (p) {
+      p.scoreNow = today[p.name] ? today[p.name].score : 0;
+      p.rankNow = today[p.name] ? today[p.name].rank : null;
+    });
+  }
 
   return players;
 };
@@ -525,8 +836,13 @@ DL.playerByName = function (name) {
 // hardest demon, and the demons nobody from the country has touched. Also
 // buckets the country's players by `subdivision` (state) so the individual
 // stats viewer can rank e.g. Illinois vs Indiana. Used by the Nations view.
-DL.aggregateNations = function () {
-  var players = DL.aggregatePlayers();
+//
+// view (optional): the same roll-up for a list view, from its players' scores,
+// its levels and its order, ties kept in today's order, with scoreNow / rankNow
+// (today's) on each nation. No view, or the default one, runs today's code.
+DL.aggregateNations = function (view) {
+  var v = view && !view.isDefault ? view : null;
+  var players = v ? v.players || DL.aggregatePlayers(v) : DL.aggregatePlayers();
   var byCode = {};
 
   players.forEach(function (p) {
@@ -580,7 +896,7 @@ DL.aggregateNations = function () {
     var beaten = {};
     var progress = {};
 
-    window.DEMONS.forEach(function (demon) {
+    (v ? v.recordLevels : window.DEMONS).forEach(function (demon) {
       (demon.records || []).forEach(function (record) {
         if (!isMember[record.player]) return;
         if (record.progress >= 100) {
@@ -593,7 +909,7 @@ DL.aggregateNations = function () {
       });
     });
 
-    window.DEMONS.forEach(function (demon) {
+    (v ? v.recordLevels : window.DEMONS).forEach(function (demon) {
       var creators = (demon.creators && demon.creators.length ? demon.creators : [demon.publisher]).filter(function (n) {
         return isMember[n];
       });
@@ -617,14 +933,20 @@ DL.aggregateNations = function () {
     var clearedIds = {};
     nation.completed.forEach(function (row) {
       clearedIds[row.demon.id] = true;
-      if (!nation.hardest || row.demon.position < nation.hardest.position) nation.hardest = row.demon;
+      if (
+        !nation.hardest ||
+        (v ? v.pos(row.demon) < v.pos(nation.hardest) : row.demon.position < nation.hardest.position)
+      ) nation.hardest = row.demon;
     });
     nation.verified.forEach(function (row) {
       clearedIds[row.demon.id] = true;
-      if (!nation.hardest || row.demon.position < nation.hardest.position) nation.hardest = row.demon;
+      if (
+        !nation.hardest ||
+        (v ? v.pos(row.demon) < v.pos(nation.hardest) : row.demon.position < nation.hardest.position)
+      ) nation.hardest = row.demon;
     });
 
-    nation.unbeaten = DL.sortedDemons().filter(function (demon) {
+    nation.unbeaten = (v ? v.rows.map(function (r) { return r.level; }) : DL.sortedDemons()).filter(function (demon) {
       return !clearedIds[demon.id];
     });
 
@@ -637,12 +959,31 @@ DL.aggregateNations = function () {
       });
   });
 
-  nations.sort(function (a, b) {
-    return b.score - a.score;
-  });
+  if (!v) {
+    nations.sort(function (a, b) {
+      return b.score - a.score;
+    });
+  } else {
+    var today = {};
+    DL.aggregateNations().forEach(function (n) {
+      today[n.code] = n;
+    });
+    var rankToday = function (code) {
+      return (today[code] && today[code].rank) || 1e9;
+    };
+    nations.sort(function (a, b) {
+      return Math.abs(b.score - a.score) < 1e-9 ? rankToday(a.code) - rankToday(b.code) : b.score - a.score;
+    });
+  }
   nations.forEach(function (nation, i) {
     nation.rank = i + 1;
   });
+  if (v) {
+    nations.forEach(function (n) {
+      n.scoreNow = today[n.code] ? today[n.code].score : 0;
+      n.rankNow = today[n.code] ? today[n.code].rank : null;
+    });
+  }
 
   return nations;
 };

@@ -8,8 +8,9 @@
 // cases to validate() in tools/apply-edit.py and checks both sides agree.
 
 import { registerHooks } from "node:module";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -213,6 +214,33 @@ const CASES = [
   ["mod: bad name", [{ op: "set_mod", discordId: "166314559630475264", name: "<x>", role: "mod" }], "can only use letters"],
   ["mod: no id", [{ op: "remove_mod" }], "missing discordId"],
   ["role on another edit", [{ op: "refresh_order", role: "head" }], "unknown field"],
+  // Rated+: the unrated levels (head mods)
+  ["unrated: valid batch", [
+    { op: "add_unrated", level: "https://gdbrowser.com/level/99999999", rating: 31.25, difficulty: "Extreme", placeBelow: 79997992, showcase: "https://youtu.be/abcdefghijk" },
+    { op: "add_unrated", level: 5, rating: 20 },
+    { op: "set_unrated", level: 5, placeBelow: null },
+    { op: "set_unrated", level: 5, rating: 18, difficulty: "Insane", placeBelow: 0, showcase: null },
+    { op: "remove_unrated", level: "5" },
+  ], "ok"],
+  ["unrated: rating 0", [{ op: "add_unrated", level: 5, rating: 0 }], "GDDL estimate must be"],
+  ["unrated: rating 51", [{ op: "add_unrated", level: 5, rating: 51 }], "GDDL estimate must be"],
+  ["unrated: rating 31.125", [{ op: "add_unrated", level: 5, rating: 31.125 }], "GDDL estimate must be"],
+  ["unrated: rating '31'", [{ op: "add_unrated", level: 5, rating: "31" }], "GDDL estimate must be"],
+  ["unrated: rating true", [{ op: "set_unrated", level: 5, rating: true }], "GDDL estimate must be"],
+  ["unrated: rating 31.1 (float noise)", [{ op: "set_unrated", level: 5, rating: 31.1 }], "ok"],
+  ["unrated: tier Hard", [{ op: "add_unrated", level: 5, rating: 20, difficulty: "Hard" }], 'must be "Extreme" or "Insane"'],
+  ["unrated: placeBelow -1", [{ op: "add_unrated", level: 5, rating: 20, placeBelow: -1 }], "placeBelow must be"],
+  ["unrated: placeBelow 1.5", [{ op: "set_unrated", level: 5, placeBelow: 1.5 }], "placeBelow must be"],
+  ["unrated: placeBelow '5'", [{ op: "set_unrated", level: 5, placeBelow: "5" }], "placeBelow must be"],
+  ["unrated: placeBelow true", [{ op: "set_unrated", level: 5, placeBelow: true }], "placeBelow must be"],
+  ["unrated: showcase on Drive", [{ op: "set_unrated", level: 5, showcase: "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view" }], "must be a link to one YouTube video"],
+  ["unrated: showcase a channel", [{ op: "set_unrated", level: 5, showcase: "https://www.youtube.com/@nigelx1" }], "must be a link to one YouTube video"],
+  ["unrated: showcase look-alike", [{ op: "set_unrated", level: 5, showcase: "https://youtube.com.evil.com/watch?v=abcdefghijk" }], "must be a link to one YouTube video"],
+  ["unrated: showcase http", [{ op: "set_unrated", level: 5, showcase: "http://youtu.be/abcdefghijk" }], "must be a link to one YouTube video"],
+  ["unrated: nothing to change", [{ op: "set_unrated", level: 5 }], "nothing to change"],
+  ["unrated: no rating", [{ op: "add_unrated", level: 5 }], "missing rating"],
+  ["unrated: rating on a remove", [{ op: "remove_unrated", level: 5, rating: 20 }], "unknown field"],
+  ["unrated: tier on a clear", [{ op: "add_record", player: "A", level: 5, progress: 100, difficulty: "Extreme" }], "unknown field"],
 ];
 
 {
@@ -233,6 +261,16 @@ const CASES = [
   check("contract: normalises", ok0 && ok0[0].name === "Tëster".normalize("NFC") && ok0[1].level === 86084399
     && ok0[2].level === 86084399 && ok0[4].level === 12345 && ok0[4].note === "close!", JSON.stringify(ok0));
   check("contract: NFC names", js[1].ok && js[1].ok[9].name === "éx");
+  const un = js[CASES.findIndex(([label]) => label === "unrated: valid batch")].ok;
+  check("contract: unrated ops normalised, fields in order", un && eq(un, [
+    { op: "add_unrated", level: 99999999, rating: 31.25, difficulty: "Extreme", placeBelow: 79997992, showcase: "https://youtu.be/abcdefghijk" },
+    { op: "add_unrated", level: 5, rating: 20 },
+    { op: "set_unrated", level: 5, placeBelow: null },
+    { op: "set_unrated", level: 5, rating: 18, difficulty: "Insane", placeBelow: 0, showcase: null },
+    { op: "remove_unrated", level: 5 },
+  ]), JSON.stringify(un));
+  const noise = js[CASES.findIndex(([label]) => label === "unrated: rating 31.1 (float noise)")].ok;
+  check("contract: an estimate is rounded to 2 decimals", noise && noise[0].rating === 31.1, JSON.stringify(noise));
 
   // the same cases through apply-edit.py's validate()
   const PY = `
@@ -455,6 +493,45 @@ print(json.dumps(out))
   check("roles (py): mod refused, no role = mod, head ok, unknown role refused",
     got.length === 4 && /only head mods/.test(got[0]) && /only head mods/.test(got[1]) && got[2] === "ok" && /role must be/.test(got[3]),
     res.stdout + res.stderr);
+
+  // Rated+: adding, editing and removing unrated levels is head mods' only; a clear
+  // on one is an add_record, which mods can still send
+  const unratedOps = [{ op: "add_unrated", level: 5, rating: 20 }, { op: "set_unrated", level: 5, rating: 21 }, { op: "remove_unrated", level: 5 }];
+  for (const op of unratedOps) {
+    stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
+    const rm = await api.edit.onRequestPost(ctx(editReq({ ops: [op] }, { cookie: aceCookie })));
+    const em = (await rm.json()).error, sentByMod = calls.length;
+    stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
+    const rh = await api.edit.onRequestPost(ctx(editReq({ ops: [op] })));
+    const sh = calls[0] && JSON.parse(calls[0].init.body);
+    check(`unrated: ${op.op} - head mod yes, mod no`, rm.status === 403 && /only head mods can/.test(em) && sentByMod === 0
+      && rh.status === 200 && sh && sh.client_payload.ops[0].op === op.op, em);
+  }
+  stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
+  const rc = await api.edit.onRequestPost(ctx(editReq({ ops: [{ op: "add_record", player: "ace", level: 99999999, progress: 60 }] }, { cookie: aceCookie })));
+  check("unrated: a mod can still add a clear on any level", rc.status === 200);
+  const PYUNRATED = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("apply_edit", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+out = []
+for op in json.load(sys.stdin):
+    for role in ("mod", "head"):
+        try:
+            m.validate({"requestId": "0" * 16, "editor": "ace", "role": role, "ops": [op]})
+            out.append("ok")
+        except m.Refuse as e:
+            out.append(str(e))
+print(json.dumps(out))
+`;
+  const ru2 = spawnSync("python", ["-c", PYUNRATED, path.join(ROOT, "tools", "apply-edit.py")], { input: JSON.stringify(unratedOps), encoding: "utf8" });
+  let gotU = [];
+  try { gotU = JSON.parse(ru2.stdout); } catch { /* reported below */ }
+  if (ru2.status !== 0 && !gotU.length) console.log("(python not available - skipping the Rated+ role check in apply-edit.py)");
+  else check("unrated (py): a mod is refused all three, a head mod isn't",
+    gotU.length === 6 && [0, 2, 4].every((i) => /only head mods can/.test(gotU[i])) && [1, 3, 5].every((i) => gotU[i] === "ok"),
+    ru2.stdout + ru2.stderr);
 }
 // --- the mod team: Nigel's account only (contract.js OWNER_ID) ------------------------------
 {
@@ -630,7 +707,7 @@ print(json.dumps(out + [m.OWNER_ID]))
   const cookie = { headers: { Cookie: nigelCookie } };
   const GL = "https://gdladder.com/api/levels/", GB = "https://gdbrowser.com/api/level/";
   const limboGl = { ID: 86084399, Rating: 36.888888888888886, Meta: { Name: "LIMBO", Length: 5, Difficulty: "Extreme", Publisher: { name: "MindCap" } } };
-  const limboGb = { name: "LIMBO", id: "86084399", author: "MindCap", difficulty: "Extreme Demon", length: "XL", platformer: false };
+  const limboGb = { name: "LIMBO", id: "86084399", author: "MindCap", difficulty: "Extreme Demon", stars: 10, length: "XL", platformer: false };
   stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB + "86084399", () => jsonResp(limboGb)]]);
   let r = await api.level.onRequestGet(ctx(req("/api/level?level=" + encodeURIComponent("https://gdladder.com/level/86084399"), cookie)));
   let body = await r.json();
@@ -640,14 +717,22 @@ print(json.dumps(out + [m.OWNER_ID]))
   const limbo = JSON.parse(demonsSrc.slice(demonsSrc.indexOf("window.DEMONS =") + "window.DEMONS =".length).trim().replace(/;\s*$/, ""))
     .find((d) => Number(d.levelId) === 86084399);
   check("level: LIMBO", r.status === 200 && eq(body, {
-    id: 86084399, name: "LIMBO", creator: "MindCap", difficulty: "Extreme Demon", tier: "Extreme", rating: 36.89, platformer: false,
+    id: 86084399, name: "LIMBO", creator: "MindCap", difficulty: "Extreme Demon", tier: "Extreme", rating: 36.89, stars: 10, platformer: false,
     onList: !!limbo, position: limbo ? limbo.position : null,
   }), JSON.stringify(body));
   check("level: sends a User-Agent", calls.every((c) => c.init.headers["User-Agent"]));
   stubFetch([["GET", GL + "777", () => jsonResp({ ID: 777, Rating: 20, Meta: { Name: "Plat", Length: 6, Difficulty: "Insane" } })], ["GET", GB + "777", () => new Response("-1")]]);
   body = await (await api.level.onRequestGet(ctx(req("/api/level?level=777", cookie)))).json();
   check("level: gdladder only, platformer, off the list", body.name === "Plat" && body.platformer === true && body.difficulty === "Insane Demon"
-    && body.tier === "Insane" && body.onList === false && body.position === null && body.creator === "Unknown", JSON.stringify(body));
+    && body.tier === "Insane" && body.onList === false && body.position === null && body.creator === "Unknown" && body.stars === null, JSON.stringify(body));
+  // Rated+: an unrated level (gdbrowser only; gdladder doesn't know it)
+  stubFetch([["GET", GL + "99999999", () => jsonResp({ error: "not found" }, 404)],
+    ["GET", GB + "99999999", () => jsonResp({ name: "Unrated Thing", author: "Someone", difficulty: "Unrated", stars: 0, length: "Long" })]]);
+  body = await (await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)))).json();
+  check("level: unrated (stars 0, no tier)", eq(body, {
+    id: 99999999, name: "Unrated Thing", creator: "Someone", difficulty: "Unrated", tier: null, rating: null, stars: 0, platformer: false,
+    onList: false, position: null,
+  }), JSON.stringify(body));
   stubFetch([["GET", GL + "13519", () => jsonResp({ error: "not found" }, 404)], ["GET", GB + "13519", () => jsonResp({ name: "The Nightmare", author: "Jax", difficulty: "Easy Demon", length: "Long" })]]);
   body = await (await api.level.onRequestGet(ctx(req("/api/level?level=13519", cookie)))).json();
   check("level: gdbrowser only", body.name === "The Nightmare" && body.tier === "Easy" && body.rating === null, JSON.stringify(body));
@@ -667,6 +752,373 @@ print(json.dumps(out + [m.OWNER_ID]))
   stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB + "86084399", () => jsonResp(limboGb)]]);
   body = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie), { ...ENV, ASSETS: undefined }))).json();
   check("level: onList null without the list", body.onList === null && body.position === null);
+}
+
+// --- the list views (static/js/views.js) --------------------------------------------------------
+// Current + Rated is today's list, bit for bit; every combination keeps today's
+// order for the listed demons and works its points out again; unrated levels sit
+// where their spot or estimate puts them; and the manual-placement window agrees
+// with tools/apply-edit.py. The flags are turned on here, in the vm: on Nigel's
+// Demonlist they're off and data/unrated.js doesn't exist.
+
+if (!existsSync(path.join(ROOT, "static", "js", "views.js"))) {
+  console.log("skipping the view checks - static/js/views.js isn't there yet");
+} else {
+  const sandbox = { window: {}, console };
+  vm.createContext(sandbox);
+  for (const f of ["data/config.js", "data/demons.js", "data/goals.js", "data/goal-levels.js",
+    "static/js/list-utils.js", "static/js/goals.js", "static/js/views.js"]) {
+    vm.runInContext(readFileSync(path.join(ROOT, f), "utf8"), sandbox, { filename: f });
+  }
+  const W = sandbox.window, DL = W.DL, SITE = W.SITE;
+  SITE.futureList = SITE.futurePlus = SITE.ratedPlus = true;
+  const L = DL.sortedDemons();
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const tiers = (SITE.allowedDifficulties || ["Extreme", "Insane"]).filter((t) => t === "Extreme" || t === "Insane");
+  const tierOf = (d) => (d.difficulty === "Insane" ? "Insane" : "Extreme");
+
+  // three unrated levels, each with one 100% by a roster member: one in a spot of
+  // its window that isn't the automatic one, one above everything (so it's worth
+  // topScore), one with a spot below a level that isn't listed (123)
+  const holder = ((SITE.members || [])[0] || {}).name || L[0].records[0].player;
+  const member = (SITE.members || []).find((m) => m.name === holder) || {};
+  const unrated = (id, tier, rating, placeBelow) => {
+    const u = {
+      id, name: `Fixture ${id}`, difficulty: tier, rating, publisher: "Someone", creators: ["Someone"], verifier: holder,
+      videoUrl: null, thumbnailUrl: null, levelId: id, description: null, requirementPercent: 100,
+      records: [{ player: holder, progress: 100, nationality: member.nationality || null, subdivision: null }],
+      gd: { inGameDifficulty: "Unrated" }, added: "2026-10-30",
+    };
+    if (placeBelow !== undefined) u.placeBelow = placeBelow;
+    return u;
+  };
+  let spot = null;
+  for (const d of L) {
+    const s = DL.unratedSlots({ levelId: 980000001, difficulty: tierOf(d), rating: r2(DL.demonRating(d)) }, L).find((x) => !x.auto);
+    if (s) {
+      spot = unrated(980000001, tierOf(d), r2(DL.demonRating(d)), s.anchor);
+      break;
+    }
+  }
+  const values = L.map((d) => DL.demonRating(d));
+  const top = Math.max(...values), bottom = Math.min(...values);
+  const lowest = L[L.length - 1];
+  const fixture = [
+    spot,
+    unrated(980000002, tiers[0], Math.min(50, r2(top + 1))),
+    unrated(980000003, tierOf(lowest), Math.max(1, r2(DL.demonRating(lowest) + 0.5)), 123),
+  ].filter(Boolean);
+  check("views: found an unrated fixture with a hand-picked spot", !!spot);
+  W.UNRATED = fixture;
+  const ids = new Set(fixture.map((u) => u.levelId));
+
+  // Current + Rated: today's list and today's ranking, nothing worked out again
+  const dv = DL.listView("current", "rated", true);
+  check("views: Current + Rated is today's list", dv.isDefault === true && dv.unrated.length === 0 && dv.joining.length === 0
+    && eq(dv.rows.map((r) => [r.id, r.position]), L.map((d) => [d.levelId, d.position])));
+  check("views: Current + Rated has today's points (===)", dv.rows.every((r) => r.points === DL.scoreAt100(r.level)));
+  check("views: Current + Rated has today's ranking", eq(dv.players.map((p) => [p.name, p.score, p.rank]),
+    DL.aggregatePlayers().map((p) => [p.name, p.score, p.rank])));
+
+  for (const time of ["current", "future", "plus"]) {
+    for (const rating of ["rated", "plus"]) {
+      const v = DL.listView(time, rating, true), what = `views: ${time} + ${rating}:`;
+      const rows = v.rows, maxValue = Math.max(...rows.map((r) => DL.demonRating(r.level)));
+      check(`${what} positions run 1..n, each level once`, rows.every((r, i) => r.position === i + 1)
+        && new Set(rows.map((r) => r.id)).size === rows.length);
+      check(`${what} the listed demons keep today's order`, eq(rows.filter((r) => r.kind === "listed").map((r) => r.id), L.map((d) => d.levelId)));
+      if (SITE.mainListSize === "extremes") {
+        const t = rows.map((r) => DL.tierRank(r.level));
+        check(`${what} every extreme above every insane`, t.every((x, i) => !i || t[i - 1] <= x));
+      }
+      check(`${what} the hardest level is worth topScore`, rows.some((r) => r.points === SITE.scoring.topScore && DL.demonRating(r.level) === maxValue));
+      check(`${what} unrated levels only in Rated+`, rating === "plus"
+        ? v.unrated.length === fixture.length && v.unrated.every((r) => ids.has(r.id)) : v.unrated.length === 0);
+      check(`${what} Grind levels only in Future / Future+`, (time === "current" ? v.joining.length === 0 : true)
+        && v.joining.every((r) => !ids.has(r.id)));
+    }
+  }
+
+  // placement: right below its anchor (only other extras between them); a spot
+  // below a level that isn't listed is ignored
+  const cv = DL.listView("current", "plus", true);
+  if (spot) {
+    const i = cv.rows.findIndex((r) => r.id === spot.levelId);
+    let k = i - 1;
+    while (k >= 0 && cv.rows[k].kind !== "listed") k--;
+    check("views: a hand-picked spot sits right below its anchor", i >= 0 && cv.rows[i].manual === true
+      && (spot.placeBelow === 0 ? k === -1 : k >= 0 && cv.rows[k].id === spot.placeBelow), JSON.stringify({ i, k, anchor: spot.placeBelow }));
+  }
+  const stray = fixture[fixture.length - 1];
+  const strayAt = cv.pos(stray.levelId);
+  W.UNRATED = fixture.map((u) => (u === stray ? Object.fromEntries(Object.entries(u).filter(([key]) => key !== "placeBelow")) : u));
+  check("views: a spot below a level that isn't listed is ignored", strayAt !== null && strayAt === DL.listView("current", "plus", true).pos(stray.levelId)
+    && cv.row(stray.levelId).manual === false);
+  W.UNRATED = fixture;
+
+  // scoring: the holder's Rated+ score is the sum of the view's recordScore over
+  // their records, in recordLevels order
+  let sum = 0;
+  cv.recordLevels.forEach((lv) => (lv.records || []).forEach((r) => {
+    if (r.player === holder) sum += cv.recordScore(lv, r.progress);
+  }));
+  const hp = cv.players.find((p) => p.name === holder);
+  check("views: Rated+ scores count the unrated clears", hp && hp.score === sum && fixture.every((u) => cv.recordLevels.includes(u)),
+    JSON.stringify({ score: hp && hp.score, sum }));
+
+  // the manual-placement window: views.js and apply-edit.py agree
+  const cands = [];
+  for (const tier of tiers) {
+    for (let k = 0; k < 20; k++) {
+      cands.push({ levelId: 970000000 + cands.length, difficulty: tier,
+        rating: Math.min(50, Math.max(1, r2(top + 2 - (k * (top - bottom + 4)) / 19))) });
+    }
+  }
+  // the worked examples, while the list is as it was on 2026-10-30 (Aceabase only)
+  const EXAMPLES = [
+    [{ difficulty: "Extreme", rating: 32 }, [58161496, 55624478, 42584142, 79997992, 68668045], 55624478],
+    [{ difficulty: "Insane", rating: 21 }, [114933189, 72211008], 114933189],
+    [{ difficulty: "Extreme", rating: 15 }, [114933189], 114933189],
+  ];
+  // [index in the list, level id, value to 2 dp]: every demon those examples depend on
+  const AS_OF = [[0, 86084399, 36.19], [1, 58161496, 33.21], [2, 55624478, 32.23], [3, 42584142, 31.77], [4, 79997992, 31.72],
+    [5, 68668045, 31.46], [6, 68688849, 29.77], [28, 61079355, 19.62], [29, 114933189, 19.61], [30, 72211008, 20.12],
+    [31, 80575901, 19.55]];
+  const asOf = SITE.mainListSize === "extremes" && DL.unratedWindow() === 1
+    && AS_OF.every(([i, id, v]) => L[i] && L[i].levelId === id && r2(DL.demonRating(L[i])) === v);
+  const examples = asOf ? EXAMPLES.map(([u], n) => Object.assign({ levelId: 960000000 + n }, u)) : [];
+  if (!asOf) console.log("(skipping the worked slot examples - this isn't Aceabase's list as of 2026-10-30)");
+
+  const all = cands.concat(examples);
+  const anchors = [0].concat(L.map((d) => d.levelId));
+  const js = all.map((u) => [DL.unratedSlots(u, L).map((s) => s.anchor), anchors.filter((a) => DL.unratedSlotOk(u, a, L))]);
+  check("views: every candidate's spots are contiguous and include its automatic one", all.every((u) => {
+    const s = DL.unratedSlots(u, L), at = s.map((x) => anchors.indexOf(x.anchor));
+    return s.filter((x) => x.auto).length === 1 && at.every((x, i) => !i || x === at[i - 1] + 1);
+  }));
+  examples.forEach((u, n) => {
+    const s = DL.unratedSlots(u, L);
+    check(`views: worked example ${n + 1} (${u.difficulty} ${u.rating.toFixed(2)})`, eq(s.map((x) => x.anchor), EXAMPLES[n][1])
+      && s.find((x) => x.auto).anchor === EXAMPLES[n][2], JSON.stringify(s.map((x) => [x.anchor, x.auto])));
+  });
+  const PYSLOTS = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("apply_edit", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+d = json.load(sys.stdin)
+ids = [0] + [x["levelId"] for x in sorted(d["demons"], key=lambda x: x["position"])]
+print(json.dumps([[m.unrated_slots(u, d["demons"], d["site"]), [a for a in ids if m.slot_ok(u, a, d["demons"], d["site"])]]
+                  for u in d["cands"]]))
+`;
+  const ps = spawnSync("python", ["-c", PYSLOTS, path.join(ROOT, "tools", "apply-edit.py")], {
+    input: JSON.stringify({ site: SITE, demons: W.DEMONS, cands: all }), encoding: "utf8", maxBuffer: 16 << 20,
+  });
+  let py = null;
+  try { py = JSON.parse(ps.stdout); } catch { /* below */ }
+  if (!py) console.log("(python not available - skipping the slot cross-check)\n" + (ps.stderr || "").slice(0, 300));
+  else {
+    const differ = all.map((u, i) => (eq(py[i], js[i]) ? null : { u, js: js[i], py: py[i] })).filter(Boolean);
+    check(`views: ${all.length} candidates get the same spots from views.js and apply-edit.py`, !differ.length,
+      differ.length ? JSON.stringify(differ[0]).slice(0, 300) : "");
+  }
+}
+
+// --- Rated+ in the engine, offline: tools/apply-edit.py on a copy of the site ----------------
+// A temp copy (no .git, videos or __pycache__) with Rated+ turned on and a fixture
+// data/unrated.js; apply-edit.py is imported FROM the copy. gdbrowser answers from
+// FAKE (Engine.unrated_facts runs the real parsing on it), nothing else answers at
+// all (curl), and running another tool (add-records.py, ...) fails the step.
+
+{
+  const PYENGINE = String.raw`
+import importlib.util, io, json, os, shutil, sys, tempfile
+sys.dont_write_bytecode = True
+results = []
+def ok(label, cond, detail=""):
+    results.append({"label": label, "ok": bool(cond), "detail": "" if cond else str(detail)[:400]})
+
+out, sys.stdout = sys.stdout, sys.stderr  # the engine's own output goes to stderr; stdout is the results
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+tmp = tempfile.mkdtemp(prefix="unrated-test-")
+root = os.path.join(tmp, "site")
+try:
+    shutil.copytree(sys.argv[1], root, ignore=shutil.ignore_patterns(".git", "videos", "__pycache__"))
+    with io.open(os.path.join(root, "data", "config.js"), "a", encoding="utf-8", newline="") as f:
+        f.write("\nwindow.SITE.ratedPlus = true;\n")
+    spec = importlib.util.spec_from_file_location("apply_edit_copy", os.path.join(root, "tools", "apply-edit.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    sys.stdout = sys.stderr
+
+    FAKE, ran = {}, []
+    m.curl = lambda url, timeout=30: (0, "")
+    m.Engine.unrated_facts = lambda self, lid: m.unrated_facts_from(lid, 200, json.dumps(FAKE[lid]))
+    m.Engine.showcase_thumb = lambda self, vid: "https://i.ytimg.com/vi/" + vid + "/hqdefault.jpg"
+    def no_tools(_root, args, timeout=900):
+        ran.append(args[0])
+        raise m.Refuse("(test) " + args[0] + " was run")
+    m.run_tool = no_tools
+
+    s = m.load_state(root)
+    site, L = s["SITE"], sorted(s["DEMONS"], key=lambda d: d["position"])
+    taken = {d["levelId"] for d in L} | {g["levelId"] for g in s["GOALS"]} | {int(k) for k in s["GOAL_LEVELS"]}
+    taken |= {int(k) for k in m.Engine(root).showcase_overrides()}
+    F, U1, U2, U3, U4, U5 = [i for i in range(990000001, 990000200) if i not in taken][:6]
+    for lid in (F, U1, U2, U3, U4, U5):
+        FAKE[lid] = {"name": "Fixture " + str(lid), "author": "Someone", "difficulty": "Unrated", "stars": 0,
+                     "length": "Long", "objects": 1234, "gameVersion": "2.2"}
+    FAKE[U3]["stars"] = 10
+    roster = s["SITE"].get("members") or []
+    A, B, T = roster[0]["name"], roster[1]["name"], "Unrated Tester"
+    cfg, _ = m.tool(root, "add-records").roster_add(m.read(root, "data/config.js"), [(T, "US", None)])
+    m.write(root, "data/config.js", cfg)
+    m.write_unrated(root, [{"id": F, "name": "Fixture " + str(F), "difficulty": "Extreme", "rating": 25,
+                            "publisher": "Someone", "creators": ["Someone"], "verifier": None, "videoUrl": None,
+                            "thumbnailUrl": None, "levelId": F, "description": None, "requirementPercent": 100,
+                            "records": [{"player": T, "progress": 40, "nationality": "US", "subdivision": None}],
+                            "gd": {"length": "Long", "inGameDifficulty": "Unrated"}, "added": "2026-10-30"}])
+
+    def state():
+        return m.load_state(root)
+    def entry(lid):
+        return next((u for u in state()["UNRATED"] if u["levelId"] == lid), None)
+    def top_note():
+        return state()["CHANGELOG"][0]["items"][0]
+    def run(ops, role="head"):
+        """(None, say lines) when it went through and check() passed, else (why, lines)."""
+        p = m.validate({"requestId": "0" * 16, "editor": "Nigel", "role": role, "ops": ops})
+        e = m.Engine(root, role)
+        try:
+            e.apply(p["ops"])
+            m.check(root)
+            return None, e.lines
+        except m.Refuse as x:
+            return str(x), e.lines
+
+    try:
+        m.check(root)
+        ok("engine: the fixture data/unrated.js checks out", True)
+    except m.Refuse as x:
+        ok("engine: the fixture data/unrated.js checks out", False, x)
+    head = m.read(root, "data/unrated.js")
+    ok("engine: data/unrated.js keeps its header", head.startswith(m.UNRATED_HEADER.split("window.UNRATED")[0]), head[:200])
+
+    err, _ = run([{"op": "add_unrated", "level": U1, "rating": 19.99}])
+    u = entry(U1)
+    ok("engine: add_unrated with no tier - 19.99 counts as an Insane", err is None and u and u["difficulty"] == "Insane"
+       and u["rating"] == 19.99 and "placeBelow" not in u, err or u)
+    ok("engine: an unrated entry has its keys in order", u and list(u) == [k for k in m.UNRATED_KEYS if k != "placeBelow"], u and list(u))
+    ok("engine: add_unrated keeps gdbrowser's facts", u and u["publisher"] == "Someone" and u["creators"] == ["Someone"]
+       and u["verifier"] is None and u["records"] == [] and u["videoUrl"] is None and u["requirementPercent"] == 100
+       and u["gd"] == {"length": "Long", "objects": 1234, "gameVersion": "2.2", "inGameDifficulty": "Unrated"}, u)
+    ok("engine: add_unrated logs a note", top_note() == {"kind": "note", "text": "Rated+: Fixture " + str(U1)
+       + " is on as an unrated Insane, GDDL estimate 19.99."}, top_note())
+
+    err, _ = run([{"op": "add_unrated", "level": U2, "rating": 20}])
+    u = entry(U2)
+    ok("engine: add_unrated with no tier - 20 counts as an Extreme", err is None and u and u["difficulty"] == "Extreme"
+       and u["rating"] == 20, err or u)
+
+    err, _ = run([{"op": "add_unrated", "level": U3, "rating": 25}])
+    ok("engine: a rated level (10 stars) is refused", err and "is rated (10 stars)" in err and entry(U3) is None, err)
+    err, _ = run([{"op": "add_unrated", "level": U2, "rating": 25}])
+    ok("engine: an unrated level can't be added twice", err and "already an unrated level" in err, err)
+    err, _ = run([{"op": "add_unrated", "level": L[0]["levelId"], "rating": 25}])
+    ok("engine: a level on the list can't be added", err and "on the list already" in err, err)
+
+    mid = L[len(L) // 2]
+    t4 = mid["difficulty"] if mid["difficulty"] in ("Extreme", "Insane") else "Extreme"
+    r4 = round(m.rating_value(mid, site) * 100) / 100
+    u4 = {"levelId": U4, "difficulty": t4, "rating": r4}
+    slots = m.unrated_slots(u4, s["DEMONS"], site)
+    bad = next(a for a in [0] + [d["levelId"] for d in L] if a not in slots)
+    good = slots[-1]
+    err, _ = run([{"op": "add_unrated", "level": U4, "rating": r4, "difficulty": t4, "placeBelow": bad}])
+    ok("engine: a spot outside the window is refused", err and "outside" in err and "window" in err and entry(U4) is None, err)
+    err, _ = run([{"op": "add_unrated", "level": U4, "rating": r4, "difficulty": t4, "placeBelow": good}])
+    u = entry(U4)
+    ok("engine: a spot inside the window is saved", err is None and u and u.get("placeBelow") == good
+       and list(u)[:6] == ["id", "name", "difficulty", "rating", "placeBelow", "publisher"], err or u)
+    ok("engine: ...and logged", "placed by hand" in top_note()["text"], top_note())
+
+    far = next(c for c in (49.5, 1.5, 40, 10, 45, 5) if not m.slot_ok(dict(u4, rating=c), good, state()["DEMONS"], site))
+    err, lines = run([{"op": "set_unrated", "level": U4, "rating": far}])
+    u = entry(U4)
+    ok("engine: a new estimate drops a spot that no longer fits", err is None and u and u["rating"] == far
+       and "placeBelow" not in u and any("no longer fits" in x for x in lines), err or (u, lines))
+    err, lines = run([{"op": "set_unrated", "level": U4, "rating": far}])
+    ok("engine: set_unrated with nothing new is no change", err is None and any("no change" in x for x in lines), err or lines)
+
+    ran.clear()
+    err, _ = run([{"op": "add_record", "player": A, "level": F, "progress": 100}], role="mod")
+    u = entry(F)
+    rec = next((r for r in (u or {}).get("records", []) if r["player"] == A), None)
+    nat = next((x.get("nationality") for x in roster if x["name"] == A), None)
+    ok("engine: a mod's 100% on an unrated level - record, verifier, note; add-records.py isn't run",
+       err is None and rec and rec["progress"] == 100 and rec["nationality"] == nat and u["verifier"] == A and not ran
+       and top_note() == {"kind": "note", "text": A + " beat " + u["name"] + " (unrated - counts in Rated+)."}, err or (u, ran))
+    err, _ = run([{"op": "add_record", "player": B, "level": F, "progress": 60}])
+    rec = next((r for r in entry(F)["records"] if r["player"] == B), None)
+    ok("engine: 60% on an unrated level is fine", err is None and rec and rec["progress"] == 60 and entry(F)["verifier"] == A and not ran, err or rec)
+    err, _ = run([{"op": "add_record", "player": B, "level": F, "progress": 100}])
+    rec = next((r for r in entry(F)["records"] if r["player"] == B), None)
+    ok("engine: ...and goes up to 100%", err is None and rec and rec["progress"] == 100 and len(entry(F)["records"]) == 3, err or entry(F))
+
+    err, _ = run([{"op": "set_record_video", "player": A, "level": F, "url": "https://youtu.be/abcdefghijk"}])
+    ok("engine: no videos on unrated levels' clears yet", err and "is an unrated level - videos on its clears aren't supported yet" in err, err)
+
+    err, _ = run([{"op": "remove_record", "player": A, "level": F}])
+    u = entry(F)
+    ok("engine: remove_record on an unrated level - the record goes, the verifier moves, the level stays",
+       err is None and u and u["verifier"] == B and not any(r["player"] == A for r in u["records"])
+       and top_note() == {"kind": "note", "text": A + "'s record on " + u["name"] + " (unrated) was removed."}, err or u)
+
+    err, _ = run([{"op": "remove_unrated", "level": U1}])
+    ok("engine: remove_unrated - gone, and logged", err is None and entry(U1) is None
+       and top_note() == {"kind": "note", "text": "Rated+: Fixture " + str(U1) + " is off."}, err or top_note())
+
+    err, _ = run([{"op": "remove_member", "name": T}])
+    ok("engine: remove_member is refused while they hold an unrated record", err and "(unrated)" in err, err)
+    err, _ = run([{"op": "rename_member", "name": T, "newName": "Unrated Tester2"}])
+    ok("engine: rename_member renames their unrated records", err is None
+       and any(r["player"] == "Unrated Tester2" for r in entry(F)["records"]), err or entry(F))
+    # (a country whose flag is already there: a missing one would be downloaded)
+    cc = next((c for c in ("MX", "CA", "GB") if os.path.exists(os.path.join(root, "static", "images", "flags", c.lower() + ".svg"))), None)
+    if cc:
+        err, _ = run([{"op": "set_member_country", "name": "Unrated Tester2", "nationality": cc}])
+        ok("engine: set_member_country moves their unrated records too", err is None
+           and next(r for r in entry(F)["records"] if r["player"] == "Unrated Tester2")["nationality"] == cc, err or entry(F))
+
+    # a demon with one clear (and no Grind goal) leaves the list: the unrated level
+    # placed right below it is reported
+    grind = {g["levelId"] for g in s["GOALS"]}
+    lone = next((d for d in L if len(d.get("records", [])) == 1 and d["difficulty"] in ("Extreme", "Insane")
+                 and d["levelId"] not in grind), None)
+    if lone:
+        u5 = {"levelId": U5, "difficulty": lone["difficulty"], "rating": round(m.rating_value(lone, site) * 100) / 100}
+        err, _ = run([{"op": "add_unrated", "level": U5, "rating": u5["rating"], "difficulty": u5["difficulty"], "placeBelow": lone["levelId"]}])
+        ok("engine: a spot right below a demon with one clear", err is None and entry(U5)["placeBelow"] == lone["levelId"], err)
+        err, lines = run([{"op": "remove_record", "player": lone["records"][0]["player"], "level": lone["levelId"]}])
+        ok("engine: the demon leaves, and the stale spot is reported (not rewritten)", err is None
+           and any("hand-picked spot no longer fits after this" in x for x in lines)
+           and entry(U5)["placeBelow"] == lone["levelId"], err or lines)
+except Exception as x:
+    import traceback
+    ok("engine: the harness ran", False, traceback.format_exc()[-400:])
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+out.write(json.dumps(results))
+`;
+  const r = spawnSync("python", ["-c", PYENGINE, ROOT], { encoding: "utf8", env: { ...process.env, PYTHONUTF8: "1" }, maxBuffer: 64 << 20, timeout: 600000 });
+  let got = null;
+  try { got = JSON.parse(r.stdout); } catch { /* below */ }
+  if (!got) {
+    if (r.error || /not found|not recognized/i.test(r.stderr || "")) console.log("(python not available - skipping the Rated+ engine checks)");
+    else check("engine (py): the Rated+ harness ran", false, (r.stdout + r.stderr).slice(-600));
+  } else {
+    got.forEach((x) => check(x.label, x.ok, x.detail));
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

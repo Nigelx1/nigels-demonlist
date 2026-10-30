@@ -106,13 +106,19 @@
   var GOALS = window.GOALS || [];
   var GOAL_LEVELS = window.GOAL_LEVELS || {};
   var SITE = window.SITE || {};
+  // The unrated levels (Rated+: data/unrated.js, Aceabase only). A list without
+  // the file has none, and the Unrated levels panel stays hidden there.
+  var UNRATED = Array.isArray(window.UNRATED) ? window.UNRATED : [];
 
-  // Every name the list knows: the roster plus anyone holding a record (the
-  // same set apply-edit.py checks against).
+  // Every name the list knows: the roster plus anyone holding a record, on an
+  // unrated level too (the same set apply-edit.py checks against).
   function knownPlayers() {
     var names = (SITE.members || []).map(function (m) { return m.name; });
     DEMONS.forEach(function (d) {
       (d.records || []).forEach(function (r) { names.push(r.player); });
+    });
+    UNRATED.forEach(function (u) {
+      (u.records || []).forEach(function (r) { names.push(r.player); });
     });
     return Array.from(new Set(names));
   }
@@ -175,20 +181,33 @@
     return DEMONS.find(function (d) { return d.levelId === id || d.id === id; }) || null;
   }
 
+  // An unrated level (Rated+) by level id; null for a level on the list (the
+  // list always wins, like DL.unratedById).
+  function unratedByLevel(id) {
+    if (demonByLevel(id)) return null;
+    return UNRATED.find(function (u) { return u && u.levelId === id; }) || null;
+  }
+
   function levelName(id) {
     // (trimmed: a few names come from gdbrowser with a trailing space)
-    var d = demonByLevel(id);
+    var d = demonByLevel(id) || unratedByLevel(id);
     if (d) return String(d.name).trim();
     var g = GOAL_LEVELS[String(id)];
     return g && g.name ? String(g.name).trim() : "level " + id;
   }
 
-  // [{demon, record}] for one player, list order
+  // [{demon, record, unrated}] for one player: list order, then their clears
+  // on unrated levels (demon is then the data/unrated.js entry)
   function recordsOf(name) {
     var out = [];
     DL.sortedDemons().forEach(function (d) {
       (d.records || []).forEach(function (r) {
         if (r.player === name) out.push({ demon: d, record: r });
+      });
+    });
+    UNRATED.forEach(function (u) {
+      (u.records || []).forEach(function (r) {
+        if (r.player === name) out.push({ demon: u, record: r, unrated: true });
       });
     });
     return out;
@@ -365,7 +384,8 @@
 
   // As the editor types: what the list already knows about that level, no
   // network needed. The Check button asks gdladder/gdbrowser through the server.
-  function localLevelHint(input, box) {
+  // forClear: Add a clear's box (any progress counts on an unrated level).
+  function localLevelHint(input, box, forClear) {
     var id;
     try {
       id = parseLevel(input.value);
@@ -374,8 +394,10 @@
       return;
     }
     var d = demonByLevel(id);
+    var u = unratedByLevel(id);
     var g = GOAL_LEVELS[String(id)];
     if (d) say(box, "info", d.name + " - #" + d.position + " on the list.");
+    else if (u) say(box, "info", String(u.name).trim() + " - unrated (Rated+)" + (forClear ? "; any progress counts." : "."));
     else if (g && g.name) say(box, "info", String(g.name).trim() + " - not on the list (someone's grinding it).");
     else hush(box);
   }
@@ -402,9 +424,12 @@
       var facts = [lv.difficulty];
       if (lv.rating !== null && lv.rating !== undefined) facts.push("rating " + lv.rating);
       if (lv.platformer) facts.push("platformer");
-      var where = lv.onList === true ? "On the list at #" + lv.position + "." : lv.onList === false ? "Not on the list yet." : "";
+      // an unrated level (Rated+) takes any progress: none of the list's refusals apply
+      var unrated = lv.onList !== true ? unratedByLevel(lv.id) : null;
+      var where = unrated ? "An unrated level (Rated+)" + (forClear ? ": any progress counts." : ".")
+        : lv.onList === true ? "On the list at #" + lv.position + "." : lv.onList === false ? "Not on the list yet." : "";
       var warn = [];
-      if (forClear) {
+      if (forClear && !unrated) {
         // Only a list that limits difficulties (SITE.allowedDifficulties) refuses the rest.
         var allowed = SITE.allowedDifficulties;
         if (lv.platformer) warn.push("It's a platformer level - the list doesn't take those, so this would be refused.");
@@ -451,7 +476,7 @@
     $("clear-country").addEventListener("change", function () {
       fillSubdivisionSelect($("clear-subdivision"), $("clear-country").value);
     });
-    level.addEventListener("input", function () { localLevelHint(level, info); });
+    level.addEventListener("input", function () { localLevelHint(level, info, true); });
     $("clear-check").addEventListener("click", function () {
       checkLevel(level, info, $("clear-check"), true);
     });
@@ -473,18 +498,21 @@
           if (csub) op.subdivision = csub;
         }
         var d = demonByLevel(id);
-        if (!d && progress < 100) {
+        var unrated = unratedByLevel(id); // Rated+: any progress counts there
+        if (!d && !unrated && progress < 100) {
           throw new Problem("That level isn't on the list, and only a 100% can put it on. (Progress counts only on levels already on the list.)");
         }
         ops = [op];
         var video = $("clear-video").value.trim();
+        if (video && unrated) throw new Problem("Videos on unrated levels' clears aren't supported yet - leave the video link empty.");
         if (video) ops.push({ op: "set_record_video", player: op.player, level: id, url: checkVideo(video) });
       } catch (e) {
         if (!(e instanceof Problem)) throw e;
         say(msg, "err", e.message);
         return;
       }
-      var what = ops[0].player + " " + ops[0].progress + "% on " + levelName(ops[0].level) + (ops.length > 1 ? " (with video)" : "");
+      var what = ops[0].player + " " + ops[0].progress + "% on " + levelName(ops[0].level) +
+        (unratedByLevel(ops[0].level) ? " (unrated)" : "") + (ops.length > 1 ? " (with video)" : "");
       save(ops, what, $("clear-save"), msg, function () {
         player.value = "";
         level.value = "";
@@ -643,9 +671,9 @@
         var who = resolvePlayer(name);
         if (!who) throw new Problem(name + " isn't on the list yet - add them in Members first.");
         var id = parseLevel(level.value);
-        var d = demonByLevel(id);
+        var d = demonByLevel(id) || unratedByLevel(id); // a clear on an unrated level ends its Grind too
         if (d && (d.records || []).some(function (r) { return r.player === who && r.progress >= 100; })) {
-          throw new Problem(who + " has already beaten " + d.name + ". To take it off their Grind, use Dropped it.");
+          throw new Problem(who + " has already beaten " + String(d.name).trim() + ". To take it off their Grind, use Dropped it.");
         }
         var mode = bestMode();
         var best = mode === "null" ? null : mode === "zero" ? 0 : parseWhole($("grind-best-num").value, "Best run", 0, 100);
@@ -812,6 +840,15 @@
       $("video-tools").hidden = !row;
       if (!row) return;
       var box = clear($("video-current"));
+      // add-video.py only knows the list: a clear on an unrated level can be
+      // removed, but takes no video yet
+      $("video-url").disabled = $("video-save").disabled = !!row.unrated;
+      if (row.unrated) {
+        box.appendChild(document.createTextNode("Videos on unrated levels' clears aren't supported yet."));
+        $("video-remove").disabled = true;
+        $("video-url").value = "";
+        return;
+      }
       var v = row.record.video;
       if (!v) box.appendChild(document.createTextNode("No video on this clear yet."));
       else if (/^https:\/\//i.test(v)) {
@@ -835,7 +872,9 @@
       none.hidden = !v.trim() || rows.length > 0;
       none.textContent = !who ? v + " isn't on the list." : who + " has no clears on the list yet.";
       rows.forEach(function (x, i) {
-        var label = "#" + x.demon.position + " " + x.demon.name + " - " + x.record.progress + "%" + (x.record.video ? " · has a video" : "");
+        var label = x.unrated
+          ? "Unrated: " + String(x.demon.name).trim() + " - " + x.record.progress + "%"
+          : "#" + x.demon.position + " " + x.demon.name + " - " + x.record.progress + "%" + (x.record.video ? " · has a video" : "");
         select.appendChild(el("option", { value: String(i) }, label));
       });
       showRecord();
@@ -848,6 +887,7 @@
 
     $("video-save").addEventListener("click", function () {
       var row = current();
+      if (!row || row.unrated) return;
       var op;
       try {
         if (!$("video-url").value.trim()) throw new Problem("Paste the video link first.");
@@ -864,7 +904,7 @@
 
     $("video-remove").addEventListener("click", function () {
       var row = current();
-      if (!row || !row.record.video) return;
+      if (!row || row.unrated || !row.record.video) return;
       if (!armed($("video-remove"))) return;
       save([{ op: "remove_record_video", player: row.record.player, level: row.demon.levelId }],
         "Remove the video from " + row.record.player + "'s " + row.demon.name, $("video-remove"), msg);
@@ -887,6 +927,391 @@
     });
     $("showcase-save").addEventListener("click", function () {
       save([{ op: "refresh_showcases" }], "Check Nigel's channel for showcases", $("showcase-save"), $("showcase-msg"));
+    });
+  }
+
+  // --- 5b. Unrated levels (Rated+, head mods) -------------------------------------
+  //
+  // data/unrated.js: levels that aren't rated in game but count in the list's
+  // Rated+ views (Nigel and Dihmaster500, 2026-10-30). A head mod's GD Demon
+  // Ladder estimate places and scores each one; a spot picked by hand has to be
+  // inside the window static/js/views.js gives (DL.unratedSlots), and the server
+  // checks it again (tools/apply-edit.py slot_ok). Shown only on a list with
+  // SITE.ratedPlus, and only to head mods: the server refuses mods anyway.
+
+  var TIERS = ["Extreme", "Insane"];
+  var SHOWCASE_HOSTS = ["youtube.com", "www.youtube.com", "youtu.be"];
+
+  // the tier an estimate counts as until the mod picks one (apply-edit.py's default)
+  function tierFor(rating) {
+    return rating >= 20 ? "Extreme" : "Insane";
+  }
+
+  // "31.25" -> 31.25: a GD Demon Ladder estimate, 1-50 with at most 2 decimals
+  function parseEstimate(v) {
+    v = String(v).trim();
+    if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(v) || !(Number(v) >= 1 && Number(v) <= 50)) {
+      throw new Problem("The GDDL estimate must be a number from 1 to 50, with at most 2 decimals.");
+    }
+    return Math.round(Number(v) * 100) / 100;
+  }
+
+  // a link to one YouTube video (contract.js checkShowcase)
+  function checkShowcase(v) {
+    v = v.trim();
+    var m = /^https:\/\/([^/?#]*)/i.exec(v);
+    var host = m ? m[1].toLowerCase() : "";
+    if (len(v) > 300 || /\s/u.test(v) || !m || host.indexOf("@") >= 0 || host.indexOf(":") >= 0 || SHOWCASE_HOSTS.indexOf(host) < 0 ||
+        !/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)[A-Za-z0-9_-]{11}/.test(v)) {
+      throw new Problem("The showcase has to be a link to one YouTube video, starting with https:// (the Share button's link works).");
+    }
+    return v;
+  }
+
+  // A neighbour in a spot's label: "#5 Shardscapes (31.72, GDDL 32.75)" - the
+  // value the list orders by (an extreme's AREDL placement), and its GD Demon
+  // Ladder rating when that's different: the AREDL conflict a spot is picked around.
+  function neighbour(d) {
+    var v = DL.demonRating(d);
+    var s = "#" + d.position + " " + String(d.name).trim() + " (" + v.toFixed(2);
+    if (typeof d.rating === "number" && Math.abs(d.rating - v) >= 0.01) s += ", GDDL " + d.rating.toFixed(2);
+    return s + ")";
+  }
+
+  function spotLabel(slot, tier) {
+    if (slot.anchor === 0) return "At the very top" + (slot.below ? ", above " + neighbour(slot.below) : "");
+    var tiered = SITE.mainListSize === "extremes" && typeof DL.tierRank === "function";
+    if (!slot.below || (tiered && DL.tierRank(slot.below) !== DL.tierRank({ difficulty: tier }))) {
+      return "At the very bottom of the " + (tiered ? tier + "s" : "list") + ", below " + neighbour(slot.above);
+    }
+    return "Between " + neighbour(slot.above) + " and " + neighbour(slot.below);
+  }
+
+  // The spot picker in `box`: Automatic, then every spot in u's window (once u -
+  // {levelId, difficulty, rating} - is complete and views.js is there). selected:
+  // "auto" or an anchor; one that isn't offered falls back to Automatic. keep
+  // (optional): a hand-picked anchor the list has moved out of the window,
+  // offered as itself so that keeping it sends nothing.
+  function spotPicker(box, group, u, selected, keep) {
+    clear(box);
+    box.className = "choices";
+    box.style.flexDirection = "column";
+    var slots = u && typeof DL.unratedSlots === "function" ? DL.unratedSlots(u, DL.sortedDemons()) : [];
+    var options = [{ value: "auto", text: "Automatic - where the estimate puts it" }].concat(slots.map(function (s) {
+      return { value: String(s.anchor), text: spotLabel(s, u.difficulty) + (s.auto ? " (the estimate's spot)" : "") };
+    }));
+    if (keep !== undefined && keep !== null && !options.some(function (o) { return o.value === String(keep); })) {
+      options.splice(1, 0, {
+        value: String(keep),
+        text: "Keep the hand-picked spot - it doesn't fit right now, so the estimate places it until it fits again",
+      });
+    }
+    if (!options.some(function (o) { return o.value === String(selected); })) selected = "auto";
+    options.forEach(function (o) {
+      var label = el("label", null, el("input", { type: "radio", name: group, value: o.value, checked: o.value === String(selected) }),
+        el("span", null, o.text));
+      label.style.whiteSpace = "normal";
+      label.style.justifyContent = "flex-start";
+      label.style.textAlign = "left";
+      box.appendChild(label);
+    });
+  }
+
+  // "auto", or the picked spot's anchor (0 = the very top)
+  function pickedSpot(box) {
+    var r = box.querySelector('input[type="radio"]:checked');
+    return !r || r.value === "auto" ? "auto" : Number(r.value);
+  }
+
+  function setupUnrated() {
+    var panel = $("panel-unrated");
+    if (!panel || !SITE.ratedPlus || !isHead()) return;
+    panel.hidden = false;
+    var jump = document.querySelector('a[href="#panel-unrated"]');
+    if (jump) jump.hidden = false;
+
+    var level = $("unrated-level");
+    var info = $("unrated-level-info");
+    var rating = $("unrated-rating");
+    var tier = $("unrated-tier");
+    var place = $("unrated-place");
+    var msg = $("unrated-msg");
+    var tierPicked = false; // the tier follows the estimate until the mod picks one
+    var checked = null; // the last Check's {id, name}
+
+    function form() {
+      try {
+        return { levelId: parseLevel(level.value), difficulty: tier.value, rating: parseEstimate(rating.value) };
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        return null;
+      }
+    }
+    function refreshSpots() {
+      spotPicker(place, "unrated-spot", form(), pickedSpot(place));
+    }
+
+    function localHint() {
+      var id;
+      try {
+        id = parseLevel(level.value);
+      } catch (e) {
+        hush(info);
+        return;
+      }
+      var d = demonByLevel(id);
+      var u = unratedByLevel(id);
+      if (d) say(info, "warn", String(d.name).trim() + " is on the list already (#" + d.position + ") - it's a rated level.");
+      else if (u) say(info, "warn", String(u.name).trim() + " is already an unrated level - edit it below.");
+      else hush(info);
+    }
+
+    level.addEventListener("input", function () {
+      localHint();
+      refreshSpots();
+    });
+    rating.addEventListener("input", function () {
+      var n = Number(rating.value);
+      if (!tierPicked && rating.value.trim() && isFinite(n)) tier.value = tierFor(n);
+      refreshSpots();
+    });
+    tier.addEventListener("change", function () {
+      tierPicked = true;
+      refreshSpots();
+    });
+
+    // gdbrowser through the server: the name, its difficulty, and whether it's rated
+    $("unrated-check").addEventListener("click", function () {
+      var id;
+      try {
+        id = parseLevel(level.value);
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        say(info, "err", e.message);
+        return;
+      }
+      var button = $("unrated-check");
+      button.disabled = true;
+      say(info, "info", "Looking it up...");
+      api("/api/level?level=" + encodeURIComponent(String(id))).then(function (res) {
+        button.disabled = false;
+        if (res.status !== 200) {
+          say(info, "err", errorText(res));
+          return;
+        }
+        var lv = res.data;
+        checked = { id: lv.id, name: lv.name };
+        var stars = typeof lv.stars !== "number" ? "stars unknown" : lv.stars === 0 ? "unrated" : lv.stars + (lv.stars === 1 ? " star" : " stars");
+        var warn = [];
+        if (typeof lv.stars === "number" && lv.stars > 0) warn.push("It's rated - add its clears in Add a clear instead.");
+        if (lv.platformer) warn.push("It's a platformer level - the list doesn't take those.");
+        if (lv.onList === true || demonByLevel(lv.id)) warn.push("It's on the list already" + (lv.position ? " (#" + lv.position + ")" : "") + ".");
+        else if (unratedByLevel(lv.id)) warn.push("It's already an unrated level - edit it below.");
+        clear(info);
+        info.className = "msg " + (warn.length ? "info-yellow" : "info-plain");
+        info.appendChild(el("b", null, lv.name));
+        info.appendChild(document.createTextNode(" by " + lv.creator + " (ID " + lv.id + ")"));
+        info.appendChild(el("br"));
+        info.appendChild(document.createTextNode([lv.difficulty, stars].join(" · ")));
+        warn.forEach(function (w) {
+          info.appendChild(el("br"));
+          info.appendChild(el("b", null, w));
+        });
+        info.hidden = false;
+      });
+    });
+
+    $("unrated-save").addEventListener("click", function () {
+      var op;
+      try {
+        var id = parseLevel(level.value);
+        if (demonByLevel(id)) throw new Problem(levelName(id) + " is on the list already - add its clears in Add a clear.");
+        if (unratedByLevel(id)) throw new Problem(levelName(id) + " is already an unrated level - edit it below.");
+        var est = parseEstimate(rating.value);
+        op = { op: "add_unrated", level: id, rating: est, difficulty: TIERS.indexOf(tier.value) >= 0 ? tier.value : tierFor(est) };
+        var spot = pickedSpot(place);
+        if (spot !== "auto") op.placeBelow = spot;
+        var link = $("unrated-showcase").value.trim();
+        if (link) op.showcase = checkShowcase(link);
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        say(msg, "err", e.message);
+        return;
+      }
+      var name = checked && checked.id === op.level ? checked.name : "level " + op.level;
+      save([op], "Unrated: " + name + " on Rated+", $("unrated-save"), msg, function () {
+        level.value = "";
+        rating.value = "";
+        $("unrated-showcase").value = "";
+        tier.value = "Extreme";
+        tierPicked = false;
+        checked = null;
+        hush(info);
+        refreshSpots();
+      });
+    });
+
+    // --- On Rated+ now: where each one is, its clears, its spot ---
+    var view = null;
+    try {
+      view = typeof DL.listView === "function" ? DL.listView("current", "plus") : null;
+    } catch (e) {
+      view = null; // the list still works without positions
+    }
+    var list = $("unrated-list");
+    var entries = UNRATED.filter(function (u) { return u && !demonByLevel(u.levelId); }).sort(function (a, b) {
+      var pa = view ? view.pos(a) : null, pb = view ? view.pos(b) : null;
+      if (pa !== null && pb !== null) return pa - pb;
+      return TIERS.indexOf(a.difficulty) - TIERS.indexOf(b.difficulty) || b.rating - a.rating || a.levelId - b.levelId;
+    });
+    if (!entries.length) list.appendChild(el("li", { className: "hint" }, "None yet."));
+    entries.forEach(function (u) { list.appendChild(unratedRow(u, view)); });
+    refreshSpots();
+  }
+
+  // One row of On Rated+ now, with Edit, Move to the list and Remove.
+  function unratedRow(u, view) {
+    var name = String(u.name).trim();
+    var records = u.records || [];
+    var full = records.filter(function (r) { return r.progress >= 100; });
+    var pos = view ? view.pos(u) : null;
+    var bits = [];
+    if (pos !== null) bits.push("#" + pos + " in Rated+");
+    bits.push(records.length ? records.length + (records.length === 1 ? " clear" : " clears") : "no clears yet");
+    if (u.placeBelow !== undefined && u.placeBelow !== null) {
+      var fits = typeof DL.unratedSlotOk !== "function" || DL.unratedSlotOk(u, u.placeBelow);
+      bits.push(fits ? "hand-picked spot" : "hand-picked spot no longer fits - placed by its estimate");
+    }
+    var page = el("a", { href: "../demonlist/demon.html?id=" + encodeURIComponent(u.levelId) + "&rating=plus", target: "_blank", rel: "noopener" }, name);
+    var edit = el("button", { type: "button", className: "button white hover small" }, "Edit");
+    var move = el("button", { type: "button", className: "button white hover small" }, "Move to the list");
+    var drop = el("button", { type: "button", className: "button red hover small" }, "Remove");
+    var box = el("div", { className: "msg" });
+    box.hidden = true;
+    box.style.flexBasis = "100%";
+    // one remove_unrated plus an add_record per 100%, in one batch of at most 10
+    move.disabled = !full.length || full.length > 9;
+    move.title = !full.length ? "Only 100% clears carry over to the list, and it has none yet."
+      : full.length > 9 ? "It has more than 9 clears - too many to move in one edit."
+      : "Once it's rated in game. Partial clears don't carry over.";
+    var li = el("li", null,
+      el("div", { className: "goal-text" },
+        el("b", null, page), " ", el("span", { className: "muted" }, u.difficulty + " · estimate " + Number(u.rating).toFixed(2)),
+        el("div", { className: "muted" }, bits.join(" · "))),
+      el("div", { className: "goal-buttons" }, edit, move, drop),
+      box);
+    edit.addEventListener("click", function () { unratedEditor(li, u); });
+    move.addEventListener("click", function () {
+      if (!armed(move, "Tap again to move it")) {
+        say(box, "warn", "Once it's rated in game. Partial clears don't carry over.");
+        return;
+      }
+      var ops = [{ op: "remove_unrated", level: u.levelId }].concat(full.map(function (r) {
+        return { op: "add_record", player: r.player, level: u.levelId, progress: 100 };
+      }));
+      save(ops, "Move " + name + " to the list", move, box);
+    });
+    drop.addEventListener("click", function () {
+      var n = records.length;
+      if (!armed(drop, n ? "Tap again: its " + n + (n === 1 ? " clear goes" : " clears go") + " too" : "Tap again to remove it")) return;
+      save([{ op: "remove_unrated", level: u.levelId }], "Unrated: " + name + " off Rated+", drop, box);
+    });
+    return li;
+  }
+
+  // The editor under an On Rated+ now row: estimate, tier, showcase and spot.
+  // It sends set_unrated with only what changed.
+  function unratedEditor(li, u) {
+    var open = li.querySelector(".unrated-edit");
+    if (open) {
+      open.remove();
+      return;
+    }
+    var name = String(u.name).trim();
+    var est = el("input", { type: "number", min: 1, max: 50, step: 0.01, inputMode: "decimal", value: String(u.rating) });
+    var tier = el("select", null, el("option", { value: "Extreme" }, "Extreme"), el("option", { value: "Insane" }, "Insane"));
+    tier.value = u.difficulty;
+    var link = el("input", { type: "url", autocomplete: "off", spellcheck: false, placeholder: u.videoUrl ? "A new YouTube link" : "A YouTube link" });
+    var noShowcase = el("input", { type: "checkbox" });
+    var spots = el("div");
+    var saveButton = el("button", { type: "button", className: "button blue hover small" }, "Save");
+    var box = el("div", { className: "msg" });
+    box.hidden = true;
+    var stored = u.placeBelow !== undefined && u.placeBelow !== null ? u.placeBelow : null;
+    var group = "unrated-spot-" + u.levelId;
+
+    function edited() {
+      try {
+        return { levelId: u.levelId, difficulty: tier.value, rating: parseEstimate(est.value) };
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        return null;
+      }
+    }
+    // Until the head mod picks a spot themselves, the picker shows the stored
+    // one. A stored spot the list has moved out from under stays on offer (and
+    // picked) while the estimate and tier are unchanged, so saving only a new
+    // showcase doesn't drop it. With a new estimate or tier the server drops a
+    // spot that doesn't fit, so then it isn't offered.
+    var choice;
+    function drawSpots() {
+      var e = edited();
+      var keep = stored !== null && e && e.rating === u.rating && e.difficulty === u.difficulty ? stored : null;
+      spotPicker(spots, group, e, choice !== undefined ? choice : stored === null ? "auto" : stored, keep);
+    }
+    est.addEventListener("input", drawSpots);
+    tier.addEventListener("change", drawSpots);
+    spots.addEventListener("change", function () { choice = pickedSpot(spots); });
+    noShowcase.addEventListener("change", function () { link.disabled = noShowcase.checked; });
+
+    var now = u.videoUrl
+      ? el("p", { className: "hint" }, "Showcase now: ", el("a", { href: u.videoUrl, target: "_blank", rel: "noopener noreferrer" }, u.videoUrl))
+      : el("p", { className: "hint" }, "No showcase yet.");
+    var wrap = el("div", { className: "unrated-edit" },
+      el("div", { className: "two" },
+        el("label", { className: "field" }, el("span", null, "GDDL estimate"), est),
+        el("label", { className: "field" }, el("span", null, "Counts as"), tier)),
+      el("label", { className: "field" }, el("span", null, "Showcase"), link),
+      now,
+      u.videoUrl ? el("label", null, noShowcase, " Remove the showcase") : null,
+      el("fieldset", { className: "field" }, el("legend", null, "Spot on the list"), spots),
+      saveButton, box);
+    wrap.style.flexBasis = "100%";
+    li.appendChild(wrap);
+    drawSpots();
+
+    saveButton.addEventListener("click", function () {
+      var op = { op: "set_unrated", level: u.levelId };
+      var what = [];
+      try {
+        var r = parseEstimate(est.value);
+        if (r !== u.rating) {
+          op.rating = r;
+          what.push("estimate " + r.toFixed(2));
+        }
+        if (tier.value !== u.difficulty && TIERS.indexOf(tier.value) >= 0) {
+          op.difficulty = tier.value;
+          what.push("counts as an " + tier.value);
+        }
+        var picked = pickedSpot(spots);
+        if (picked === "auto" ? stored !== null : picked !== stored) {
+          op.placeBelow = picked === "auto" ? null : picked;
+          what.push(picked === "auto" ? "placed by its estimate" : "a new spot");
+        }
+        if (noShowcase.checked && u.videoUrl) {
+          op.showcase = null;
+          what.push("no showcase");
+        } else if (link.value.trim()) {
+          op.showcase = checkShowcase(link.value);
+          what.push("new showcase");
+        }
+        if (!what.length) throw new Problem("Nothing changed.");
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        say(box, "err", e.message);
+        return;
+      }
+      save([op], "Unrated: " + name + " - " + what.join(", "), saveButton, box);
     });
   }
 
@@ -1156,9 +1581,10 @@
     $("down-panel").hidden = false;
   }
 
-  // Head mod or mod (functions/editors.json). Head mods add members, remove clears
-  // and re-sort the list; mods do the rest. The server and the GitHub job refuse
-  // those edits from a mod anyway: hiding them here just keeps the page honest.
+  // Head mod or mod (functions/editors.json). Head mods add members, remove clears,
+  // re-sort the list and look after the unrated levels; mods do the rest. The
+  // server and the GitHub job refuse those edits from a mod anyway: hiding them
+  // here just keeps the page honest.
   function isHead() {
     return !!(me && me.role === "head");
   }
@@ -1175,8 +1601,9 @@
     who.appendChild(el("b", null, me.name));
     who.appendChild(document.createTextNode(isHead() ? " (head mod)" : " (mod)"));
     if (!isHead()) {
-      ["panel-members", "panel-order"].forEach(function (id) {
-        $(id).hidden = true;
+      // (panel-unrated: a list without Rated+ has no such panel)
+      ["panel-members", "panel-order", "panel-unrated"].forEach(function (id) {
+        if ($(id)) $(id).hidden = true;
         var link = document.querySelector('a[href="#' + id + '"]');
         if (link) link.hidden = true;
       });
@@ -1195,6 +1622,7 @@
     setupMembers();
     setupVideos();
     setupOrder();
+    setupUnrated();
     if (isOwner()) {
       $("panel-mods").hidden = false;
       document.querySelector('a[href="#panel-mods"]').hidden = false;

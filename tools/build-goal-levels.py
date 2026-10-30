@@ -5,7 +5,7 @@ For every distinct levelId referenced in data/goals.js that ISN'T already on the
 Demonlist (data/demons.js), fetch the level's facts from gdladder + gdbrowser and
 extract a colour palette from its showcase-video thumbnail, so goal.html can
 theme itself off the image. An extreme also gets its AREDL placement
-(aredlPosition), which the Future List (static/js/future.js) places it by.
+(aredlPosition), which the Future and Future+ views (static/js/views.js) place it by.
 
 Run it whenever you add/change a goal in data/goals.js:
 

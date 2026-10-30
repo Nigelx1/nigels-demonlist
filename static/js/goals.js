@@ -60,7 +60,7 @@
   // SITE.grindInProgress (Aceabase - Poatan's compromise): the goal's longest
   // run [from, to] - from 0, or a practice run like 42-100 - when it's LONGER
   // than that %, else null. Such a goal shows in the stats viewer's In Progress
-  // row, and puts an off-list level on the Future List (static/js/future.js).
+  // row, and puts an off-list level in the Future view (static/js/views.js).
   // Always null when the setting is missing.
   DL.grindInProgressRun = function (goal) {
     var min = window.SITE && window.SITE.grindInProgress;
@@ -117,10 +117,8 @@
             ? runsLabel(g.segments)
             : "not started";
         return (
-          '<a class="grind-chip" href="goal.html?level=' +
-          encodeURIComponent(g.levelId) +
-          "#" +
-          DL.goalAnchor(name) +
+          '<a class="grind-chip" href="' +
+          DL.withView("goal.html?level=" + encodeURIComponent(g.levelId) + "#" + DL.goalAnchor(name)) +
           '">' +
           '<span class="grind-chip-name">' + label + "</span>" +
           '<span class="grind-chip-pct">' + pct + "</span>" +
@@ -232,7 +230,7 @@
       root.innerHTML =
         '<section class="panel fade"><h2>Unknown level</h2>' +
         "<p>No level <code>" + DL.escapeHtml(String(levelId)) + "</code> in data/goal-levels.js or data/demons.js.</p>" +
-        '<a class="blue hover button" href="statsviewer.html">Back to the stats viewer</a></section>';
+        '<a class="blue hover button" href="' + DL.withView("statsviewer.html") + '">Back to the stats viewer</a></section>';
       return;
     }
 
@@ -240,6 +238,8 @@
     var onList = (window.DEMONS || []).some(function (d) {
       return d.levelId === Number(levelId) || d.id === Number(levelId);
     });
+    // an unrated level the head mods count (Rated+): its page in a Rated+ view
+    var unrated = DL.unratedById ? DL.unratedById(levelId) : null;
     document.title = "The Grind: " + lv.name + " · " + window.SITE.name;
 
     // theme vars on the page wrapper, and fill the whole page with the wash
@@ -268,6 +268,14 @@
             (lv.publisher ? "<span>by " + DL.escapeHtml(lv.publisher) + "</span>" : "") +
             (onList
               ? ' <a class="goal-listed" href="' + DL.demonUrl(lv.id) + '">on the list &#8594;</a>'
+              : "") +
+            (unrated
+              ? ' <a class="goal-listed" data-view-set href="' +
+                DL.withView("demon.html?id=" + encodeURIComponent(unrated.levelId), {
+                  time: DL.currentView().time,
+                  rating: "plus",
+                }) +
+                '">unrated, on Rated+ &#8594;</a>'
               : "") +
           "</p>" +
         "</div>" +
@@ -347,7 +355,7 @@
       "</section>";
 
     var backLink =
-      '<p class="goal-back"><a class="link" href="statsviewer.html">&#8592; Stats Viewer</a></p>';
+      '<p class="goal-back"><a class="link" href="' + DL.withView("statsviewer.html") + '">&#8592; Stats Viewer</a></p>';
 
     root.innerHTML = hero + '<div class="goal-body">' + about + grind + backLink + "</div>";
 

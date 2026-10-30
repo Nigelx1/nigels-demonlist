@@ -1,10 +1,12 @@
 // GET /api/level?level=<id or gdladder.com / gdbrowser.com link> - look a level
 // up before sending an edit, the way tools/add-records.py will:
-//   {id, name, creator, difficulty, tier, rating, platformer, onList, position}
+//   {id, name, creator, difficulty, tier, rating, stars, platformer, onList, position}
 // difficulty is the in-game one ("Extreme Demon"), tier the demon tier
 // ("Extreme") or null for a non-demon, rating gdladder's (2 dp) or null,
-// platformer as add-records.py decides it, onList/position from the live
-// data/demons.js (onList null if that couldn't be read).
+// stars gdbrowser's star count (0 = unrated in game; null when gdbrowser didn't
+// answer or doesn't know the level), platformer as add-records.py decides it,
+// onList/position from the live data/demons.js (onList null if that couldn't
+// be read).
 // 400 for a bad level, 404 when neither site knows it, 502 when neither answers.
 //
 // Logged-in editors only, so this isn't an open proxy to gdladder/gdbrowser.
@@ -84,6 +86,7 @@ export async function onRequestGet({ request, env }) {
     difficulty,
     tier,
     rating,
+    stars: typeof gb.stars === "number" ? gb.stars : null, // Rated+: an unrated level has 0
     platformer,
     onList: listed ? position !== null : null,
     position,

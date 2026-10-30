@@ -31,6 +31,11 @@ and runs this. The payload:
   {"op":"remove_member","name":S}
   {"op":"set_mod","discordId":D,"name":S,"role":"head"|"mod"}   Nigel only
   {"op":"remove_mod","discordId":D}                             Nigel only
+  {"op":"add_unrated","level":L,"rating":E,"difficulty":TT,"placeBelow":A,"showcase":Y}
+                    head mods; difficulty, placeBelow and showcase optional
+  {"op":"set_unrated","level":L,"rating":E,"difficulty":TT,"placeBelow":A,"showcase":Y}
+                    head mods; the level and at least one of the others
+  {"op":"remove_unrated","level":L}                             head mods
 
   S  1-32 letters (any alphabet), digits, spaces and . _ -
   CC an ISO 3166-1 alpha-2 country code, capitals
@@ -40,6 +45,21 @@ and runs this. The payload:
   U  https on youtube.com, www.youtube.com, youtu.be or drive.google.com
   R  an earlier edit's requestId (16 lowercase hex)
   D  a Discord user id: 17-20 digits, as a string
+  E  a GD Demon Ladder rating ESTIMATE: a number from 1 to 50, at most 2 decimals
+  TT "Extreme" or "Insane", the tier an unrated level counts as (add_unrated
+     without one: Extreme for an estimate of 20 or more, else Insane)
+  A  null (placed by its estimate), 0 (the very top) or the level id of the listed
+     demon it sits right below; the spot has to be inside its window (slot_ok)
+  Y  null (set_unrated: drop the showcase) or a link to one YouTube video
+
+Unrated levels (Rated+: SITE.ratedPlus, data/unrated.js; Nigel and Dihmaster500,
+2026-10-30) aren't rated in game but count in the list's Rated+ views
+(static/js/views.js). The head mod's estimate places and scores one like any
+demon (DL.demonRating); a hand-picked spot can only move it past same-tier
+neighbours within SITE.unratedWindow rating points of the estimate, and one the
+list has moved away from is ignored by the site (this tool says so). Clears on
+them are add_record / remove_record with their level id: any progress counts, and
+add-records.py isn't run for them. Their changes are changelog notes only.
 
 Every edit goes through the same tools Claude uses by hand (add-records.py,
 add-video.py, refresh-order.py, build-goal-levels.py), so ordering, the AREDL
@@ -94,13 +114,19 @@ OPS = {  # op -> (required fields, optional fields), besides "op"
     "remove_member": ({"name"}, set()),  # only someone with no records left
     "set_mod": ({"discordId", "name", "role"}, set()),  # Nigel only: add a mod, or rename / re-rank one
     "remove_mod": ({"discordId"}, set()),  # Nigel only
+    # Rated+ (data/unrated.js), head mods only; clears on them are add_record / remove_record
+    "add_unrated": ({"level", "rating"}, {"difficulty", "placeBelow", "showcase"}),
+    "set_unrated": ({"level"}, {"rating", "difficulty", "placeBelow", "showcase"}),  # at least one of them
+    "remove_unrated": ({"level"}, set()),
 }
+UNRATED_FIELDS = {"rating", "difficulty", "placeBelow", "showcase"}  # what set_unrated can change
 # What only head mods may do; functions/_lib/contract.js HEAD_ONLY is the same list.
 # A mod also can't bring in a new player through add_record (Engine.adds).
 HEAD_ONLY = {"add_member": "add members", "remove_record": "remove clears", "refresh_order": "re-sort the list",
              "refresh_showcases": "check Nigel's channel for showcases", "undo": "undo edits",
              "rename_member": "rename members", "set_member_country": "change a member's country",
-             "remove_member": "remove members"}
+             "remove_member": "remove members", "add_unrated": "add unrated levels",
+             "set_unrated": "edit unrated levels", "remove_unrated": "remove unrated levels"}
 # Nigel's Discord account, the only one that can change the mod team (Nigel, 2026-10-07);
 # functions/_lib/contract.js OWNER_ID is the same, and the Function marks his edits
 # "owner": true. The mod team is functions/editors.json (the logins); the List Mods
@@ -117,6 +143,42 @@ VIDEO_HOSTS = {"youtube.com", "www.youtube.com", "youtu.be", "drive.google.com"}
 VIDEO_ID = (re.compile(r"(?:youtu\.be/|[?&]v=|/shorts/|/embed/|/live/)[A-Za-z0-9_-]{11}"),
             re.compile(r"drive\.google\.com/(?:file/d/|open\?(?:[^#]*&)?id=|uc\?(?:[^#]*&)?id=)[A-Za-z0-9_-]{10,}"))
 LEVEL_LINK = re.compile(r"^https?://(?:www\.)?(?:gdladder\.com/level/|gdbrowser\.com/(?:level/)?)(\d+)/?(?:[?#]\S*)?$", re.I)
+# An unrated level's showcase: one YouTube video (VIDEO_ID[0]).
+SHOWCASE_HOSTS = {"youtube.com", "www.youtube.com", "youtu.be"}
+# Same fallbacks as DL.RATING_BY_DIFFICULTY (and add-records.py / refresh-order.py).
+FALLBACK = {"Extreme": 24, "Insane": 16.5, "Hard": 11, "Medium": 7, "Easy": 2.5, "Official": 3}
+
+# data/unrated.js (Rated+): Aceabase only. Its entries' keys, in the order they're
+# written, and the header the file starts with when write_unrated creates it.
+UNRATED_FILE = "data/unrated.js"
+UNRATED_KEYS = ("id", "name", "difficulty", "rating", "placeBelow", "publisher", "creators", "verifier", "videoUrl",
+                "thumbnailUrl", "levelId", "description", "requirementPercent", "records", "gd", "added")
+UNRATED_HEADER = """"use strict";
+// -----------------------------------------------------------------------------
+// UNRATED LEVELS: the list's Rated+ view (SITE.ratedPlus; Nigel and
+// Dihmaster500, 2026-10-30). These levels aren't rated in game, but they count
+// as accomplishments in the Rated+ views of the list and the stats viewer
+// (static/js/views.js). Head mods add, edit and remove them on the mod page
+// (tools/apply-edit.py add_unrated / set_unrated / remove_unrated). Clears on
+// them go in like any other clear (add_record). The scheduled upkeep
+// (tools/refresh-order.py) never reads or writes this file.
+//
+// An entry is shaped like a data/demons.js demon, without position/aredlPosition:
+//   id == levelId   the Geometry Dash level id
+//   difficulty      "Extreme" | "Insane": the tier it counts as (the head mod's call)
+//   rating          the head mod's GD Demon Ladder rating ESTIMATE (1-50, 2 dp).
+//                   It places and scores the level like any demon (DL.demonRating)
+//   placeBelow      optional: the levelId of the listed demon it sits right below
+//                   (0 = the very top), picked inside its window (DL.unratedSlots).
+//                   Left out = placed by the estimate. A spot that no longer fits
+//                   (because the list moved) is ignored until a head mod picks again.
+//   records[]       { player, progress, nationality, subdivision }
+//   added           "YYYY-MM-DD"
+// Don't hand-edit. tools/apply-edit.py checks and writes it.
+// -----------------------------------------------------------------------------
+
+window.UNRATED = [];
+"""
 
 
 class Refuse(Exception):
@@ -210,6 +272,53 @@ def check_note(v):
     return v.strip()
 
 
+def check_rating(v):
+    """A head mod's GD Demon Ladder estimate for an unrated level: 1-50, at most
+    2 decimals (31.1's float noise is fine). A whole number comes back as an int,
+    the way data/demons.js stores one."""
+    # (the range test also refuses NaN and infinity, and comes before round(), which can't take them)
+    if (isinstance(v, bool) or not isinstance(v, (int, float)) or not 1 <= v <= 50
+            or abs(v * 100 - round(v * 100)) > 1e-6):
+        raise Refuse(f"GDDL estimate must be a number from 1 to 50 with at most 2 decimals, got {show(v)}")
+    r = round(v * 100) / 100
+    return int(r) if r.is_integer() else r
+
+
+def check_tier(v):
+    """The tier an unrated level counts as (it has no demon face in game)."""
+    if not isinstance(v, str) or v not in ("Extreme", "Insane"):
+        raise Refuse(f"tier {show(v)} must be \"Extreme\" or \"Insane\"")
+    return v
+
+
+def check_place_below(v):
+    """An unrated level's hand-picked spot: None, 0 (the very top) or a level id.
+    Whether it's inside the level's window is slot_ok's job."""
+    if v is None:
+        return None
+    if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 2 ** 31 - 1:
+        raise Refuse(f"placeBelow must be null, 0 (the top) or a level id, got {show(v)}")
+    return v
+
+
+def check_showcase(v):
+    """None, or a link to one YouTube video. The same regex as contract.js's
+    checkShowcase (not urlsplit), so both sides agree on every link."""
+    if v is None:
+        return None
+    m = (re.match(r"https://([^/?#]*)", v, re.I)
+         if isinstance(v, str) and len(v) <= 300 and not re.search(r"\s", v) else None)
+    host = m.group(1).lower() if m else ""
+    if not m or "@" in host or ":" in host or host not in SHOWCASE_HOSTS or not VIDEO_ID[0].search(v):
+        raise Refuse(f"showcase {show(v)} must be a link to one YouTube video")
+    return v
+
+
+def yt_id(url):
+    """The video id in a link check_showcase took."""
+    return VIDEO_ID[0].search(url).group(0)[-11:]
+
+
 def validate(p):
     """The payload, checked against the contract and normalised (level -> int id)."""
     if not isinstance(p, dict):
@@ -290,6 +399,16 @@ def validate(p):
                 o["discordId"] = check_discord_id(op["discordId"])
             if "role" in op:
                 o["role"] = check_mod_role(op["role"])
+            if "rating" in op:
+                o["rating"] = check_rating(op["rating"])
+            if "difficulty" in op:
+                o["difficulty"] = check_tier(op["difficulty"])
+            if "placeBelow" in op:
+                o["placeBelow"] = check_place_below(op["placeBelow"])
+            if "showcase" in op:
+                o["showcase"] = check_showcase(op["showcase"])
+            if op["op"] == "set_unrated" and not UNRATED_FIELDS & set(op):
+                raise Refuse("nothing to change - give rating, difficulty, placeBelow or showcase")
         except Refuse as e:
             raise Refuse(f"{where} ({op['op']}): {e}")
         out.append(o)
@@ -306,10 +425,12 @@ def validate(p):
 
 LOADER = r"""
 const fs = require('fs'), vm = require('vm'), path = require('path'), root = process.argv[1], out = {};
+// unrated.js (Rated+) is Aceabase's only: missing = no unrated levels; present but broken still fails
 const files = [['config.js', 'SITE'], ['demons.js', 'DEMONS'], ['changelog.js', 'CHANGELOG'],
-               ['goals.js', 'GOALS'], ['goal-levels.js', 'GOAL_LEVELS']];
-for (const [file, v] of files) {
+               ['goals.js', 'GOALS'], ['goal-levels.js', 'GOAL_LEVELS'], ['unrated.js', 'UNRATED', 'optional']];
+for (const [file, v, optional] of files) {
   const w = {};
+  if (optional && !fs.existsSync(path.join(root, 'data', file))) { out[v] = []; continue; }
   try { vm.runInNewContext(fs.readFileSync(path.join(root, 'data', file), 'utf8'), { window: w }, { filename: file }); }
   catch (e) { console.error('data/' + file + ' does not load: ' + e.message); process.exit(1); }
   if (w[v] === undefined) { console.error('data/' + file + ' does not set window.' + v); process.exit(1); }
@@ -407,6 +528,133 @@ def country_phrase(cc, names):
         return SHORT[cc]
     name = names.get(cc) or cc
     return ("the " + name) if cc in WITH_THE else name
+
+
+# --- Rated+: the unrated levels (data/unrated.js) -------------------------------
+# Where a head mod may put an unrated level by hand. The rule is written three
+# times, identically: here (the server's check), and in static/js/views.js as
+# DL.unratedSlotOk / DL.unratedSlots (the site and the mod page's spot picker).
+# tools/test-functions.mjs checks that both give the same slots.
+#
+# A slot is named by its anchor: 0 = the very top, otherwise the levelId of the
+# listed demon the level sits right below. It's valid when the level would only
+# pass same-tier neighbours whose value is within window_width() of its
+# estimate, and never cross a tier boundary. The list moves under a stored spot
+# (the AREDL, the upkeep, a demon leaving): one that stops fitting is ignored by
+# the site, which places the level by its estimate until a head mod picks again.
+
+def tier_rank(d, site):
+    """Every extreme above every insane on a list whose Main List is its extremes
+    (DL.tierRank); one tier otherwise."""
+    if site.get("mainListSize") != "extremes":
+        return 0
+    return {"Extreme": 0, "Insane": 1}.get(d.get("difficulty"), 2)
+
+
+def window_width(site):
+    """How far a head mod can move an unrated level by hand, in rating points either
+    side of its estimate: SITE.unratedWindow when it's a number of at least 0.05,
+    else 1 (DL.unratedWindow)."""
+    w = site.get("unratedWindow")
+    return w if isinstance(w, (int, float)) and not isinstance(w, bool) and w >= 0.05 else 1
+
+
+def rating_value(d, site):
+    """The number a level is ordered and scored by (mirrors DL.demonRating): an
+    AREDL placement through SITE.aredlFit, else its rating (for an unrated level,
+    the head mod's estimate), else a typical rating for its tier."""
+    fit, pos = site.get("aredlFit"), d.get("aredlPosition")
+    if fit and isinstance(pos, (int, float)) and not isinstance(pos, bool):
+        return fit["a"] + fit["b"] * pos ** fit["exponent"]
+    r = d.get("rating")
+    if isinstance(r, (int, float)) and not isinstance(r, bool):
+        return r
+    return FALLBACK.get(d.get("difficulty"), 3)
+
+
+def slot_fits(u, x, y, site):
+    """Can unrated level u sit between listed demons x (above) and y (below)?
+    None = the top / the bottom of the list."""
+    e, t, w = rating_value(u, site), tier_rank(u, site), window_width(site)
+    above = x is None or tier_rank(x, site) < t or (tier_rank(x, site) == t and rating_value(x, site) >= e - w)
+    below = y is None or tier_rank(y, site) > t or (tier_rank(y, site) == t and rating_value(y, site) <= e + w)
+    return above and below
+
+
+def slot_ok(u, anchor, demons, site):
+    """Whether unrated level u ({levelId, difficulty, rating}) may sit right below the
+    listed demon with levelId anchor (0 = the very top): DL.unratedSlotOk. demons is
+    today's list (data/demons.js), never other unrated or Grind levels."""
+    L = sorted(demons, key=lambda d: d["position"])
+    if anchor == 0:
+        return slot_fits(u, None, L[0] if L else None, site)
+    i = next((n for n, d in enumerate(L) if d["levelId"] == anchor), None)
+    return i is not None and slot_fits(u, L[i], L[i + 1] if i + 1 < len(L) else None, site)
+
+
+def unrated_slots(u, demons, site):
+    """Every anchor u may take, top to bottom: DL.unratedSlots(u).map(s => s.anchor).
+    They're contiguous and always include the one its estimate puts it in."""
+    L = sorted(demons, key=lambda d: d["position"])
+    return [L[i - 1]["levelId"] if i else 0 for i in range(len(L) + 1)
+            if slot_fits(u, L[i - 1] if i else None, L[i] if i < len(L) else None, site)]
+
+
+def write_unrated(root, entries):
+    """Write data/unrated.js: every entry's keys in UNRATED_KEYS order, the entries
+    sorted by tier (allowedDifficulties order), estimate (highest first) and level
+    id. A missing file is created with its header first."""
+    if not os.path.exists(os.path.join(root, *UNRATED_FILE.split("/"))):
+        write(root, UNRATED_FILE, UNRATED_HEADER)
+    m = re.search(r"allowedDifficulties:\s*\[([^\]]*)\]", read(root, "data/config.js"))
+    tiers = re.findall(r'"([A-Za-z]+)"', m.group(1)) if m else ["Extreme", "Insane"]
+
+    def key(u):
+        d = u.get("difficulty")
+        return (tiers.index(d) if d in tiers else len(tiers), -u["rating"], u["levelId"])
+    out = [dict([(k, u[k]) for k in UNRATED_KEYS if k in u] + [(k, v) for k, v in u.items() if k not in UNRATED_KEYS])
+           for u in sorted(entries, key=key)]
+    write_json_var(root, UNRATED_FILE, "UNRATED", out)
+
+
+def unrated_facts_from(lid, code, body):
+    """What add_unrated keeps from gdbrowser's answer about level lid (its http
+    status and body): {name, publisher, description, gd}, or Refuse. The level has
+    to be unrated in game (0 stars) and not a platformer. gd is built the way
+    add-records.py's fetch_level builds it, with gdbrowser's difficulty as given
+    (e.g. "Unrated"). gdladder isn't asked: it doesn't know unrated levels."""
+    if body.strip() == "-1":
+        raise Refuse(f"level {lid} isn't on gdbrowser - check the id")
+    try:
+        gb = json.loads(body) if code == 200 else None
+    except ValueError:
+        gb = None
+    name = str(gb.get("name") or "").strip() if isinstance(gb, dict) else ""
+    if not name:
+        raise Refuse(f"gdbrowser didn't answer for level {lid} - nothing saved, try again in a few minutes")
+    stars = gb.get("stars")
+    if isinstance(stars, bool) or not isinstance(stars, int):
+        raise Refuse(f"couldn't tell whether {name} is rated - try again in a few minutes")
+    if stars > 0:
+        raise Refuse(f"{name} is rated ({stars} stars) - add its clears in Add a clear instead")
+    if str(gb.get("length") or "").lower().startswith("plat"):
+        raise Refuse(f"{name} is a platformer level - the list doesn't take those")
+    gd = {}
+    if gb.get("length"):
+        gd["length"] = gb["length"]
+    objs = gb.get("objects") or 0
+    if isinstance(objs, int) and objs > 0:
+        gd["objects"] = objs
+    if gb.get("gameVersion") and gb["gameVersion"] != "0.0":
+        gd["gameVersion"] = gb["gameVersion"]
+    gd["inGameDifficulty"] = gb.get("difficulty") or "Unrated"
+    sid, sname = str(gb.get("songID") or ""), gb.get("songName")
+    if sid.isdigit() and sname:
+        gd["song"] = {"id": sid, "name": sname, "artist": gb.get("songAuthor") or ""}
+        if gb.get("songLink") and gb["songLink"] != "-":
+            gd["song"]["link"] = gb["songLink"]
+        gd["songOfficial"] = False
+    return {"name": name, "publisher": gb.get("author") or None, "description": gb.get("description") or None, "gd": gd}
 
 
 # --- The Grind (data/goals.js keeps its hand formatting, so edit it as text) --
@@ -517,10 +765,27 @@ class Engine:
         print("  " + line)
 
     def players(self, s):
-        """Every name the list knows: the roster plus anyone holding a record."""
+        """Every name the list knows: the roster plus anyone holding a record (on an
+        unrated level too)."""
         names = [m["name"] for m in s["SITE"].get("members") or []]
         names += [r["player"] for d in s["DEMONS"] for r in d.get("records", [])]
+        names += [r["player"] for u in s.get("UNRATED") or [] for r in u.get("records", [])]
         return list(dict.fromkeys(names))
+
+    @staticmethod
+    def unrated(s):
+        """The unrated levels (data/unrated.js, Rated+) by level id; {} without the file."""
+        return {u["levelId"]: u for u in s.get("UNRATED") or []}
+
+    def unrated_facts(self, lid):
+        """add_unrated's one look-up: gdbrowser's facts about an unrated level, or
+        Refuse (unrated_facts_from). The tests stub this."""
+        code, body = curl(f"https://gdbrowser.com/api/level/{lid}")
+        return unrated_facts_from(lid, code, body)
+
+    def showcase_thumb(self, vid):
+        """The best YouTube still of a showcase, the way add-records.py picks one."""
+        return tool(self.root, "add-records").thumb(vid)
 
     @staticmethod
     def resolve(name, names):
@@ -574,14 +839,20 @@ class Engine:
             end = load_state(self.root)
             if ({d["levelId"] for d in end["DEMONS"]} | {int(k) for k in end["GOAL_LEVELS"]}) - levels_before:
                 self.refresh_showcases(None)
+        # Rated+: a hand-picked spot the list moved out from under (the upkeep's re-sort too)
+        if start["UNRATED"] or any(o["op"] in ("add_unrated", "set_unrated") for o in ops):
+            self.stale_spots(start)
 
-    # add_member / add_record -> tools/add-records.py
+    # add_member / add_record -> tools/add-records.py. A clear on an unrated level
+    # (Rated+) goes straight into data/unrated.js instead (unrated_clears), so a
+    # batch of those by players already on the list never runs add-records.py.
     def adds(self, ops):
         s = load_state(self.root)
         names = self.players(s)
         listed = {d["levelId"]: d for d in s["DEMONS"]}
+        unrated = self.unrated(s)
         spec = {"date": today(), "players": {}, "records": [], "notes": []}
-        plan = []
+        plan, extra = [], []  # extra: the clears on unrated levels, kept out of add-records.py's spec
         for o in ops:
             if o["op"] == "add_member":
                 if self.resolve(o["name"], names):
@@ -606,11 +877,17 @@ class Engine:
                 spec["players"][who] = self.player_spec(o)
                 spec["notes"].append(f"New member: {who}, from {where}.")
             lid, d = o["level"], listed.get(o["level"])
+            if not d and lid in unrated:  # any progress counts on an unrated level
+                extra.append(dict(o, player=who, new_player=joined))
+                continue
             if o["progress"] < 100 and not d:
                 raise Refuse(f"level {lid} isn't on the list, and only a 100% can put a level on it "
                              f"({who} has {o['progress']}%)")
             spec["records"].append({"player": who, "level": lid, "progress": o["progress"]})
             plan.append(dict(o, player=who, new_player=joined))
+        if not (spec["records"] or spec["players"] or spec["notes"]):
+            self.unrated_clears(extra)
+            return
         tmp = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8")
         try:
             json.dump(spec, tmp, ensure_ascii=False)
@@ -666,9 +943,65 @@ class Engine:
             self.say(f"{len(moves)} demon{'s' if len(moves) != 1 else ''} re-sorted along the way (the AREDL shifted): "
                      + ", ".join(f"{m['demon']} #{m['from']} -> #{m['to']}" for m in moves[:6])
                      + (" ..." if len(moves) > 6 else "") + ".")
+        if extra:
+            self.unrated_clears(extra)
+
+    def unrated_clears(self, ops):
+        """add_record on unrated levels (Rated+), straight into data/unrated.js: any
+        progress from 1 to 100 goes in, only a 100% scores (in the Rated+ views), and
+        the first 100% is the verifier. A 100% is a changelog note, never an add."""
+        s = load_state(self.root)  # after add-records.py, when it ran: new players are on the roster
+        by_id = self.unrated(s)
+        items, changed = [], False
+        for o in ops:
+            u, who, p = by_id[o["level"]], o["player"], o["progress"]
+            name = u["name"]
+            if o.get("new_player"):
+                cc = o["nationality"]
+                self.say(f"New member: {who} ({s['COUNTRY_NAMES'].get(cc, cc)}).")
+            self.subjects.append(f"{who} {p}% on {name} (unrated)")
+            rec = next((r for r in u["records"] if r["player"] == who), None)
+            if rec and rec["progress"] >= p:
+                self.say(f"{who} already had {rec['progress']}% on {name} (unrated) - no change.")
+                continue
+            if rec:
+                self.say(f"{who}: {name} (unrated) {rec['progress']}% -> {p}%.")
+                rec["progress"] = p
+            else:
+                cc, sub = self.nationality(s, who, o)
+                u["records"].append({"player": who, "progress": p, "nationality": cc, "subdivision": sub})
+                self.say(f"{who} beat {name} (unrated - counts in Rated+)." if p >= 100 else f"{who}: {p}% on {name} (unrated).")
+            changed = True
+            if p >= 100:
+                if not u.get("verifier"):
+                    u["verifier"] = who
+                items.append({"kind": "note", "text": f"{who} beat {name} (unrated - counts in Rated+)."})
+                self.drop_beaten_goal(who, u["levelId"], name)
+        if changed:
+            write_unrated(self.root, s["UNRATED"])
+        if items:
+            self.log(s["CHANGELOG"], items)
+
+    @staticmethod
+    def nationality(s, who, o):
+        """(country, state) for someone's new record: the op's for a new player, else
+        the roster's, else their first record's (on the list, then on an unrated level)."""
+        if o.get("new_player"):
+            return o["nationality"], o.get("subdivision")
+        m = next((x for x in s["SITE"].get("members") or [] if x.get("name") == who), None)
+        if m and m.get("nationality"):
+            return m["nationality"], m.get("subdivision")
+        for d in s["DEMONS"] + (s.get("UNRATED") or []):
+            r = next((r for r in d.get("records", []) if r["player"] == who and r.get("nationality")), None)
+            if r:
+                return r["nationality"], r.get("subdivision")
+        return None, None
 
     def remove_record(self, o):
         s = load_state(self.root)
+        u = self.unrated(s).get(o["level"])
+        if u and not any(d["levelId"] == o["level"] for d in s["DEMONS"]):
+            return self.remove_unrated_record(s, u, o["player"])
         d, rec = self.record(s, o["level"], o["player"])
         who, name, pos = rec["player"], d["name"], d["position"]
         demons = s["DEMONS"]
@@ -696,6 +1029,30 @@ class Engine:
         self.log(s["CHANGELOG"], items)
         self.subjects.append(f"Remove {who}'s record on {name}")
 
+    def remove_unrated_record(self, s, u, player):
+        """remove_record on an unrated level: the record goes, the level stays (with
+        no clears too), and the first-clear credit moves to the next 100%."""
+        name = u["name"]
+        names = [r["player"] for r in u.get("records", [])]
+        who = self.resolve(player, names)
+        if not who:
+            raise Refuse(f"{name} has no record by {player}" + (f" - its records: {', '.join(names)}" if names else ""))
+        rec = next(r for r in u["records"] if r["player"] == who)
+        u["records"] = [r for r in u["records"] if r["player"] != who]
+        if u.get("verifier") == who:
+            u["verifier"] = next((r["player"] for r in u["records"] if r["progress"] >= 100), None)
+            self.say(f"{name}'s first-clear credit moves from {who} to {u['verifier'] or 'nobody'}.")
+        write_unrated(self.root, s["UNRATED"])
+        self.log(s["CHANGELOG"], [{"kind": "note", "text": f"{who}'s record on {name} (unrated) was removed."}])
+        self.say(f"Removed {who}'s {rec['progress']}% record on {name} (unrated).")
+        self.subjects.append(f"Remove {who}'s record on {name} (unrated)")
+
+    def refuse_unrated_video(self, s, lid):
+        """add-video.py only knows data/demons.js: no videos on unrated levels' clears yet."""
+        u = self.unrated(s).get(lid)
+        if u and not any(d["levelId"] == lid for d in s["DEMONS"]):
+            raise Refuse(f"{u['name']} is an unrated level - videos on its clears aren't supported yet")
+
     def log(self, log, items):
         """Prepend items to today's changelog entry (newest first, like add-records.py)."""
         if '"date":' not in read(self.root, "data/changelog.js"):
@@ -710,6 +1067,9 @@ class Engine:
         d = next((x for x in s["DEMONS"] if x["levelId"] == lid), None)
         if d:
             return d["name"]
+        u = self.unrated(s).get(lid)
+        if u:
+            return u["name"]
         g = s["GOAL_LEVELS"].get(str(lid))
         if g and g.get("name") and g["name"] != f"Level {lid}":
             return g["name"]
@@ -725,6 +1085,9 @@ class Engine:
         name = self.level_name(s, lid)
         d = next((x for x in s["DEMONS"] if x["levelId"] == lid), None)
         if d and any(r["player"] == who and r["progress"] >= 100 for r in d["records"]):
+            raise Refuse(f"{who} has already beaten {name}")
+        u = None if d else self.unrated(s).get(lid)
+        if u and any(r["player"] == who and r["progress"] >= 100 for r in u.get("records", [])):
             raise Refuse(f"{who} has already beaten {name}")
         kept, dropped, dupes = prune_runs(o["best"], o["segments"])
         old = next((g for g in s["GOALS"] if g["player"] == who and g["levelId"] == lid), None)
@@ -809,6 +1172,7 @@ class Engine:
 
     def set_record_video(self, o):
         s = load_state(self.root)
+        self.refuse_unrated_video(s, o["level"])
         d, rec = self.record(s, o["level"], o["player"])
         if rec.get("video") == o["url"]:
             self.say(f"{rec['player']}'s {d['name']} record already has that video - no change.")
@@ -821,6 +1185,7 @@ class Engine:
 
     def remove_record_video(self, o):
         s = load_state(self.root)
+        self.refuse_unrated_video(s, o["level"])
         d, rec = self.record(s, o["level"], o["player"])
         if not rec.get("video"):
             raise Refuse(f"{rec['player']}'s {d['name']} record has no video")
@@ -1019,6 +1384,16 @@ class Engine:
                         r[key] = nv
         if moved:
             write_json_var(self.root, "data/demons.js", "DEMONS", s["DEMONS"])
+        uchanged = False  # their clears on unrated levels (Rated+)
+        for u in s.get("UNRATED") or []:
+            if u.get("verifier") == who:
+                u["verifier"], uchanged = new, True
+            for r in u.get("records", []):
+                if r["player"] == who:
+                    r["player"], uchanged = new, True
+                    moved += 1
+        if uchanged:
+            write_unrated(self.root, s["UNRATED"])
         goals, n = re.subn(r'(\{\s*player:\s*)"' + re.escape(who) + r'"',
                            lambda mm: mm.group(1) + json.dumps(new, ensure_ascii=False), read(self.root, "data/goals.js"))
         if n:
@@ -1035,9 +1410,12 @@ class Engine:
         cfg = read(self.root, "data/config.js")
         m = self.roster_line(cfg, who)
         recs = [r for d in s["DEMONS"] for r in d.get("records", []) if r["player"] == who]
+        urecs = [r for u in s.get("UNRATED") or [] for r in u.get("records", []) if r["player"] == who]
+        ustale = [r for r in urecs if r.get("nationality") != cc or (r.get("subdivision") or None) != sub]
         had = re.search(r'subdivision:\s*"([^"]*)"', m.group(0))
         if f'nationality: "{cc}"' in m.group(0) and (had.group(1) if had else None) == sub \
-                and all(r.get("nationality") == cc and (r.get("subdivision") or None) == sub for r in recs):
+                and all(r.get("nationality") == cc and (r.get("subdivision") or None) == sub for r in recs) \
+                and not ustale:
             self.say(f"{who} is already from {where} - no change.")
             return
         line = re.sub(r'\s*,\s*subdivision:\s*"[^"]*"', "", m.group(0))
@@ -1048,10 +1426,13 @@ class Engine:
         if sub:
             line = re.sub(r'(nationality:\s*"[A-Z]{2}")', rf'\1, subdivision: "{sub}"', line, count=1)
         write(self.root, "data/config.js", cfg[:m.start()] + line + cfg[m.end():])
-        for r in recs:
+        for r in recs + urecs:
             r["nationality"], r["subdivision"] = cc, sub
         if recs:
             write_json_var(self.root, "data/demons.js", "DEMONS", s["DEMONS"])
+        if ustale:
+            write_unrated(self.root, s["UNRATED"])
+        recs += urecs  # (the count below)
         flag = os.path.join(self.root, "static", "images", "flags", f"{cc.lower()}.svg")
         if not os.path.exists(flag):
             got = subprocess.run(["curl", "-sS", "-f", "-o", flag, FLAG_SRC + f"{cc.lower()}.svg"], capture_output=True)
@@ -1074,6 +1455,7 @@ class Engine:
         s = load_state(self.root)
         who = self.member(s, o["name"])
         held = [d["name"] for d in s["DEMONS"] for r in d.get("records", []) if r["player"] == who]
+        held += [f"{u['name']} (unrated)" for u in s.get("UNRATED") or [] for r in u.get("records", []) if r["player"] == who]
         if held:
             raise Refuse(f"{who} still has records ({', '.join(held[:5])}{' ...' if len(held) > 5 else ''}) - "
                          "remove those clears first")
@@ -1173,6 +1555,170 @@ class Engine:
         self.save_mod_team(eds)
         self.say(f"Removed {gone['name']} from the mod team; their mod page login stops working once this is live.")
         self.subjects.append(f"Remove mod {gone['name']}")
+
+    # --- Rated+: unrated levels (head mods) ----------------------------------------------
+    # data/unrated.js holds levels that aren't rated in game but count in the list's
+    # Rated+ views. A head mod's GD Demon Ladder estimate places and scores each one;
+    # a hand-picked spot (placeBelow) has to fit its window (slot_ok). Every change
+    # is a changelog note, never an add/move/remove, so Position History and
+    # replay_check never see an unrated level.
+
+    @staticmethod
+    def rated_plus_on(s):
+        if not s["SITE"].get("ratedPlus"):
+            raise Refuse("this list doesn't have unrated levels (Rated+ is off)")
+
+    @staticmethod
+    def spot_phrase(anchor, demons):
+        """A hand-picked spot in words, as the changelog has it."""
+        if anchor == 0:
+            return "placed by hand at the very top"
+        return "placed by hand right below " + next(d["name"].strip() for d in demons if d["levelId"] == anchor)
+
+    @staticmethod
+    def slot_list(u, s):
+        """The spots u may take, in words, for a refusal."""
+        by_id = {d["levelId"]: d for d in s["DEMONS"]}
+        return ", ".join("the very top" if a == 0 else f"right below #{by_id[a]['position']} {by_id[a]['name'].strip()}"
+                         for a in unrated_slots(u, s["DEMONS"], s["SITE"]))
+
+    def showcase_overrides(self):
+        """Nigel's own showcases by level id (tools/showcase-overrides.json, apply-showcases.py)."""
+        path = os.path.join(self.root, "tools", "showcase-overrides.json")
+        return json.load(io.open(path, encoding="utf-8")) if os.path.exists(path) else {}
+
+    def add_unrated(self, o):
+        s = load_state(self.root)
+        self.rated_plus_on(s)
+        lid, rating = o["level"], o["rating"]
+        d = next((x for x in s["DEMONS"] if x["levelId"] == lid), None)
+        if d:
+            raise Refuse(f"{d['name'].strip()} is on the list already - it's a rated level")
+        have = self.unrated(s).get(lid)
+        if have:
+            raise Refuse(f"{have['name']} is already an unrated level - edit it instead")
+        tier = o.get("difficulty") or ("Extreme" if rating >= 20 else "Insane")
+        allowed = s["SITE"].get("allowedDifficulties")
+        if allowed and tier not in allowed:
+            raise Refuse(f"this list doesn't take {tier} levels")
+        facts = self.unrated_facts(lid)
+        name = facts["name"]
+        # the showcase: the head mod's link, else Nigel's own video of it, else none
+        vid = yt_id(o["showcase"]) if o.get("showcase") else self.showcase_overrides().get(str(lid))
+        place = o.get("placeBelow")
+        if place is not None and not slot_ok({"levelId": lid, "difficulty": tier, "rating": rating}, place, s["DEMONS"], s["SITE"]):
+            raise Refuse(f"that spot is outside {name}'s window - pick one of: "
+                         + self.slot_list({"levelId": lid, "difficulty": tier, "rating": rating}, s))
+        entry = {"id": lid, "name": name, "difficulty": tier, "rating": rating}
+        if place is not None:
+            entry["placeBelow"] = place
+        pub = facts["publisher"]
+        entry.update({"publisher": pub, "creators": [pub] if pub else [], "verifier": None,
+                      "videoUrl": f"https://www.youtube.com/watch?v={vid}" if vid else None,
+                      "thumbnailUrl": self.showcase_thumb(vid) if vid else None,
+                      "levelId": lid, "description": facts["description"], "requirementPercent": 100,
+                      "records": [], "gd": facts["gd"], "added": today()})
+        s["UNRATED"].append(entry)
+        write_unrated(self.root, s["UNRATED"])
+        spot = "" if place is None else self.spot_phrase(place, s["DEMONS"])
+        self.log(s["CHANGELOG"], [{"kind": "note", "text": f"Rated+: {name} is on as an unrated {tier}, "
+                                                          f"GDDL estimate {rating:.2f}" + (f" - {spot}" if spot else "") + "."}])
+        self.say(f"{name} is on Rated+ as an unrated {tier} (GDDL estimate {rating:.2f}), "
+                 + (spot if spot else "placed by its estimate") + (", with Nigel's showcase" if vid and not o.get("showcase") else "") + ".")
+        self.subjects.append(f"Unrated: {name} on Rated+")
+
+    def set_unrated(self, o):
+        s = load_state(self.root)
+        self.rated_plus_on(s)
+        u = self.unrated(s).get(o["level"])
+        if not u:
+            raise Refuse(f"level {o['level']} isn't an unrated level")
+        name, site, demons = u["name"], s["SITE"], s["DEMONS"]
+        old_rating, old_tier = u["rating"], u["difficulty"]
+        parts, short = [], []  # what changed: for the changelog note / for the commit subject
+        if "rating" in o and o["rating"] != old_rating:
+            u["rating"] = o["rating"]
+            parts.append(f"GDDL estimate {old_rating:.2f} → {o['rating']:.2f}")
+            short.append(f"estimate {o['rating']:.2f}")
+        if "difficulty" in o and o["difficulty"] != old_tier:
+            allowed = site.get("allowedDifficulties")
+            if allowed and o["difficulty"] not in allowed:
+                raise Refuse(f"this list doesn't take {o['difficulty']} levels")
+            u["difficulty"] = o["difficulty"]
+            parts.append(f"now counts as an {o['difficulty']}")
+            short.append(f"counts as an {o['difficulty']}")
+        if "placeBelow" in o and o["placeBelow"] is None:
+            if "placeBelow" in u:
+                del u["placeBelow"]
+                parts.append("placed by its estimate again")
+                short.append("placed by its estimate")
+        elif "placeBelow" in o:
+            a = o["placeBelow"]  # it has to fit with the new estimate and tier
+            if not slot_ok(u, a, demons, site):
+                raise Refuse(f"that spot is outside {name}'s window - pick one of: " + self.slot_list(u, s))
+            if u.get("placeBelow") != a:
+                u["placeBelow"] = a
+                parts.append(self.spot_phrase(a, demons))
+                short.append("a new spot")
+        elif (u["rating"], u["difficulty"]) != (old_rating, old_tier) and "placeBelow" in u \
+                and not slot_ok(u, u["placeBelow"], demons, site):
+            del u["placeBelow"]
+            parts.append("placed by its estimate again")
+            short.append("placed by its estimate")
+            self.say(f"{name}: its hand-picked spot no longer fits the new estimate, so it's placed by the estimate.")
+        shown = None  # a new or dropped showcase: not logged, just saved
+        if "showcase" in o:
+            vid = yt_id(o["showcase"]) if o["showcase"] else None
+            url = f"https://www.youtube.com/watch?v={vid}" if vid else None
+            if url != u.get("videoUrl"):
+                u["videoUrl"], u["thumbnailUrl"] = url, self.showcase_thumb(vid) if vid else None
+                shown = f"showcase {url}" if url else "no showcase"
+                short.append("showcase" if url else "no showcase")
+        if not parts and not shown:
+            self.say(f"{name} (unrated) is already like that - no change.")
+            return
+        write_unrated(self.root, s["UNRATED"])
+        if parts:
+            self.log(s["CHANGELOG"], [{"kind": "note", "text": f"Rated+: {name}: " + ", ".join(parts) + "."}])
+        self.say(f"Rated+: {name}: " + ", ".join(parts + ([shown] if shown else [])) + ".")
+        self.subjects.append(f"Unrated: {name} - " + ", ".join(short))
+
+    def remove_unrated(self, o):
+        """Works with Rated+ off too, so the file can be cleaned up."""
+        s = load_state(self.root)
+        u = self.unrated(s).get(o["level"])
+        if not u:
+            raise Refuse(f"level {o['level']} isn't an unrated level")
+        s["UNRATED"].remove(u)
+        write_unrated(self.root, s["UNRATED"])
+        n = len(u.get("records") or [])
+        clears = f"{n} clear{'s' if n != 1 else ''}"
+        self.log(s["CHANGELOG"], [{"kind": "note", "text": f"Rated+: {u['name']} is off"
+                                                          + (f" ({clears} went with it)" if n else "") + "."}])
+        self.say(f"{u['name']} is off Rated+" + (f" - its {clears} went with it" if n else "") + ".")
+        self.subjects.append(f"Unrated: {u['name']} off Rated+")
+
+    def stale_spots(self, start):
+        """Hand-picked spots this batch knocked out of their window (the list moved
+        under them: a re-sort, the AREDL, a demon leaving). The site already places
+        those levels by their estimate; this only says so. It never writes
+        data/unrated.js: a head mod picks again."""
+        end = load_state(self.root)
+        before = self.unrated(start)
+        for u in end.get("UNRATED") or []:
+            a = u.get("placeBelow")
+            if a is None or slot_ok(u, a, end["DEMONS"], end["SITE"]):
+                continue
+            b = before.get(u["levelId"])
+            if b and (b.get("placeBelow"), b.get("rating"), b.get("difficulty")) == (a, u["rating"], u["difficulty"]) \
+                    and not slot_ok(b, a, start["DEMONS"], start["SITE"]):
+                continue  # it didn't fit before this batch either
+            if a == 0:
+                x = min(end["DEMONS"], key=lambda d: d["position"])["name"].strip() if end["DEMONS"] else "the list"
+            else:
+                x = next((d["name"].strip() for d in end["DEMONS"] + start["DEMONS"] if d["levelId"] == a), f"level {a}")
+            self.say(f"{u['name']}'s hand-picked spot no longer fits after this ({x} moved or left), so the site "
+                      "places it by its estimate until a head mod picks a new one.")
 
     def sync_goal_comments(self, listed_before):
         """A goal row's comment says "(on the list)" when its level is on the list;
@@ -1279,7 +1825,67 @@ def check(root):
     missing = sorted({str(g["levelId"]) for g in s["GOALS"]} - set(s["GOAL_LEVELS"]))
     if missing:
         raise Refuse("Grind levels missing from data/goal-levels.js: " + ", ".join(missing))
-    print(f"  check ok: {(v.stdout or '').strip()}; changelog replays; {len(s['GOALS'])} Grind goals")
+    problems = check_unrated(s)
+    if problems:
+        raise Refuse(f"{UNRATED_FILE} isn't right: " + "; ".join(problems)[:400])
+    print(f"  check ok: {(v.stdout or '').strip()}; changelog replays; {len(s['GOALS'])} Grind goals; "
+          f"{len(s['UNRATED'])} unrated levels")
+
+
+def check_unrated(s):
+    """data/unrated.js (Rated+) against the rules in its header: what's wrong, or []."""
+    entries = s.get("UNRATED")
+    if not isinstance(entries, list):
+        return ["window.UNRATED isn't a list"]
+    listed = {d["levelId"] for d in s["DEMONS"]}
+    allowed = s["SITE"].get("allowedDifficulties")
+    members = ({m.get("name") for m in s["SITE"].get("members") or []}
+               | {r["player"] for d in s["DEMONS"] for r in d.get("records", [])})
+    out, seen = [], set()
+    for n, u in enumerate(entries, 1):
+        if not isinstance(u, dict):
+            out.append(f"entry {n} isn't an object")
+            continue
+        lid = u.get("levelId")
+        what = f"{u.get('name') or 'entry ' + str(n)} ({lid})"
+        if isinstance(lid, bool) or not isinstance(lid, int) or u.get("id") != lid:
+            out.append(f"{what}: id and levelId must be the same level id")
+        if lid in seen:
+            out.append(f"{what}: it's in there twice")
+        seen.add(lid)
+        if lid in listed:
+            out.append(f"{what}: it's on the list (data/demons.js) too")
+        if not isinstance(u.get("name"), str) or not u["name"].strip():
+            out.append(f"{what}: it has no name")
+        if u.get("difficulty") not in ("Extreme", "Insane") or (allowed and u.get("difficulty") not in allowed):
+            out.append(f"{what}: difficulty {u.get('difficulty')!r} isn't allowed")
+        r = u.get("rating")
+        if isinstance(r, bool) or not isinstance(r, (int, float)) or not 1 <= r <= 50:
+            out.append(f"{what}: rating {r!r} isn't a number from 1 to 50")
+        for k in ("position", "aredlPosition"):
+            if k in u:
+                out.append(f"{what}: it has a {k} (an unrated level has none)")
+        p = u.get("placeBelow", 0)
+        if isinstance(p, bool) or not isinstance(p, int) or p < 0:
+            out.append(f"{what}: placeBelow {p!r} isn't 0 or a level id")
+        recs = u.get("records")
+        if not isinstance(recs, list):
+            out.append(f"{what}: records isn't a list")
+            continue
+        names = [x.get("player") if isinstance(x, dict) else None for x in recs]
+        twice = sorted({str(x) for x in names if names.count(x) > 1})
+        if twice:
+            out.append(f"{what}: more than one record by {', '.join(twice)}")
+        for x in recs:
+            if not isinstance(x, dict):
+                out.append(f"{what}: a record isn't an object")
+                continue
+            pr = x.get("progress")
+            if isinstance(pr, bool) or not isinstance(pr, int) or not 1 <= pr <= 100:
+                out.append(f"{what}: {x.get('player')}'s progress {pr!r} isn't a whole number from 1 to 100")
+            if x.get("player") not in members:
+                out.append(f"{what}: {x.get('player')} isn't a member (data/config.js members) and has no record on the list")
+    return out
 
 
 def changed_files(a, b):

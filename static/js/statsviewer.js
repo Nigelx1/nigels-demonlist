@@ -15,9 +15,25 @@
 //
 // Adapted from pointercrate's statsviewer/individual.js + nation.js (MIT), but
 // everything is computed here from window.DEMONS - there's no ranking API.
+//
+// A list view (static/js/views.js, the option bar on the page) other than
+// Current + Rated ranks everyone by that view's levels and points instead;
+// with Current + Rated every line below runs today's code.
 // -----------------------------------------------------------------------------
 
 (function (DL) {
+  // the list view on show (DL.initStatsViewer's `view`), or null for today's list
+  var V = null;
+  function posOf(d) {
+    return V ? V.pos(d) : d.position;
+  }
+  function tierOf(d) {
+    return V ? V.tier(d) : DL.tierOf(d.position);
+  }
+  function linkOf(d) {
+    return V ? V.linkHtml(d) : DL.formatDemonLink(d);
+  }
+
   function el(id) {
     return document.getElementById(id);
   }
@@ -32,16 +48,16 @@
 
   function sortedList(list, byPosition) {
     list = list.slice();
-    if (byPosition) list.sort(function (a, b) { return a.position - b.position; });
+    if (byPosition) list.sort(function (a, b) { return posOf(a) - posOf(b); });
     else list.sort(function (a, b) { return a.name.localeCompare(b.name); });
     return list;
   }
   function demonLinks(list) {
-    return list.length ? list.map(DL.formatDemonLink).join(" - ") : "None";
+    return list.length ? list.map(function (d) { return linkOf(d); }).join(" - ") : "None";
   }
   // a demon link with a native tooltip naming which players it belongs to
   function demonLinkWithPlayers(demon, players) {
-    var link = DL.formatDemonLink(demon);
+    var link = linkOf(demon);
     return players && players.length
       ? '<span title="' + DL.escapeHtml(players.join(", ")) + '">' + link + "</span>"
       : link;
@@ -51,7 +67,7 @@
     return rows
       .slice()
       .sort(function (a, b) {
-        return byPosition ? a.demon.position - b.demon.position : a.demon.name.localeCompare(b.demon.name);
+        return byPosition ? posOf(a.demon) - posOf(b.demon) : a.demon.name.localeCompare(b.demon.name);
       })
       .map(function (r) { return demonLinkWithPlayers(r.demon, r.players); })
       .join(" - ");
@@ -86,15 +102,17 @@
     return DL.tierOf(above + 1);
   }
   // the level's Grind page (at one player's card), styled like any demon link:
-  // bold = Main List, plain = Extended, faded = Legacy
+  // bold = Main List, plain = Extended, faded = Legacy. A level that's in the
+  // list view on show takes its tier there.
   function grindLink(levelId, playerName) {
     var lv = DL.goalLevel(levelId);
     var a =
-      '<a href="goal.html?level=' + encodeURIComponent(levelId) +
-      (playerName ? "#" + DL.goalAnchor(playerName) : "") + '">' +
-      DL.escapeHtml(lv ? lv.name : "Level " + levelId) + "</a>";
+      '<a href="' +
+      DL.withView("goal.html?level=" + encodeURIComponent(levelId) + (playerName ? "#" + DL.goalAnchor(playerName) : "")) +
+      '">' + DL.escapeHtml(lv ? lv.name : "Level " + levelId) + "</a>";
     var listed = DL.demonById(levelId);
-    var tier = listed ? DL.tierOf(listed.position) : wouldBeTier(lv);
+    var inView = V && V.row(levelId);
+    var tier = inView ? inView.tier : listed ? DL.tierOf(listed.position) : wouldBeTier(lv);
     if (tier === "main") return "<b>" + a + "</b>";
     if (tier === "extended") return "<span>" + a + "</span>";
     if (tier === "legacy") return '<i style="opacity:.5">' + a + "</i>";
@@ -128,15 +146,22 @@
     return ids;
   }
 
-  DL.initStatsViewer = function (root, initialPlayerName, initialNation) {
-    var players = DL.aggregatePlayers();
-    var nations = DL.aggregateNations();
+  // `view` (optional, static/js/views.js): rank by that list view.
+  DL.initStatsViewer = function (root, initialPlayerName, initialNation, view) {
+    V = view && typeof view === "object" && !view.isDefault ? view : null;
+    var players = V ? V.players : DL.aggregatePlayers();
+    var nations = V ? V.nations() : DL.aggregateNations();
 
     var listEl = root.querySelector(".selection-list");
     var contentEl = root.querySelector(".viewer-content");
     var welcomeEl = root.querySelector(".viewer-welcome");
 
-    var sortMode = localStorage.getItem("demon_sorting_mode") || "Alphabetical";
+    var sortMode = "Alphabetical";
+    try {
+      sortMode = localStorage.getItem("demon_sorting_mode") || "Alphabetical";
+    } catch (e) {
+      /* storage is blocked: start alphabetical */
+    }
     var alphaBtn = root.querySelector('[data-sort="Alphabetical"]');
     var posBtn = root.querySelector('[data-sort="Position"]');
 
@@ -255,7 +280,11 @@
     }
     function setSort(next) {
       sortMode = next;
-      localStorage.setItem("demon_sorting_mode", sortMode);
+      try {
+        localStorage.setItem("demon_sorting_mode", sortMode);
+      } catch (e) {
+        /* storage is blocked: the order just isn't remembered */
+      }
       updateSortButtons();
       reRenderSelected();
     }
@@ -426,10 +455,19 @@
         hide("beaten-row");
         show("tiered-beaten-row");
         ["main", "extended", "legacy"].forEach(function (tier) {
-          var subset = demons.filter(function (d) { return DL.tierOf(d.position) === tier; });
+          var subset = demons.filter(function (d) { return tierOf(d) === tier; });
           el(tier + "-beaten").innerHTML = demonLinks(sortedList(subset, true));
         });
       }
+    }
+
+    // a list view's rank / score, with today's beside it when they differ
+    function rankText(x) {
+      return "#" + x.rank + (V && x.rankNow != null && x.rankNow !== x.rank ? " (#" + x.rankNow + " today)" : "");
+    }
+    function scoreText(x) {
+      var s = x.score.toFixed(2);
+      return s + (V && x.scoreNow != null && x.scoreNow.toFixed(2) !== s ? " (" + x.scoreNow.toFixed(2) + " today)" : "");
     }
 
     function selectPlayer(name, push) {
@@ -440,7 +478,7 @@
       welcomeEl.style.display = "none";
       contentEl.style.display = "block";
       if (push !== false) {
-        history.replaceState(null, "", "statsviewer.html?player=" + encodeURIComponent(name));
+        history.replaceState(null, "", DL.withView("statsviewer.html?player=" + encodeURIComponent(name)));
       }
       markActive();
 
@@ -453,10 +491,10 @@
           ? DL.subdivisionFlagSpan(p.nationality, p.subdivision)
           : "<span></span>");
 
-      el("rank").innerText = "#" + p.rank;
-      el("score").innerText = p.score.toFixed(2);
+      el("rank").innerText = rankText(p);
+      el("score").innerText = scoreText(p);
       el("stats").innerText = p.completed.length;
-      el("hardest").innerHTML = p.hardest ? DL.formatDemonLink(p.hardest) : "None";
+      el("hardest").innerHTML = p.hardest ? linkOf(p.hardest) : "None";
 
       renderPlayerBeaten(p);
 
@@ -464,7 +502,7 @@
       el("published").innerHTML = demonLinks(sortedList(p.published, sortMode === "Position"));
       el("verified").innerHTML = demonLinks(sortedList(p.verified, sortMode === "Position"));
       var progressed = p.progressed
-        .map(function (r) { return DL.formatDemonLink(r.demon) + " (" + r.progress + "%)"; })
+        .map(function (r) { return linkOf(r.demon) + " (" + r.progress + "%)"; })
         .concat(grindProgressRows([p.name], demonIds(p.progressed.concat(p.completed))));
       el("progress").innerHTML = progressed.length ? progressed.join(" - ") : "None";
 
@@ -495,7 +533,7 @@
         hide("beaten-row");
         show("tiered-beaten-row");
         ["main", "extended", "legacy"].forEach(function (tier) {
-          var subset = demons.filter(function (d) { return DL.tierOf(d.position) === tier; });
+          var subset = demons.filter(function (d) { return tierOf(d) === tier; });
           el(tier + "-beaten").innerHTML = subset.length
             ? sortedList(subset, true).map(function (d) { return demonLinkWithPlayers(d, byId[d.id]); }).join(" - ")
             : "None";
@@ -512,7 +550,7 @@
       contentEl.style.display = "block";
       hide("grind-row"); // "The Grind" is per-player only
       if (push !== false) {
-        history.replaceState(null, "", "statsviewer.html?nation=" + encodeURIComponent(code));
+        history.replaceState(null, "", DL.withView("statsviewer.html?nation=" + encodeURIComponent(code)));
       }
       if (map) map.select(code);
       filter.nation = code;
@@ -522,11 +560,11 @@
 
       el("player-name").innerHTML =
         DL.flagSpan(code) + '<span style="padding:0 8px">' + DL.escapeHtml(n.name) + "</span><span></span>";
-      el("rank").innerText = "#" + n.rank;
-      el("score").innerText = n.score.toFixed(2);
+      el("rank").innerText = rankText(n);
+      el("score").innerText = scoreText(n);
       el("players").innerText = n.players.length;
       el("stats").innerText = n.completed.length;
-      el("hardest").innerHTML = n.hardest ? DL.formatDemonLink(n.hardest) : "None";
+      el("hardest").innerHTML = n.hardest ? linkOf(n.hardest) : "None";
 
       // subdivision leaderboard (e.g. Illinois vs Indiana)
       if (el("subdivisions")) {
@@ -625,7 +663,12 @@
     if (el("subdivisions-row")) el("subdivisions-row").style.display = "none";
     hide("grind-row");
     // no Legacy demons on the list -> drop the empty "Legacy List" tier row
-    if (el("legacy-beaten-row") && !DL.sortedDemons().some(function (d) { return DL.tierOf(d.position) === "legacy"; })) {
+    if (
+      el("legacy-beaten-row") &&
+      !(V
+        ? V.rows.some(function (r) { return r.tier === "legacy"; })
+        : DL.sortedDemons().some(function (d) { return DL.tierOf(d.position) === "legacy"; }))
+    ) {
       el("legacy-beaten-row").style.display = "none";
     }
     updateSortButtons();
