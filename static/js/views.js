@@ -715,7 +715,14 @@
         "<p>None of them is harder than <b>" + levelName(hardestNow) +
         "</b>, so every level on today's list keeps its points." + (sameRanking ? "" : " " + ranking) + "</p>";
     }
-    if (view.time !== "current") intro += "<p>Nothing from the Grind counts until it's beaten.</p>";
+    if (view.time !== "current") {
+      var share = cfg.inProgressPoints, min = cfg.grindInProgress;
+      intro += typeof share === "number" && share > 0 && typeof min === "number"
+        ? "<p>A Grind run longer than " + min + "% counts for " +
+          (share === 0.25 ? "a quarter" : share === 0.5 ? "half" : Math.round(share * 100) + "%") +
+          " of the level's points times the run, here and on today's list. The rest of the Grind counts once it's beaten.</p>"
+        : "<p>Nothing from the Grind counts until it's beaten.</p>";
+    }
     if (view.rating === "plus") intro += "<p>Clears of unrated levels count only in the Rated+ views.</p>";
 
     var cutoff = cfg.extendedListSize || Infinity; // no Legacy tier -> every level gets a panel
