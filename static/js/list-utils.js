@@ -402,14 +402,30 @@ DL.storeView = function (v) {
   }
 };
 
-// The view this page shows: the URL's, else the stored one, else Current + Rated.
+// The view this history entry showed when it was last on screen, kept in its
+// state by DL.syncViewUrl - so Back (however many steps) or a reload shows that
+// view again, whatever the viewer has picked since. null when there's none.
+DL.stateView = function () {
+  try {
+    var st = typeof history !== "undefined" ? history.state : null;
+    var v = st && typeof st === "object" ? st.listView : null;
+    if (!v) return null;
+    var opts = DL.viewOptions();
+    return opts.times.indexOf(v.time) >= 0 && opts.ratings.indexOf(v.rating) >= 0 ? { time: v.time, rating: v.rating } : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+// The view this page shows: the URL's, else the one this history entry showed
+// before (a reload, Back), else the stored one, else Current + Rated.
 DL.currentView = function () {
   if (!DL._view) {
     var v = null;
     var opts = DL.viewOptions();
     if (typeof location === "undefined") return { time: "current", rating: "rated" };
     if (opts.times.length > 1 || opts.ratings.length > 1) {
-      v = DL.parseView(location.search) || DL.storedView();
+      v = DL.parseView(location.search) || DL.stateView() || DL.storedView();
     }
     DL._view = v || { time: "current", rating: "rated" };
   }
@@ -495,14 +511,21 @@ DL.setView = function (v, href) {
   location.assign(DL.withView(href || location.href, v));
 };
 
-// Put this page's view into the address bar, so it can be shared as is.
-// Today's list keeps an explicit time=current while the viewer's last pick is
-// another view (DL.pinDefault), so a reload doesn't swap it for that pick.
+// Put this page's view into the address bar, so it can be shared as is, and
+// into this history entry's state (DL.stateView), so Back or a reload shows it
+// again. Today's list keeps an explicit time=current while the viewer's last
+// pick is another view (DL.pinDefault). Does nothing on a list with no views.
 DL.syncViewUrl = function () {
   try {
     if (typeof location === "undefined" || typeof history === "undefined") return;
+    var opts = DL.viewOptions();
+    if (opts.times.length < 2 && opts.ratings.length < 2) return;
+    DL._synced = true;
+    var v = DL.currentView();
+    var st = history.state && typeof history.state === "object" ? history.state : {};
     var want = DL.withView(location.href);
-    if (want !== location.href) history.replaceState(null, "", want);
+    var had = st.listView && st.listView.time === v.time && st.listView.rating === v.rating;
+    if (want !== location.href || !had) history.replaceState(Object.assign({}, st, { listView: v }), "", want);
   } catch (e) {
     /* opened from disk in a browser that won't: the page still shows the view */
   }
@@ -543,13 +566,21 @@ if (typeof document !== "undefined" && document.addEventListener) {
   } else {
     _carryView();
   }
-  // Back to a page the browser kept in memory: the viewer may have picked
-  // another view since it loaded, so its links name its view again.
+  // The viewer may have picked another view since this page loaded: on Back to
+  // a page the browser kept in memory, or a pick made in another tab. Its links
+  // (and, on a page that keeps its address in step, the address) name its view
+  // again.
+  var _repin = function () {
+    DL._pin = undefined;
+    _carryView();
+    if (DL._synced) DL.syncViewUrl();
+  };
   if (typeof window !== "undefined" && window.addEventListener) {
     window.addEventListener("pageshow", function (e) {
-      if (!e.persisted) return;
-      DL._pin = undefined;
-      _carryView();
+      if (e.persisted) _repin();
+    });
+    window.addEventListener("storage", function (e) {
+      if (e.key === null || e.key === DL.VIEW_KEY) _repin();
     });
   }
 }

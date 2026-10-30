@@ -478,7 +478,7 @@
       welcomeEl.style.display = "none";
       contentEl.style.display = "block";
       if (push !== false) {
-        history.replaceState(null, "", DL.withView("statsviewer.html?player=" + encodeURIComponent(name)));
+        history.replaceState(history.state, "", DL.withView("statsviewer.html?player=" + encodeURIComponent(name)));
       }
       markActive();
 
@@ -550,7 +550,7 @@
       contentEl.style.display = "block";
       hide("grind-row"); // "The Grind" is per-player only
       if (push !== false) {
-        history.replaceState(null, "", DL.withView("statsviewer.html?nation=" + encodeURIComponent(code)));
+        history.replaceState(history.state, "", DL.withView("statsviewer.html?nation=" + encodeURIComponent(code)));
       }
       if (map) map.select(code);
       filter.nation = code;
