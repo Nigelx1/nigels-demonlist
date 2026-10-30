@@ -1241,7 +1241,7 @@ try:
     fl = g.parse(128, FIRST)
     ok("gdlevel: an unrated level with an official song and no description", isinstance(fl, dict) and fl["stars"] == 0
        and fl["difficulty"] == "Hard" and fl["length"] == "Medium" and fl["gameVersion"] == "2.1" and fl["author"] == "real storm"
-       and "songID" not in fl and "description" not in fl and fl["platformer"] is False, fl)
+       and fl["songID"] == "Level 5" and "songName" not in fl and "description" not in fl and fl["platformer"] is False, fl)
     st = g.parse(151488121, STORY)
     ok("gdlevel: the right level out of several, its creator and custom song", isinstance(st, dict) and st["name"] == "story"
        and st["author"] == "c34tir" and st["difficulty"] == "Unrated" and st["length"] == "Tiny"
@@ -1253,17 +1253,17 @@ try:
 
     # GDHistory (real answers, 2026-10-30, cut down): its newest copy, whatever the order
     H_LIMBO = {"online_id": 86084399, "cache_stars": 10, "cache_username": "MindCap", "records": [
-        {"level_name": "LIMBO", "username": "MindCap", "stars": 10, "demon": True, "demon_type": 6, "rating_sum": 50,
-         "auto": None, "length": 4, "game_version": 22, "objects_count": 65535, "official_song": 0, "description": "FOCUS",
-         "song": {"online_id": 76743, "song_name": "NH22 - Isolation", "artist_name": "NightHawk22"},
+        {"record_type": "get", "level_name": "LIMBO", "username": "MindCap", "stars": 10, "demon": True, "demon_type": 6,
+         "rating_sum": 50, "auto": None, "length": 4, "game_version": 22, "objects_count": 65535, "official_song": 0,
+         "description": "FOCUS", "song": {"online_id": 76743, "song_name": "NH22 - Isolation", "artist_name": "NightHawk22"},
          "real_date": "2026-10-30T03:01:24.933Z"},
-        {"level_name": "LIMBO", "username": "MindCap", "stars": 0, "demon": None, "demon_type": 6, "rating_sum": 0,
-         "auto": None, "length": 4, "game_version": 21, "objects_count": 65535, "official_song": 0, "description": "FOCUS   ",
-         "song": {"online_id": 76743, "song_name": "NH22 - Isolation", "artist_name": "NightHawk22"},
+        {"record_type": "get", "level_name": "LIMBO", "username": "MindCap", "stars": 0, "demon": None, "demon_type": 6,
+         "rating_sum": 0, "auto": None, "length": 4, "game_version": 21, "objects_count": 65535, "official_song": 0,
+         "description": "FOCUS   ", "song": {"online_id": 76743, "song_name": "NH22 - Isolation", "artist_name": "NightHawk22"},
          "real_date": "2022-11-26T23:00:49.533Z"}]}
     H_STORY = {"online_id": 151488121, "cache_stars": 0, "cache_username": "c34tir", "records": [
-        {"level_name": "story", "username": "c34tir", "stars": 0, "demon": None, "demon_type": 0, "rating_sum": 0,
-         "auto": None, "length": 0, "game_version": 22, "objects_count": None, "official_song": 0,
+        {"record_type": "get", "level_name": "story", "username": "c34tir", "stars": 0, "demon": None, "demon_type": 0,
+         "rating_sum": 0, "auto": None, "length": 0, "game_version": 22, "objects_count": None, "official_song": 0,
          "description": ":featured::mythic::think:fire", "real_date": "2026-10-30T08:28:02.639Z",
          "song": {"online_id": 233860, "song_name": "-Ricochet Love-", "artist_name": "Waterflame"}}]}
     hl = g.from_history(86084399, H_LIMBO)
@@ -1272,11 +1272,38 @@ try:
        and hl["description"] == "FOCUS" and hl["author"] == "MindCap" and hl["songName"] == "NH22 - Isolation", hl)
     hs = g.from_history(151488121, H_STORY)
     ok("gdlevel: GDHistory's copy of an unrated level", isinstance(hs, dict) and hs["name"] == "story" and hs["stars"] == 0
-       and hs["difficulty"] == "Unrated" and hs["length"] == "Tiny" and hs["author"] == "c34tir" and hs["objects"] == 0
+       and hs["difficulty"] == "Unrated" and hs["length"] == "Tiny" and hs["author"] == "c34tir" and "objects" not in hs
        and hs["songID"] == "233860" and hs["songAuthor"] == "Waterflame" and "songLink" not in hs, hs)
-    ok("gdlevel: GDHistory not having the level is no answer, never -1",
+    ok("gdlevel: GDHistory not having the level is no answer",
        g.from_history(5, {"success": False}) is None and g.from_history(5, H_STORY) is None
        and g.from_history(5, {"online_id": 5, "records": []}) is None and g.from_history(5, None) is None)
+    # Only the servers' own copies count: GDHistory's save-file and hand-entered
+    # copies are mostly empty or stale (real shape, from level 10792915)
+    H_AUTO = {"online_id": 10792915, "is_deleted": False, "cache_username": "dAlt9", "records": [
+        {"record_type": "glm_03", "real_date": "2026-08-08T00:00:00Z", "level_name": "Bloodbath Auto",
+         "username": "DeAutoMaker1305", "stars": None, "game_version": None, "objects_count": None, "length": 3,
+         "rating_sum": 30, "description": None},
+        {"record_type": "download", "real_date": "2025-11-10T00:36:11.132Z", "level_name": "Bloodbath Auto", "username": None,
+         "stars": 0, "game_version": 21, "objects_count": 25102, "length": 3, "rating_sum": 30, "demon_type": 0,
+         "description": "Original by Riot and more. V14 Final update.", "official_song": 0,
+         "song": {"online_id": 467339, "song_name": "At the Speed of Light", "artist_name": "Dimrain47"}},
+        {"record_type": "manual", "real_date": "2026-09-01T00:00:00Z", "level_name": "Bloodbath Auto", "stars": None}]}
+    ha = g.from_history(10792915, H_AUTO)
+    ok("gdlevel: GDHistory - the newest SERVER copy, not a newer save-file or hand-entered one", isinstance(ha, dict)
+       and ha["author"] == "dAlt9" and ha["gameVersion"] == "2.1" and ha["objects"] == 25102 and ha["stars"] == 0
+       and ha["description"].startswith("Original by Riot") and ha["difficulty"] == "Hard" and ha["songID"] == "467339", ha)
+    ok("gdlevel: GDHistory - a deleted level is 'no such level', save-file copies alone are no answer",
+       g.from_history(24346905, {"online_id": 24346905, "is_deleted": True, "records": H_AUTO["records"]}) == -1
+       and g.from_history(10792915, dict(H_AUTO, records=[H_AUTO["records"][0], H_AUTO["records"][2]])) is None)
+    H_GAPS = {"online_id": 128, "cache_username": "real storm", "records": [
+        {"record_type": "get", "real_date": "2026-10-28T18:46:04Z", "level_name": "1st level", "username": "real storm",
+         "stars": None, "game_version": None, "objects_count": None, "length": 2, "rating_sum": 30, "official_song": 4,
+         "song": {"online_id": 0, "song_name": None, "artist_name": None}},
+        {"record_type": "get", "real_date": "2026-10-29T00:00:00Z", "level_name": "1st level", "is_invalid": True, "stars": 5}]}
+    hg = g.from_history(128, H_GAPS)
+    ok("gdlevel: GDHistory - a missing field is left out, an invalid copy skipped, an official song named like gdbrowser",
+       isinstance(hg, dict) and "stars" not in hg and "gameVersion" not in hg and "objects" not in hg
+       and hg["songID"] == "Level 5" and "songName" not in hg, hg)
     calls = []
     g.history = lambda lid, timeout=25: calls.append(lid) or hs
     g.ask = lambda lid, timeout=25: None
@@ -1315,6 +1342,9 @@ try:
     f = facts(CHALLENGE, None)
     ok("add_unrated: nobody answers - nothing saved", isinstance(f, str)
        and "gdbrowser, the Geometry Dash servers and GDHistory didn't answer" in f and "nothing saved" in f, f)
+    f = facts(CHALLENGE, hg)
+    ok("add_unrated: a stand-in that can't say whether it's rated - refused, nothing saved",
+       isinstance(f, str) and "couldn't tell whether 1st level is rated" in f, f)
     f = facts((200, json.dumps({"name": "From gdbrowser", "stars": 0, "difficulty": "Unrated"})), lb)
     ok("add_unrated: gdbrowser answers - RobTop's servers aren't asked", isinstance(f, dict) and f["name"] == "From gdbrowser" and not asked, f)
     f = facts((200, "-1"), lb)

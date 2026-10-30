@@ -8,8 +8,9 @@ page instead. gdbrowser only reads RobTop's servers, so the tools ask them
 directly with the game's own level search (getGJLevels21.php) and read the
 answer the way gdbrowser does. RobTop's servers turn GitHub's runners away
 too, so after them comes GDHistory (history.geometrydash.eu), an archive of
-the game's answers, read the same way from its newest copy. Either way the
-keys come out as gdbrowser's, so the rest of each tool doesn't change.
+the game's answers, read the same way from its newest copy of the servers'
+own answer. Either way the keys come out as gdbrowser's, so the rest of each
+tool doesn't change.
 
 Used by add-records.py (fetch_level), build-goal-levels.py and apply-edit.py
 (add_unrated). No third-party modules, so it runs anywhere the tools run.
@@ -92,6 +93,8 @@ def parse(lid, answer):
         out["songAuthor"] = info.get("4") or "Unknown"
         if info.get("10"):
             out["songLink"] = urllib.parse.unquote(info["10"])
+    else:
+        out["songID"] = f"Level {num('12') + 1}"  # an official song, named the way gdbrowser names it
     return out
 
 
@@ -99,42 +102,56 @@ def _version(v):
     return f"{v / 10:.1f}" if v > 17 else "1.8" if v == 11 else "1.7" if v == 10 else "Pre-1.7"
 
 
+SERVER_COPIES = ("get", "download")  # GDHistory's copies of the servers' own answers
+
+
 def from_history(lid, data):
-    """GDHistory's level JSON (its newest copy of the game's answer) as gdbrowser's
-    level JSON, or None when it hasn't seen level lid. "Not seen" isn't "doesn't
-    exist", so this never says -1."""
+    """GDHistory's level JSON as gdbrowser's level JSON, read from its newest copy
+    of the servers' own answer ("get" or "download"). Its save-file ("glm_...")
+    and hand-entered copies have most fields empty or out of date, so they're
+    never used. -1 when GDHistory says the level was deleted (the servers' "no
+    such level"); None when it has no server copy of level lid ("not seen" isn't
+    "doesn't exist"). A field the copy doesn't have is left out, not guessed."""
     if not isinstance(data, dict) or data.get("online_id") != int(lid):
         return None
-    copies = [r for r in data.get("records") or [] if isinstance(r, dict) and r.get("level_name")]
+    if data.get("is_deleted") is True:
+        return -1
+    copies = [r for r in data.get("records") or [] if isinstance(r, dict) and r.get("level_name")
+              and r.get("record_type") in SERVER_COPIES and not r.get("is_invalid")]
     if not copies:
         return None
     r = max(copies, key=lambda c: c.get("real_date") or "")
 
     def num(v):
-        return v if isinstance(v, int) and not isinstance(v, bool) else 0
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
 
-    stars = data.get("cache_stars")
-    out = {"id": int(lid), "name": r["level_name"], "_from": "GDHistory",
-           "stars": num(stars if stars is not None else r.get("stars"))}
+    out = {"id": int(lid), "name": r["level_name"], "_from": "GDHistory"}
+    if num(r.get("stars")) is not None:
+        out["stars"] = r["stars"]
     if r.get("description"):
         out["description"] = r["description"]
-    if r.get("username") or data.get("cache_username"):
-        out["author"] = r.get("username") or data.get("cache_username")
-    out["difficulty"] = DIFFICULTY.get(str(num(r.get("rating_sum"))), "Unrated")
+    author = r.get("username") or data.get("cache_username")  # "download" copies carry no username
+    if author:
+        out["author"] = author
+    out["difficulty"] = DIFFICULTY.get(str(num(r.get("rating_sum")) or 0), "Unrated")
     if r.get("demon"):
         out["difficulty"] = DEMONS.get(str(num(r.get("demon_type"))), "Hard") + " Demon"
     if r.get("auto"):
         out["difficulty"] = "Auto"
-    if isinstance(r.get("length"), int) and 0 <= r["length"] < len(LENGTHS):
+    if num(r.get("length")) is not None and 0 <= r["length"] < len(LENGTHS):
         out["length"] = LENGTHS[r["length"]]
         out["platformer"] = r["length"] == 5
-    out["objects"] = num(r.get("objects_count"))
-    out["gameVersion"] = _version(num(r.get("game_version")))
+    if num(r.get("objects_count")) is not None:
+        out["objects"] = r["objects_count"]
+    if (num(r.get("game_version")) or 0) > 0:
+        out["gameVersion"] = _version(r["game_version"])
     song = r.get("song") if isinstance(r.get("song"), dict) else {}
-    if num(song.get("online_id")) > 0:
+    if (num(song.get("online_id")) or 0) > 0:
         out["songID"] = str(song["online_id"])
         out["songName"] = song.get("song_name") or "Unknown"
         out["songAuthor"] = song.get("artist_name") or "Unknown"
+    elif num(r.get("official_song")) is not None:
+        out["songID"] = f"Level {r['official_song'] + 1}"  # an official song, named the way gdbrowser names it
     return out
 
 
@@ -150,7 +167,7 @@ def history(lid, timeout=25):
 
 def level(lid, timeout=25):
     """gdbrowser's level JSON for lid: from RobTop's servers, else GDHistory's
-    newest copy. -1 when the game says there's no such level, None when nobody
-    answered. "_from" says which one did."""
+    newest server copy. -1 when the game says there's no such level (or GDHistory
+    says it was deleted), None when nobody answered. "_from" says which one did."""
     got = parse(lid, ask(lid, timeout))
     return got if got is not None else history(lid, timeout)

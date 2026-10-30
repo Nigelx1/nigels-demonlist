@@ -242,7 +242,9 @@ for lid in level_ids:
                     kept.append("gd." + k)
         elif gb.get("_from") and old.get("gd"):
             for k, v in old["gd"].items():
-                if k not in gd:
+                # a stand-in that named the level's song ("Level N" for an official
+                # one) said the custom song is gone, so that isn't kept
+                if k not in gd and not (k in ("song", "songOfficial") and gb.get("songID")):
                     gd[k] = v
                     kept.append("gd." + k)
             song, was = gd.get("song"), old["gd"].get("song") or {}
