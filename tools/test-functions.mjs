@@ -752,6 +752,81 @@ print(json.dumps(out + [m.OWNER_ID]))
   stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB + "86084399", () => jsonResp(limboGb)]]);
   body = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie), { ...ENV, ASSETS: undefined }))).json();
   check("level: onList null without the list", body.onList === null && body.position === null);
+
+  // gdbrowser shows scripts a Cloudflare challenge (since late October 2026), and
+  // gdladder answers {} for a level it doesn't know: GDHistory stands in, and
+  // only a real "not in the game" is a 404
+  const HIST = "https://history.geometrydash.eu/api/v1/level/";
+  const challenge = () => new Response("<!DOCTYPE html><title>Just a moment...</title>", { status: 403 });
+  const copy = (o) => Object.assign({ record_type: "get", real_date: "2026-10-30T00:00:00Z", level_name: "Unrated Thing",
+    username: "Someone", stars: 0, rating_sum: 0, demon: null, demon_type: 0, auto: null, length: 3 }, o);
+  stubFetch([["GET", GL + "99999999", () => jsonResp({})], ["GET", GB + "99999999", challenge],
+    ["GET", HIST + "99999999/", () => jsonResp({ online_id: 99999999, is_deleted: false, cache_username: "Someone", records: [
+      copy({}), copy({ record_type: "glm_03", real_date: "2026-10-31T00:00:00Z", level_name: "Old Name", username: "Old", stars: null })] })]]);
+  body = await (await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)))).json();
+  check("level: gdbrowser challenged - GDHistory's newest server copy stands in", eq(body, {
+    id: 99999999, name: "Unrated Thing", creator: "Someone", difficulty: "Unrated", tier: null, rating: null, stars: 0, platformer: false,
+    onList: false, position: null,
+  }), JSON.stringify(body));
+  stubFetch([["GET", GL + "99999999", () => jsonResp({})], ["GET", GB, challenge], ["GET", HIST, () => jsonResp({ success: false }, 404)]]);
+  r = await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)));
+  body = await r.json();
+  check("level: nobody can say whether it exists - 502, not \"isn't on gdbrowser\"", r.status === 502
+    && body.error.includes("gdladder doesn't know level 99999999") && body.error.includes("gdbrowser didn't answer"), JSON.stringify(body));
+  stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, challenge],
+    ["GET", HIST, () => jsonResp({ online_id: 24346905, is_deleted: true, records: [copy({})] })]]);
+  r = await api.level.onRequestGet(ctx(req("/api/level?level=24346905", cookie)));
+  check("level: GDHistory says it was deleted - 404", r.status === 404 && (await r.json()).error.includes("was deleted"));
+  stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB, challenge], ["GET", HIST, () => jsonResp({
+    online_id: 86084399, records: [copy({ level_name: "LIMBO", username: "MindCap", stars: 10, demon: true, demon_type: 6, rating_sum: 50, length: 4 })] })]]);
+  body = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie)))).json();
+  check("level: a rated level with gdbrowser challenged - gdladder's rating, GDHistory's stars", body.name === "LIMBO"
+    && body.stars === 10 && body.difficulty === "Extreme Demon" && body.rating === 36.89 && body.creator === "MindCap", JSON.stringify(body));
+}
+
+// --- the Function's GDHistory reading agrees with tools/gdlevel.py's ----------------------------
+
+{
+  const gdh = await fn("_lib/gdhistory.js");
+  const rec = (o) => Object.assign({ record_type: "get", real_date: "2026-10-30T00:00:00Z", level_name: "L", username: "U", stars: 0,
+    rating_sum: 0, demon: null, demon_type: 0, auto: null, length: 3, game_version: 22, objects_count: 100 }, o);
+  const CASES = [
+    [1, { online_id: 1, cache_username: "C", records: [rec({}), rec({ record_type: "glm_03", real_date: "2026-10-31", username: "Old", stars: null })] }],
+    [2, { online_id: 2, cache_username: "C", records: [rec({ record_type: "download", username: null })] }],
+    [3, { online_id: 3, is_deleted: true, records: [rec({})] }],
+    [4, { online_id: 4, records: [rec({ record_type: "glm_10" }), rec({ record_type: "manual" })] }],
+    [5, { online_id: 5, records: [rec({ demon: true, demon_type: 6, stars: 10, rating_sum: 50 })] }],
+    [6, { online_id: 6, records: [rec({ demon: true, demon_type: 1, stars: 10 })] }],
+    [7, { online_id: 7, records: [rec({ auto: true, stars: 1 })] }],
+    [8, { online_id: 8, records: [rec({ length: 5 }), rec({ is_invalid: true, real_date: "2026-11-01", length: 1 })] }],
+    [9, { online_id: 9, records: [rec({ stars: null, length: null, rating_sum: 40 })] }],
+    [10, { online_id: 99, records: [rec({})] }],
+    [11, { success: false }],
+  ];
+  const js = CASES.map(([id, data]) => gdh.fromHistory(id, data));
+  const PYH = `
+import importlib.util, json, os, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("gdlevel", os.path.join(sys.argv[1], "tools", "gdlevel.py"))
+g = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(g)
+print(json.dumps([g.from_history(i, d) for i, d in json.load(sys.stdin)]))
+`;
+  const ps = spawnSync("python", ["-c", PYH, ROOT], { input: JSON.stringify(CASES), encoding: "utf8" });
+  let py = null;
+  try { py = JSON.parse(ps.stdout); } catch { /* below */ }
+  if (!py) console.log("(python not available - skipping the GDHistory cross-check)\n" + (ps.stderr || "").slice(0, 300));
+  else {
+    const KEYS = ["name", "author", "stars", "difficulty", "length", "platformer"];
+    const pick = (x) => (x && typeof x === "object" ? Object.fromEntries(KEYS.filter((k) => k in x).map((k) => [k, x[k]])) : x);
+    const differ = js.map((x, i) => (eq(pick(x), pick(py[i])) ? null : { case: i + 1, js: x, py: py[i] })).filter(Boolean);
+    check(`gdhistory: the Function and gdlevel.py read ${CASES.length} GDHistory answers the same way`, !differ.length,
+      JSON.stringify(differ[0] || ""));
+  }
+  check("gdhistory: what the Function reads", js[0].author === "U" && js[0].stars === 0 && js[1].author === "C" && js[2] === -1
+    && js[3] === null && js[4].difficulty === "Extreme Demon" && js[5].difficulty === "Hard Demon" && js[6].difficulty === "Auto"
+    && js[7].platformer === true && js[7].length === "Plat." && !("stars" in js[8]) && !("length" in js[8])
+    && js[8].difficulty === "Harder" && js[9] === null && js[10] === null, JSON.stringify(js));
 }
 
 // --- the list views (static/js/views.js) --------------------------------------------------------

@@ -6,14 +6,18 @@
 // stars gdbrowser's star count (0 = unrated in game; null when gdbrowser didn't
 // answer or doesn't know the level), platformer as add-records.py decides it,
 // onList/position from the live data/demons.js (onList null if that couldn't
-// be read).
-// 400 for a bad level, 404 when neither site knows it, 502 when neither answers.
+// be read). When gdbrowser doesn't answer, GDHistory's copy stands in for it
+// (_lib/gdhistory.js), as it does in the tools.
+// 400 for a bad level; 404 only when gdbrowser (or GDHistory, for a deleted
+// level) says it isn't in the game - gdladder doesn't know unrated levels, so
+// its "no" alone proves nothing; 502 when that couldn't be found out.
 //
 // Logged-in editors only, so this isn't an open proxy to gdladder/gdbrowser.
 
 import { json, jsonError, missingEnv, notSetUp } from "../_lib/http.js";
 import { currentEditor } from "../_lib/session.js";
 import { Refuse, checkLevel } from "../_lib/contract.js";
+import { HISTORY, fromHistory } from "../_lib/gdhistory.js";
 import SITE from "../site.json";
 
 const UA = `${SITE.name.replace(/[^A-Za-z0-9]/g, "")}/1.0 (+${SITE.url})`;
@@ -65,13 +69,25 @@ export async function onRequestGet({ request, env }) {
     listedPositions(request, env),
   ]);
   const gl = glRaw && glRaw.ID ? glRaw : {};
-  const gb = gbRaw && gbRaw.name ? gbRaw : {};
+  let gb = gbRaw && gbRaw.name ? gbRaw : {};
+  let known = gbOk, deleted = false; // whether "no name" means the level isn't in the game
+  if (!gbOk) {
+    const [hOk, hRaw] = await getJson(`${HISTORY}${id}/`);
+    const h = hOk ? fromHistory(id, hRaw) : null;
+    if (h === -1) known = deleted = true;
+    else if (h) {
+      gb = h;
+      known = true;
+    }
+  }
   const meta = gl.Meta || {};
   const name = gb.name || meta.Name;
   if (!name) {
-    return glOk || gbOk
-      ? jsonError(404, `level ${id} isn't on gdladder or gdbrowser`)
-      : jsonError(502, "gdladder and gdbrowser didn't answer - try again in a minute");
+    if (deleted) return jsonError(404, `level ${id} was deleted from Geometry Dash`);
+    if (known) return jsonError(404, `level ${id} isn't on gdladder or gdbrowser`);
+    return jsonError(502, glOk
+      ? `gdladder doesn't know level ${id} and gdbrowser didn't answer - check the id, or try again in a minute`
+      : "gdladder and gdbrowser didn't answer - try again in a minute");
   }
   // same rules as fetch_level() in tools/add-records.py
   const difficulty = gb.difficulty || `${meta.Difficulty || "?"} Demon`;
