@@ -1123,8 +1123,9 @@ out.write(json.dumps(results))
 }
 
 // --- RobTop's servers when gdbrowser doesn't answer (tools/gdlevel.py) --------------------------
-// Real getGJLevels21.php answers (2026-10-30), read as gdbrowser's level JSON; then
-// apply-edit.py's look-ups falling back on them, with nothing on the network.
+// Real getGJLevels21.php and GDHistory answers (2026-10-30), read as gdbrowser's
+// level JSON; then apply-edit.py's look-ups falling back on them, with nothing on
+// the network.
 
 {
   const PYGD = String.raw`
@@ -1168,6 +1169,43 @@ try:
        g.parse(5, "-1") == -1 and g.parse(5, FIRST) == -1 and g.parse(5, "<!DOCTYPE html><title>Just a moment...</title>") is None
        and g.parse(5, "") is None and g.parse(5, None) is None)
 
+    # GDHistory (real answers, 2026-10-30, cut down): its newest copy, whatever the order
+    H_LIMBO = {"online_id": 86084399, "cache_stars": 10, "cache_username": "MindCap", "records": [
+        {"level_name": "LIMBO", "username": "MindCap", "stars": 10, "demon": True, "demon_type": 6, "rating_sum": 50,
+         "auto": None, "length": 4, "game_version": 22, "objects_count": 65535, "official_song": 0, "description": "FOCUS",
+         "song": {"online_id": 76743, "song_name": "NH22 - Isolation", "artist_name": "NightHawk22"},
+         "real_date": "2026-10-30T03:01:24.933Z"},
+        {"level_name": "LIMBO", "username": "MindCap", "stars": 0, "demon": None, "demon_type": 6, "rating_sum": 0,
+         "auto": None, "length": 4, "game_version": 21, "objects_count": 65535, "official_song": 0, "description": "FOCUS   ",
+         "song": {"online_id": 76743, "song_name": "NH22 - Isolation", "artist_name": "NightHawk22"},
+         "real_date": "2022-11-26T23:00:49.533Z"}]}
+    H_STORY = {"online_id": 151488121, "cache_stars": 0, "cache_username": "c34tir", "records": [
+        {"level_name": "story", "username": "c34tir", "stars": 0, "demon": None, "demon_type": 0, "rating_sum": 0,
+         "auto": None, "length": 0, "game_version": 22, "objects_count": None, "official_song": 0,
+         "description": ":featured::mythic::think:fire", "real_date": "2026-10-30T08:28:02.639Z",
+         "song": {"online_id": 233860, "song_name": "-Ricochet Love-", "artist_name": "Waterflame"}}]}
+    hl = g.from_history(86084399, H_LIMBO)
+    ok("gdlevel: GDHistory's newest copy of a rated extreme", isinstance(hl, dict) and hl["_from"] == "GDHistory"
+       and hl["difficulty"] == "Extreme Demon" and hl["stars"] == 10 and hl["objects"] == 65535 and hl["gameVersion"] == "2.2"
+       and hl["description"] == "FOCUS" and hl["author"] == "MindCap" and hl["songName"] == "NH22 - Isolation", hl)
+    hs = g.from_history(151488121, H_STORY)
+    ok("gdlevel: GDHistory's copy of an unrated level", isinstance(hs, dict) and hs["name"] == "story" and hs["stars"] == 0
+       and hs["difficulty"] == "Unrated" and hs["length"] == "Tiny" and hs["author"] == "c34tir" and hs["objects"] == 0
+       and hs["songID"] == "233860" and hs["songAuthor"] == "Waterflame" and "songLink" not in hs, hs)
+    ok("gdlevel: GDHistory not having the level is no answer, never -1",
+       g.from_history(5, {"success": False}) is None and g.from_history(5, H_STORY) is None
+       and g.from_history(5, {"online_id": 5, "records": []}) is None and g.from_history(5, None) is None)
+    calls = []
+    g.history = lambda lid, timeout=25: calls.append(lid) or hs
+    g.ask = lambda lid, timeout=25: None
+    ok("gdlevel: RobTop's servers silent - GDHistory's copy", g.level(151488121) is hs and calls == [151488121])
+    del calls[:]
+    g.ask = lambda lid, timeout=25: "-1"
+    ok("gdlevel: RobTop's servers say there's no such level - believed, GDHistory not asked", g.level(5) == -1 and not calls)
+    g.ask = lambda lid, timeout=25: STORY
+    ok("gdlevel: RobTop's servers answer - GDHistory not asked",
+       g.level(151488121)["_from"] == "the Geometry Dash servers" and not calls)
+
     m = load("apply_edit_gd", "apply-edit.py")
     sys.stdout = sys.stderr
     asked = []
@@ -1193,7 +1231,8 @@ try:
     f = facts(CHALLENGE, -1)
     ok("add_unrated: ...and a level that doesn't exist", isinstance(f, str) and "isn't on the Geometry Dash servers" in f, f)
     f = facts(CHALLENGE, None)
-    ok("add_unrated: nobody answers - nothing saved", isinstance(f, str) and "neither gdbrowser nor the Geometry Dash servers" in f, f)
+    ok("add_unrated: nobody answers - nothing saved", isinstance(f, str)
+       and "gdbrowser, the Geometry Dash servers and GDHistory didn't answer" in f and "nothing saved" in f, f)
     f = facts((200, json.dumps({"name": "From gdbrowser", "stars": 0, "difficulty": "Unrated"})), lb)
     ok("add_unrated: gdbrowser answers - RobTop's servers aren't asked", isinstance(f, dict) and f["name"] == "From gdbrowser" and not asked, f)
     f = facts((200, "-1"), lb)

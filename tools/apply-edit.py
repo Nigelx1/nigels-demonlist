@@ -507,7 +507,7 @@ def curl_json(url):
 
 
 def gd_servers(lid):
-    """gdbrowser's level JSON for lid straight from RobTop's servers, for when
+    """gdbrowser's level JSON for lid from RobTop's servers or GDHistory, for when
     gdbrowser doesn't answer (tools/gdlevel.py): a dict, -1 (no such level) or
     None (no answer). The tests stub this."""
     return tool(REPO, "gdlevel").level(lid)
@@ -640,8 +640,8 @@ def unrated_facts_from(lid, code, body):
         gb = None
     name = str(gb.get("name") or "").strip() if isinstance(gb, dict) else ""
     if not name:
-        raise Refuse(f"neither gdbrowser nor the Geometry Dash servers answered for level {lid}"
-                     " - nothing saved, try again in a few minutes")
+        raise Refuse(f"couldn't look up level {lid}: gdbrowser, the Geometry Dash servers and GDHistory"
+                     " didn't answer - nothing saved, try again in a few minutes")
     stars = gb.get("stars")
     if isinstance(stars, bool) or not isinstance(stars, int):
         raise Refuse(f"couldn't tell whether {name} is rated - try again in a few minutes")
@@ -1089,7 +1089,7 @@ class Engine:
             return g["name"]
         facts = level_facts(lid)
         if not facts:
-            raise Refuse(f"level {lid} wasn't found on gdladder, gdbrowser or the Geometry Dash servers"
+            raise Refuse(f"level {lid} wasn't found on gdladder, gdbrowser, the Geometry Dash servers or GDHistory"
                          " (or they didn't answer) - check the id")
         return facts[0]
 

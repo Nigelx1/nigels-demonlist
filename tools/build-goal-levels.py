@@ -179,7 +179,8 @@ for lid in level_ids:
     gb = curl_json(f"https://gdbrowser.com/api/level/{lid}")
     if not isinstance(gb, dict) and gb not in (-1, "-1"):  # gdbrowser didn't answer: RobTop's servers
         gb = gd_servers(lid)
-        print(f"    asked the Geometry Dash servers instead: {'got it' if isinstance(gb, dict) else 'no answer'}")
+        print("    " + (f"got it from {gb.get('_from')} instead" if isinstance(gb, dict)
+                         else "the Geometry Dash servers and GDHistory didn't answer either"))
     gb = gb if isinstance(gb, dict) else {}
     meta = gl.get("Meta", {}) or {}
     song = meta.get("Song", {}) or {}
