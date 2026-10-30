@@ -67,8 +67,9 @@
   // The Main/Extended/Legacy dropdown tab bar (nav#lists), reused on both the
   // overview page and the demon detail page. `currentDemon` (optional) gets
   // the `.active` class in whichever dropdown it belongs to. With
-  // SITE.futureList there's a Future List tab too - a link to its own page
-  // (static/js/future.js), marked active there by `futureActive`.
+  // SITE.futureList there's a Future List tab too, and with SITE.futurePlus a
+  // Future+ tab - links to their page (static/js/future.js), marked active
+  // there by `futureActive` ("future" or "plus").
   DL.renderListNav = function (root, currentDemon, futureActive) {
     var all = DL.sortedDemons();
     var main = all.filter(function (d) { return DL.tierOf(d.position) === "main"; });
@@ -109,7 +110,12 @@
         blurbs.extended || "Official extensions of the Main List. Only 100% completions count.") +
       (legacy.length ? group("legacy", "Legacy List", legacy, false, "Demons that have fallen off the list.") : "") +
       (window.SITE && window.SITE.futureList
-        ? '<div><a class="button white hover no-shadow' + (futureActive ? " active" : "") + '" href="future.html">Future List</a></div>'
+        ? '<div><a class="button white hover no-shadow' + (futureActive === true || futureActive === "future" ? " active" : "") +
+          '" href="future.html">Future List</a></div>'
+        : "") +
+      (window.SITE && window.SITE.futurePlus
+        ? '<div><a class="button white hover no-shadow' + (futureActive === "plus" ? " active" : "") +
+          '" href="future.html?plus">Future+</a></div>'
         : "");
   };
 
@@ -312,8 +318,10 @@
       html += sidebarPanel(
         "future",
         "Future List",
-        "<p>The list with every level in someone's In Progress added: where each one would land, and what every level would be worth.</p>" +
-          '<a class="blue hover button" href="' + futureHref + '">Open the Future List</a>'
+        "<p>The list with every level in someone's In Progress added: where each one would land, and what every level would be worth." +
+          (cfg.futurePlus ? " Future+ does the same with every level in anyone's Grind." : "") + "</p>" +
+          '<a class="blue hover button" href="' + futureHref + '">Open the Future List</a>' +
+          (cfg.futurePlus ? '<a class="blue hover button" href="' + futureHref + '?plus" style="margin-top:8px">Open Future+</a>' : "")
       );
     }
 

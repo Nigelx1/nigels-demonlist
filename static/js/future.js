@@ -47,7 +47,9 @@
   // each { level, id, listed, was (position now, null if joining), position,
   // tier, points (100% on the Future List), pointsNow, players (joining: who
   // has it In Progress) }. players: the ranking with the Future List's points.
-  DL.futureList = function () {
+  // everyGoal = Future+ (SITE.futurePlus, Nigel and Dihmaster500, 2026-10-30):
+  // every level in anyone's Grind joins, at any progress, not just In Progress.
+  DL.futureList = function (everyGoal) {
     var cfg = window.SITE;
     var s = cfg.scoring;
     var current = DL.sortedDemons();
@@ -59,7 +61,7 @@
     var joining = {}, ids = [];
     (window.GOALS || []).forEach(function (g) {
       var id = Number(g.levelId);
-      if (onList[id] || !DL.grindInProgressRun(g)) return;
+      if (onList[id] || !(everyGoal || DL.grindInProgressRun(g))) return;
       var lv = DL.goalLevel(id);
       if (!lv || !eligible(lv)) return;
       if (!joining[id]) {
@@ -153,7 +155,7 @@
   }
 
   // DL.demonPanelHtml's layout, with the Future List's position and points
-  function panelHtml(r) {
+  function panelHtml(r, everyGoal) {
     var lv = r.level;
     var points = r.points.toFixed(2) + " points";
     if (r.listed && r.pointsNow.toFixed(2) !== r.points.toFixed(2)) points += " (" + r.pointsNow.toFixed(2) + " now)";
@@ -161,7 +163,7 @@
     var note = "";
     if (!r.listed) {
       note =
-        '<span class="future-badge">New</span>In progress: ' +
+        '<span class="future-badge">New</span>' + (everyGoal ? "In the Grind: " : "In progress: ") +
         r.players
           .map(function (name) {
             return (
@@ -201,9 +203,12 @@
     );
   }
 
-  DL.renderFuturePage = function (main, aside) {
+  // everyGoal: render Future+ instead of the Future List (future.html?plus).
+  DL.renderFuturePage = function (main, aside, everyGoal) {
     var cfg = window.SITE;
-    var f = DL.futureList();
+    var f = DL.futureList(everyGoal);
+    var title = everyGoal ? "Future+" : "Future List";
+    var where = everyGoal ? "in someone's Grind" : "in someone's In Progress";
     var hardest = f.rows.reduce(function (b, r) {
       return !b || DL.demonRating(r.level) > DL.demonRating(b.level) ? r : b;
     }, null);
@@ -214,11 +219,13 @@
 
     var intro;
     if (!f.joining.length) {
-      intro = "<p>Nobody has a level In Progress that isn't on the list yet, so for now this is the list as it is.</p>";
+      intro = everyGoal
+        ? "<p>Nobody has a level in their Grind that isn't on the list yet, so for now this is the list as it is.</p>"
+        : "<p>Nobody has a level In Progress that isn't on the list yet, so for now this is the list as it is.</p>";
     } else {
       intro =
         "<p>" + (f.joining.length === 1 ? "One level" : f.joining.length + " levels") +
-        " in someone's In Progress would join the list: " +
+        " " + where + " would join the list: " +
         listJoin(f.joining.map(function (r) { return "<b>" + levelName(r) + "</b> at #" + r.position; })) + ".</p>";
       if (rescaled) {
         var share = Math.pow(cfg.scoring.base, f.topNow - f.top);
@@ -242,9 +249,11 @@
 
     main.innerHTML =
       '<section class="panel fade js-scroll-anim" data-anim="fade" id="future-intro">' +
-        '<div class="underlined"><h2>Future List</h2></div>' + intro +
+        '<div class="underlined"><h2>' + title + "</h2></div>" + intro +
       "</section>" +
-      (f.rows.length ? f.rows.map(panelHtml).join("") : '<section class="panel fade"><p>No demons on the list yet.</p></section>');
+      (f.rows.length
+        ? f.rows.map(function (r) { return panelHtml(r, everyGoal); }).join("")
+        : '<section class="panel fade"><p>No demons on the list yet.</p></section>');
 
     var html = "";
     if (rescaled) {
@@ -252,7 +261,7 @@
       html += sidebarPanel(
         "future-players",
         "Future Points",
-        "<p>Everyone's score with the Future List's points (today's in parentheses).</p>" +
+        "<p>Everyone's score with the " + title + "'s points (today's in parentheses).</p>" +
           '<ol class="mini-ranking">' +
           ranked
             .map(function (p) {
@@ -269,8 +278,11 @@
     html += sidebarPanel(
       "future-rules",
       "How it works",
-      "<p>A level is In Progress when someone's Grind has a run of it longer than " + cfg.grindInProgress +
-        "% (from the start, or a practice run like 42&ndash;100).</p>" +
+      (everyGoal
+        ? "<p>Every level in anyone's Grind is here, whatever their progress. The Future List keeps just the ones In Progress.</p>"
+        : "<p>A level is In Progress when someone's Grind has a run of it longer than " + cfg.grindInProgress +
+          "% (from the start, or a practice run like 42&ndash;100)." +
+          (cfg.futurePlus ? " Future+ has every Grind level." : "") + "</p>") +
         "<p>Each one goes where the list would put it, ranked the same way as everything else, and every " +
         "level's points are worked out again from the new order.</p>" +
         '<a class="blue hover button" href="index.html">Back to the Demonlist</a>'
