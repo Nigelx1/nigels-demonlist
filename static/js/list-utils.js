@@ -725,6 +725,10 @@ DL.subdivisionFlagSpan = function (countryCode, subdivisionCode) {
 // which keeps today's order. Each player also gets scoreNow / rankNow (today's).
 // No view, or the default one, runs today's code: same loops, same order, same
 // comparator, so today's ranking comes out bit for bit.
+//
+// In-progress points (SITE.inProgressPoints, DL.inProgressScores in views.js)
+// come on top, in every view: a run over SITE.grindInProgress on a level the
+// player hasn't beaten. Each one is also listed in the player's inProgress.
 DL.aggregatePlayers = function (view) {
   var v = view && !view.isDefault ? view : null;
   var byName = {};
@@ -739,6 +743,7 @@ DL.aggregatePlayers = function (view) {
         score: 0,
         completed: [], // records with progress === 100
         progressed: [], // records with progress < 100
+        inProgress: [], // DL.inProgressScores entries: runs over grindInProgress that score
         hardest: null,
         created: [],
         published: [],
@@ -770,6 +775,16 @@ DL.aggregatePlayers = function (view) {
       }
     });
   });
+
+  // In-progress points: on top of what the player's record on that level (if
+  // any) already scored, so nothing counts twice. Needs views.js.
+  if (typeof DL.inProgressScores === "function") {
+    DL.inProgressScores(v).forEach(function (x) {
+      var entry = ensure(x.player);
+      entry.score += x.extra;
+      entry.inProgress.push(x);
+    });
+  }
 
   // Members with no clears yet (SITE.members) still get a 0-point entry.
   ((window.SITE && window.SITE.members) || []).forEach(function (m) {

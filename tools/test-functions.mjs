@@ -924,6 +924,88 @@ print(json.dumps([[m.unrated_slots(u, d["demons"], d["site"]), [a for a in ids i
   }
 }
 
+// --- in-progress points (SITE.inProgressPoints, DL.inProgressScores) ---------------------------
+// A made-up list, so the checks don't move when the real Grind does: a quarter of
+// the level's points (capped at topScore) times the longest run over 50%, from the
+// Grind or a record; never on a beaten level or over a record that scores more; a
+// level off the list counts where it isn't shown, on that view's curve.
+
+if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
+  const sb = { window: {}, console };
+  vm.createContext(sb);
+  const W = sb.window;
+  const lvl = (id, difficulty, rating, position, records, extra) => Object.assign({
+    id, levelId: id, name: `L${id}`, difficulty, rating, position, publisher: "x", creators: ["x"], verifier: null,
+    requirementPercent: 100, records: records.map(([player, progress]) => ({ player, progress, nationality: "US", subdivision: null })),
+    gd: { inGameDifficulty: difficulty + " Demon", length: "XL" },
+  }, extra || {});
+  W.SITE = {
+    name: "Test", mainListSize: "extremes", extendedListSize: null, allowedDifficulties: ["Extreme", "Insane"],
+    grindInProgress: 50, inProgressPoints: 0.25, futureList: true, futurePlus: true, ratedPlus: true,
+    scoring: { topScore: 500, base: 1.176, legacyScore: 2, requirementScoreFraction: 0.25 },
+    members: ["P1", "P2", "P3", "P4", "P5", "P6"].map((name) => ({ name, nationality: "US" })),
+  };
+  W.DEMONS = [
+    lvl(1001, "Extreme", 30, 1, [["P1", 100], ["P2", 60]]),
+    lvl(1002, "Extreme", 25, 2, [["P3", 100]]),
+    lvl(1003, "Insane", 18, 3, [["P4", 80]], { requirementPercent: 50 }),
+  ];
+  W.GOAL_LEVELS = {
+    2001: { name: "Hard Off", difficulty: "Extreme", rating: 35, gd: { inGameDifficulty: "Extreme Demon", length: "XL" } },
+    2002: { name: "Short Run", difficulty: "Extreme", rating: 28, gd: { inGameDifficulty: "Extreme Demon", length: "XL" } },
+    2003: { name: "Plat", difficulty: "Extreme", rating: 26, gd: { inGameDifficulty: "Extreme Demon", length: "Plat." } },
+  };
+  W.GOALS = [
+    { player: "P2", levelId: 1001, best: 55, segments: [[30, 95]] }, // longest run 65, over her 60% record
+    { player: "P1", levelId: 1002, best: 90, segments: [] },          // listed, not beaten
+    { player: "P3", levelId: 1002, best: 70, segments: [] },          // already beaten: nothing
+    { player: "P5", levelId: 2001, best: 76, segments: [] },          // off the list, harder than #1: capped
+    { player: "P5", levelId: 2002, best: 40, segments: [[10, 55]] },  // 45 at most: under the line
+    { player: "P6", levelId: 2003, best: 80, segments: [] },          // a platformer can't be on the list
+    { player: "P1", levelId: 3001, best: 90, segments: [] },          // unrated: only in Rated+
+  ];
+  W.UNRATED = [{ id: 3001, levelId: 3001, name: "U", difficulty: "Extreme", rating: 27, records: [], requirementPercent: 100,
+    publisher: "x", creators: ["x"], verifier: null, gd: { inGameDifficulty: "Unrated" } }];
+  for (const f of ["static/js/list-utils.js", "static/js/goals.js", "static/js/views.js"]) {
+    vm.runInContext(readFileSync(path.join(ROOT, f), "utf8"), sb, { filename: f });
+  }
+  const DL = W.DL, S = W.SITE.scoring;
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  const full = (rating, top) => Math.min(S.topScore * Math.pow(S.base, rating - top), S.topScore);
+  const find = (xs, player, id) => xs.filter((x) => x.player === player && x.id === id);
+  const key = (xs) => xs.map((x) => x.player + "@" + x.id).sort().join(" ");
+
+  let ip = DL.inProgressScores(null);
+  check("in-progress: today's list - exactly the runs that count", key(ip) === "P1@1002 P2@1001 P5@2001", key(ip));
+  const p2 = find(ip, "P2", 1001)[0], p1 = find(ip, "P1", 1002)[0], p5 = find(ip, "P5", 2001)[0];
+  check("in-progress: the longest run, once, over a record that scores 0", p2 && p2.run[0] === 30 && p2.run[1] === 95
+    && near(p2.points, 0.25 * 500 * 0.65) && near(p2.extra, p2.points) && p2.shown, JSON.stringify(p2));
+  check("in-progress: a listed level, a quarter of its points times the run", p1 && near(p1.points, 0.25 * full(25, 30) * 0.9), JSON.stringify(p1));
+  check("in-progress: off the list and harder than #1 - hidden, capped at topScore", p5 && !p5.shown && near(p5.points, 0.25 * 500 * 0.76),
+    JSON.stringify(p5));
+  const today = {};
+  DL.aggregatePlayers().forEach((p) => { today[p.name] = p; });
+  check("in-progress: in the ranking, nothing twice", near(today.P2.score, 0.25 * 500 * 0.65) && near(today.P5.score, 95)
+    && near(today.P1.score, 500 + 0.25 * full(25, 30) * 0.9) && today.P5.inProgress.length === 1 && near(today.P3.score, full(25, 30)),
+    JSON.stringify(Object.values(today).map((p) => [p.name, p.score])));
+  check("in-progress: a record that scores more keeps its points", near(today.P4.score, DL.recordScore(W.DEMONS[2], 80)) && !today.P4.inProgress.length);
+
+  const plus = DL.listView("current", "plus", true);
+  const pu = find(DL.inProgressScores(plus), "P1", 3001)[0];
+  check("in-progress: an unrated level counts in Rated+ only, from its own points", !find(ip, "P1", 3001).length
+    && pu && pu.shown && near(pu.points, 0.25 * plus.points(3001) * 0.9), JSON.stringify(pu));
+  const fut = DL.listView("future", "rated", true);
+  ip = DL.inProgressScores(fut);
+  check("in-progress: Future shows the off-list level, and every value follows its curve",
+    key(ip) === "P1@1002 P2@1001 P5@2001" && find(ip, "P5", 2001)[0].shown && fut.top === 35
+    && near(find(ip, "P5", 2001)[0].points, 95) && near(find(ip, "P2", 1001)[0].points, 0.25 * full(30, 35) * 0.65), key(ip));
+  check("in-progress: the view's ranking has them too", fut.players.some((p) => p.name === "P5" && near(p.score, 95)));
+  W.SITE.inProgressPoints = null;
+  check("in-progress: off - nothing, and today's scores without them",
+    DL.inProgressScores(null).length === 0 && DL.aggregatePlayers().every((p) => !p.inProgress.length)
+    && near(DL.aggregatePlayers().find((p) => p.name === "P2").score, 0));
+}
+
 // --- Rated+ in the engine, offline: tools/apply-edit.py on a copy of the site ----------------
 // A temp copy (no .git, videos or __pycache__) with Rated+ turned on and a fixture
 // data/unrated.js; apply-edit.py is imported FROM the copy. gdbrowser answers from

@@ -223,6 +223,89 @@
     return ids.map(function (id) { return byId[id]; });
   }
 
+  // In-progress points (SITE.inProgressPoints - Nigel and Dihmaster500,
+  // 2026-10-30, like pointercrate's progress records). A level someone hasn't
+  // beaten, with a run on it longer than SITE.grindInProgress (from 0 or a
+  // practice run, in the Grind or as a record under 100%), scores that share of
+  // the level's points times their longest run. The level's points are capped at
+  // topScore. A clear gives full points instead, and a record that already
+  // scores more keeps its own points: nothing counts twice. A level from someone's
+  // In Progress that the view doesn't show (in Current, one that isn't on the
+  // list) still counts, valued on the view's curve as if it were listed. Unrated
+  // levels count only where they're shown (Rated+). view: a list view, or
+  // nothing for today's list. [] when the setting is off.
+  //   -> [{ player, id, level, run: [from, to], points, extra, shown }], where
+  //      extra is what it adds to the player's score on top of their record
+  DL.inProgressScores = function (view) {
+    var cfg = window.SITE || {}, s = cfg.scoring;
+    var share = cfg.inProgressPoints, min = cfg.grindInProgress;
+    if (typeof share !== "number" || !(share > 0) || typeof min !== "number") return [];
+    var v = view && !view.isDefault ? view : null;
+    var shown = {}, top, levels, recordScore;
+    if (v) {
+      v.rows.forEach(function (r) {
+        shown[r.id] = { level: r.level, full: r.tier === "legacy" ? 0 : r.points };
+      });
+      top = v.top;
+      levels = v.recordLevels;
+      recordScore = v.recordScore;
+    } else {
+      DL.sortedDemons().forEach(function (d) {
+        shown[levelIdOf(d)] = { level: d, full: DL.tierOf(d.position) === "legacy" ? 0 : DL.scoreAt100(d) };
+      });
+      top = DL.topRating();
+      levels = window.DEMONS;
+      recordScore = DL.recordScore;
+    }
+
+    // each player's longest run on each level, and what their records there score
+    var best = {}, order = [], beaten = {}, kept = {};
+    function offer(player, id, run) {
+      var k = player + "|" + id;
+      if (!best[k]) order.push(k);
+      if (!best[k] || run[1] - run[0] > best[k].run[1] - best[k].run[0]) best[k] = { player: player, id: id, run: run };
+    }
+    levels.forEach(function (lv) {
+      var id = levelIdOf(lv);
+      (lv.records || []).forEach(function (rec) {
+        var k = rec.player + "|" + id;
+        if (rec.progress >= 100) beaten[k] = true;
+        else if (rec.progress > min) offer(rec.player, id, [0, rec.progress]);
+        var pts = recordScore(lv, rec.progress);
+        if (!(kept[k] >= pts)) kept[k] = pts;
+      });
+    });
+    if (Array.isArray(window.GOALS) && typeof DL.grindInProgressRun === "function") {
+      window.GOALS.forEach(function (g) {
+        var run = DL.grindInProgressRun(g);
+        if (run) offer(g.player, Number(g.levelId), run);
+      });
+    }
+
+    var out = [];
+    order.forEach(function (k) {
+      var b = best[k];
+      if (beaten[k]) return;
+      var at = has(shown, b.id) ? shown[b.id] : null, level, full;
+      if (at) {
+        level = at.level;
+        full = at.full;
+      } else {
+        // not in this view: only an off-list level that could be on the list
+        if (DL.demonById(b.id) || DL.unratedById(b.id) || typeof DL.goalLevel !== "function") return;
+        level = DL.goalLevel(b.id);
+        if (!level || !eligible(level)) return;
+        full = s.topScore * Math.pow(s.base, DL.demonRating(level) - top);
+      }
+      var points = share * Math.min(full, s.topScore) * (b.run[1] - b.run[0]) / 100;
+      var extra = points - (kept[k] || 0);
+      if (extra > 0) {
+        out.push({ player: b.player, id: b.id, level: level, run: b.run, points: points, extra: extra, shown: !!at });
+      }
+    });
+    return out;
+  };
+
   // The parts every view shares, around its rows (already numbered and scored).
   function finishView(time, rating, rows, top, recordLevels, recordScore) {
     var byId = {};
