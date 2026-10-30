@@ -230,6 +230,8 @@ for lid in level_ids:
     # blanking it. Every Grind edit, showcase check and upkeep rebuilds this file,
     # so one bad gdbrowser/gdladder answer would otherwise take a creator, song or
     # "Created In" off a Grind page until the next good rebuild (2026-10-12).
+    # The same goes for what a stand-in for gdbrowser (tools/gdlevel.py) can't
+    # tell: GDHistory has no song links, and not always the object count.
     old = prev.get(str(lid)) or {}
     kept = []
     if old:
@@ -238,6 +240,15 @@ for lid in level_ids:
                 if gd.get(k) != v:
                     gd[k] = v
                     kept.append("gd." + k)
+        elif gb.get("_from") and old.get("gd"):
+            for k, v in old["gd"].items():
+                if k not in gd:
+                    gd[k] = v
+                    kept.append("gd." + k)
+            song, was = gd.get("song"), old["gd"].get("song") or {}
+            if song and song.get("id") == was.get("id") and was.get("link") and not song.get("link"):
+                song["link"] = was["link"]
+                kept.append("gd.song.link")
         for k in ("name", "publisher", "description", "rating", "difficulty"):
             blank = (not entry.get(k) or (k == "name" and entry[k] == f"Level {lid}")
                      or (k == "difficulty" and not meta.get("Difficulty") and not gb.get("difficulty")))

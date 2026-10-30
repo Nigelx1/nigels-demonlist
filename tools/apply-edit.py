@@ -1759,9 +1759,10 @@ class Engine:
 
     def say_kept(self, out):
         """build-goal-levels.py's KEPT lines: facts a level kept because gdladder or
-        gdbrowser didn't answer (it keeps the saved ones rather than blanking them)."""
+        gdbrowser didn't answer, or the stand-in for gdbrowser didn't have them (it
+        keeps the saved ones rather than blanking them)."""
         for m in re.finditer(r"^\s*KEPT \d+ (.+?): (.+)$", out or "", re.M):
-            self.say(f"  gdladder/gdbrowser didn't answer for {m.group(1)} - kept its saved {m.group(2)}.")
+            self.say(f"  {m.group(1).strip()}: kept its saved {m.group(2)} (gdladder or gdbrowser didn't have them this time).")
 
     def rebuild_goal_levels(self):
         before = load_state(self.root)["GOAL_LEVELS"]
