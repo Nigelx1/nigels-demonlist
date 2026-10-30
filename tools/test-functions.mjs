@@ -953,6 +953,7 @@ try:
 
     FAKE, ran = {}, []
     m.curl = lambda url, timeout=30: (0, "")
+    m.gd_servers = lambda lid: None
     m.Engine.unrated_facts = lambda self, lid: m.unrated_facts_from(lid, 200, json.dumps(FAKE[lid]))
     m.Engine.showcase_thumb = lambda self, vid: "https://i.ytimg.com/vi/" + vid + "/hqdefault.jpg"
     def no_tools(_root, args, timeout=900):
@@ -1116,6 +1117,101 @@ out.write(json.dumps(results))
   if (!got) {
     if (r.error || /not found|not recognized/i.test(r.stderr || "")) console.log("(python not available - skipping the Rated+ engine checks)");
     else check("engine (py): the Rated+ harness ran", false, (r.stdout + r.stderr).slice(-600));
+  } else {
+    got.forEach((x) => check(x.label, x.ok, x.detail));
+  }
+}
+
+// --- RobTop's servers when gdbrowser doesn't answer (tools/gdlevel.py) --------------------------
+// Real getGJLevels21.php answers (2026-10-30), read as gdbrowser's level JSON; then
+// apply-edit.py's look-ups falling back on them, with nothing on the network.
+
+{
+  const PYGD = String.raw`
+import importlib.util, json, os, sys
+sys.dont_write_bytecode = True
+results = []
+def ok(label, cond, detail=""):
+    results.append({"label": label, "ok": bool(cond), "detail": "" if cond else str(detail)[:400]})
+def load(name, file):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(sys.argv[1], "tools", file))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+out, sys.stdout = sys.stdout, sys.stderr
+try:
+    g = load("gdlevel", "gdlevel.py")
+    LIMBO = ("1:86084399:2:LIMBO:5:4:6:7460784:8:10:9:50:10:21332691:12:0:13:22:14:518175:17:1:43:6:25::18:10:19:28972:42:1"
+             ":45:65535:3:Rk9DVVM=:15:4:30:0:31:0:37:0:38:0:39:0:46:1:47:2:35:76743#7460784:MindCap:2156992#1~|~76743~|~2~|~"
+             "NH22 - Isolation~|~3~|~60~|~4~|~NightHawk22~|~5~|~3.04~|~6~|~~|~10~|~-~|~16~|~~|~7~|~~|~8~|~1#9999:0:10#f301")
+    FIRST = ("1:128:2:1st level:5:1:6:30144023:8:10:9:30:10:4641908:12:4:13:21:14:309029:17::43:0:25::18:0:19:0:42:0:45:208"
+             ":3::15:2:30:128:31:0:37:0:38:0:39:2:46:1:47:2:35:0#30144023:real storm:6338004##9999:0:10#afbd")
+    STORY = ("1:151488126:2:other:6:1|1:151488121:2:story:5:1:6:348607560:8:0:9:0:10:0:12:0:13:22:14:0:17::43:0:25::18:0"
+             ":19:0:42:0:45:149:3:OmZlYXR1cmVkOjpteXRoaWM6OnRoaW5rOmZpcmU=:15:0:30:0:31:0:37:0:38:0:39:9:46:1:47:2:35:233860"
+             "#348607560:c34tir:43519254#1~|~233860~|~2~|~-Ricochet Love-~|~3~|~30~|~4~|~Waterflame~|~5~|~7.02~|~6~|~~|~10~|~"
+             "http%3A%2F%2Faudio.ngfiles.com%2F233000%2F233860_Dawn.mp3~|~16~|~~|~7~|~UCVuv5iaVR55QXIc_BHQLakA~|~8~|~1#0:0:10#ab")
+    lb = g.parse(86084399, LIMBO)
+    ok("gdlevel: a rated extreme, as gdbrowser shows it", isinstance(lb, dict) and lb["name"] == "LIMBO" and lb["author"] == "MindCap"
+       and lb["difficulty"] == "Extreme Demon" and lb["stars"] == 10 and lb["length"] == "XL" and lb["objects"] == 65535
+       and lb["gameVersion"] == "2.2" and lb["description"] == "FOCUS" and lb["songID"] == "76743"
+       and lb["songName"] == "NH22 - Isolation" and lb["songAuthor"] == "NightHawk22" and lb["songLink"] == "-", lb)
+    fl = g.parse(128, FIRST)
+    ok("gdlevel: an unrated level with an official song and no description", isinstance(fl, dict) and fl["stars"] == 0
+       and fl["difficulty"] == "Hard" and fl["length"] == "Medium" and fl["gameVersion"] == "2.1" and fl["author"] == "real storm"
+       and "songID" not in fl and "description" not in fl and fl["platformer"] is False, fl)
+    st = g.parse(151488121, STORY)
+    ok("gdlevel: the right level out of several, its creator and custom song", isinstance(st, dict) and st["name"] == "story"
+       and st["author"] == "c34tir" and st["difficulty"] == "Unrated" and st["length"] == "Tiny"
+       and st["description"] == ":featured::mythic::think:fire" and st["songName"] == "-Ricochet Love-"
+       and st["songLink"] == "http://audio.ngfiles.com/233000/233860_Dawn.mp3", st)
+    ok("gdlevel: -1, a level that isn't in the answer, an error page, nothing",
+       g.parse(5, "-1") == -1 and g.parse(5, FIRST) == -1 and g.parse(5, "<!DOCTYPE html><title>Just a moment...</title>") is None
+       and g.parse(5, "") is None and g.parse(5, None) is None)
+
+    m = load("apply_edit_gd", "apply-edit.py")
+    sys.stdout = sys.stderr
+    asked = []
+    def servers(answer):
+        def f(lid):
+            asked.append(lid)
+            return answer
+        return f
+    CHALLENGE = (403, "<!DOCTYPE html><title>Just a moment...</title>")
+    def facts(curl, answer):
+        del asked[:]
+        m.curl, m.gd_servers = (lambda url, timeout=30: curl), servers(answer)
+        try:
+            return m.Engine(sys.argv[1]).unrated_facts(151488121)
+        except m.Refuse as e:
+            return "Refuse: " + str(e)
+    f = facts(CHALLENGE, st)
+    ok("add_unrated: gdbrowser challenged, RobTop's servers answer", isinstance(f, dict) and asked == [151488121]
+       and f["name"] == "story" and f["publisher"] == "c34tir" and f["gd"]["inGameDifficulty"] == "Unrated"
+       and f["gd"]["length"] == "Tiny" and f["gd"]["song"]["link"] == "http://audio.ngfiles.com/233000/233860_Dawn.mp3", f)
+    f = facts(CHALLENGE, lb)
+    ok("add_unrated: ...and a rated level is still refused", isinstance(f, str) and "is rated (10 stars)" in f, f)
+    f = facts(CHALLENGE, -1)
+    ok("add_unrated: ...and a level that doesn't exist", isinstance(f, str) and "isn't on the Geometry Dash servers" in f, f)
+    f = facts(CHALLENGE, None)
+    ok("add_unrated: nobody answers - nothing saved", isinstance(f, str) and "neither gdbrowser nor the Geometry Dash servers" in f, f)
+    f = facts((200, json.dumps({"name": "From gdbrowser", "stars": 0, "difficulty": "Unrated"})), lb)
+    ok("add_unrated: gdbrowser answers - RobTop's servers aren't asked", isinstance(f, dict) and f["name"] == "From gdbrowser" and not asked, f)
+    f = facts((200, "-1"), lb)
+    ok("add_unrated: gdbrowser says there's no such level - believed", isinstance(f, str) and "isn't on the Geometry Dash servers" in f
+       and not asked, f)
+    m.curl, m.gd_servers = (lambda url, timeout=30: (0, "")), servers(lb)
+    ok("level_facts: gdladder and gdbrowser silent, RobTop's servers answer", m.level_facts(86084399) == ("LIMBO", "Extreme Demon"))
+except Exception:
+    import traceback
+    ok("gdlevel: the harness ran", False, traceback.format_exc()[-400:])
+out.write(json.dumps(results))
+`;
+  const r = spawnSync("python", ["-c", PYGD, ROOT], { encoding: "utf8", env: { ...process.env, PYTHONUTF8: "1" }, maxBuffer: 16 << 20, timeout: 120000 });
+  let got = null;
+  try { got = JSON.parse(r.stdout); } catch { /* below */ }
+  if (!got) {
+    if (r.error || /not found|not recognized/i.test(r.stderr || "")) console.log("(python not available - skipping the gdlevel checks)");
+    else check("gdlevel (py): the harness ran", false, (r.stdout + r.stderr).slice(-600));
   } else {
     got.forEach((x) => check(x.label, x.ok, x.detail));
   }

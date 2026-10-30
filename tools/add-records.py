@@ -37,7 +37,7 @@ logged too so every demon's position history stays exact. Anything outside
 `allowedDifficulties` is refused; platformers are always refused.
 Needs python3, curl and node on PATH.
 """
-import io, json, os, re, subprocess, sys, time, urllib.request
+import importlib.util, io, json, os, re, subprocess, sys, time, urllib.request
 from datetime import date as _date
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -103,10 +103,21 @@ def thumb(vid):
     return f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
 
 
+def gd_servers(lid):
+    """gdbrowser's level JSON for lid straight from RobTop's servers, for when
+    gdbrowser doesn't answer (tools/gdlevel.py): a dict, -1 (no such level) or None."""
+    spec = importlib.util.spec_from_file_location("gdlevel", os.path.join(SITE, "tools", "gdlevel.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.level(lid)
+
+
 def fetch_level(lid, allowed):
     gl = curl_json(f"https://gdladder.com/api/levels/{lid}")
     gl = gl if isinstance(gl, dict) and gl.get("ID") else {}
     gb = curl_json(f"https://gdbrowser.com/api/level/{lid}")
+    if not isinstance(gb, dict) and gb != -1:  # gdbrowser didn't answer: RobTop's servers
+        gb = gd_servers(lid)
     gb = gb if isinstance(gb, dict) else {}
     if not gl and not gb:
         return None, "not found on gdladder or gdbrowser"

@@ -13,7 +13,7 @@ Run it whenever you add/change a goal in data/goals.js:
 
 Needs: Python 3, Pillow (`pip install pillow`), and `curl` on PATH.
 """
-import json, subprocess, colorsys, io, os, re, urllib.request
+import json, subprocess, colorsys, importlib.util, io, os, re, urllib.request
 from collections import Counter
 from PIL import Image
 
@@ -34,6 +34,15 @@ def curl_json(url):
     except Exception as e:
         print("  curl fail", url, e)
         return None
+
+
+def gd_servers(lid):
+    """gdbrowser's level JSON for lid straight from RobTop's servers, for when
+    gdbrowser doesn't answer (tools/gdlevel.py): a dict, -1 (no such level) or None."""
+    spec = importlib.util.spec_from_file_location("gdlevel", os.path.join(HERE, "gdlevel.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.level(lid)
 
 
 def fetch_thumb(video_id):
@@ -168,7 +177,10 @@ for lid in level_ids:
 
     gl = curl_json(f"https://gdladder.com/api/levels/{lid}") or {}
     gb = curl_json(f"https://gdbrowser.com/api/level/{lid}")
-    gb = {} if gb in (-1, "-1", None) else gb
+    if not isinstance(gb, dict) and gb not in (-1, "-1"):  # gdbrowser didn't answer: RobTop's servers
+        gb = gd_servers(lid)
+        print(f"    asked the Geometry Dash servers instead: {'got it' if isinstance(gb, dict) else 'no answer'}")
+    gb = gb if isinstance(gb, dict) else {}
     meta = gl.get("Meta", {}) or {}
     song = meta.get("Song", {}) or {}
 

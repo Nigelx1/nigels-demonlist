@@ -506,11 +506,20 @@ def curl_json(url):
         return None
 
 
+def gd_servers(lid):
+    """gdbrowser's level JSON for lid straight from RobTop's servers, for when
+    gdbrowser doesn't answer (tools/gdlevel.py): a dict, -1 (no such level) or
+    None (no answer). The tests stub this."""
+    return tool(REPO, "gdlevel").level(lid)
+
+
 def level_facts(lid):
     """(name, difficulty) from gdladder / gdbrowser, or None if neither knows the level."""
     gl = curl_json(f"https://gdladder.com/api/levels/{lid}")
     gl = gl if isinstance(gl, dict) and gl.get("ID") else {}
     gb = curl_json(f"https://gdbrowser.com/api/level/{lid}")
+    if not isinstance(gb, dict) and gb != -1:  # gdbrowser didn't answer: RobTop's servers
+        gb = gd_servers(lid)
     gb = gb if isinstance(gb, dict) and gb.get("name") else {}
     meta = gl.get("Meta") or {}
     name = gb.get("name") or meta.get("Name")
@@ -624,14 +633,15 @@ def unrated_facts_from(lid, code, body):
     add-records.py's fetch_level builds it, with gdbrowser's difficulty as given
     (e.g. "Unrated"). gdladder isn't asked: it doesn't know unrated levels."""
     if body.strip() == "-1":
-        raise Refuse(f"level {lid} isn't on gdbrowser - check the id")
+        raise Refuse(f"level {lid} isn't on the Geometry Dash servers - check the id")
     try:
         gb = json.loads(body) if code == 200 else None
     except ValueError:
         gb = None
     name = str(gb.get("name") or "").strip() if isinstance(gb, dict) else ""
     if not name:
-        raise Refuse(f"gdbrowser didn't answer for level {lid} - nothing saved, try again in a few minutes")
+        raise Refuse(f"neither gdbrowser nor the Geometry Dash servers answered for level {lid}"
+                     " - nothing saved, try again in a few minutes")
     stars = gb.get("stars")
     if isinstance(stars, bool) or not isinstance(stars, int):
         raise Refuse(f"couldn't tell whether {name} is rated - try again in a few minutes")
@@ -779,8 +789,12 @@ class Engine:
 
     def unrated_facts(self, lid):
         """add_unrated's one look-up: gdbrowser's facts about an unrated level, or
-        Refuse (unrated_facts_from). The tests stub this."""
+        Refuse (unrated_facts_from). When gdbrowser doesn't answer, RobTop's own
+        servers in gdbrowser's shape (gd_servers). The tests stub this."""
         code, body = curl(f"https://gdbrowser.com/api/level/{lid}")
+        if body.strip() != "-1" and not (code == 200 and body.lstrip().startswith("{")):
+            gb = gd_servers(lid)
+            code, body = (200, json.dumps(gb)) if isinstance(gb, dict) else (200, "-1") if gb == -1 else (0, "")
         return unrated_facts_from(lid, code, body)
 
     def showcase_thumb(self, vid):
@@ -1075,7 +1089,8 @@ class Engine:
             return g["name"]
         facts = level_facts(lid)
         if not facts:
-            raise Refuse(f"level {lid} wasn't found on gdladder or gdbrowser (or they didn't answer) - check the id")
+            raise Refuse(f"level {lid} wasn't found on gdladder, gdbrowser or the Geometry Dash servers"
+                         " (or they didn't answer) - check the id")
         return facts[0]
 
     def set_grind(self, o):

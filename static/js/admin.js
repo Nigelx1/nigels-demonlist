@@ -1096,7 +1096,9 @@
       api("/api/level?level=" + encodeURIComponent(String(id))).then(function (res) {
         button.disabled = false;
         if (res.status !== 200) {
-          say(info, "err", errorText(res));
+          // gdladder doesn't know unrated levels, and gdbrowser often won't answer
+          // scripts; Save looks the level up again, on the GD servers if need be
+          say(info, "err", errorText(res) + (res.status === 502 ? ". You can still save it: the list looks it up again when you do." : ""));
           return;
         }
         var lv = res.data;
