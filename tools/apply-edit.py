@@ -11,10 +11,14 @@ The mod page's Cloudflare Function sends a GitHub repository_dispatch (event
 and runs this. The payload:
 
   {"requestId": "<16 lowercase hex>", "editor": "<list name>", "role": "head"|"mod",
-   "owner": true, "ops": [1-10 ops], "upkeep": true, "dryRun": true}
+   "owner": true, "ops": [1-10 ops], "gd": {"<level id>": "<answer>"}, "upkeep": true,
+   "dryRun": true}
       role: from functions/editors.json (missing = mod); owner: Nigel's account only
-      (OWNER_ID); upkeep: the scheduled run; dryRun: testing only. Only requestId,
-      editor and ops are required.
+      (OWNER_ID); gd: RobTop's servers' answers about the ops' levels, which the
+      Function asked because those servers turn GitHub's runners away
+      (functions/_lib/robtop.js; tools/gdlevel.py reads them instead of asking,
+      use_answers); upkeep: the scheduled run; dryRun: testing only. Only
+      requestId, editor and ops are required.
 
   {"op":"add_member","name":S,"nationality":CC}
   {"op":"add_record","player":S,"level":L,"progress":P,"nationality":CC}  nationality: new players only
@@ -74,7 +78,7 @@ verify, the changelog replays to today's order), and a run is one commit. A
 push that loses a race starts over from the new master (up to 5 tries).
 Needs python3 (+ Pillow for build-goal-levels.py), git, curl and node.
 """
-import html, importlib.util, io, json, os, re, shutil, subprocess, sys, tempfile, unicodedata, urllib.parse
+import contextlib, html, importlib.util, io, json, os, re, shutil, subprocess, sys, tempfile, unicodedata, urllib.parse
 from datetime import date as _date
 
 sys.dont_write_bytecode = True  # importing the other tools must not leave __pycache__ in the repo
@@ -151,6 +155,9 @@ LEVEL_LINK = re.compile(r"^https?://(?:www\.)?(?:gdladder\.com/level/|gdbrowser\
 SHOWCASE_HOSTS = {"youtube.com", "www.youtube.com", "youtu.be"}
 # Same fallbacks as DL.RATING_BY_DIFFICULTY (and add-records.py / refresh-order.py).
 FALLBACK = {"Extreme": 24, "Insane": 16.5, "Hard": 11, "Medium": 7, "Easy": 2.5, "Official": 3}
+# The longest of RobTop's answers a payload's "gd" may carry (functions/_lib/robtop.js
+# MAX_ANSWER, which never sends a longer one). One level's answer is under 1,000.
+MAX_ANSWER = 4000
 
 # data/unrated.js (Rated+): Aceabase only. Its entries' keys, in the order they're
 # written, and the header the file starts with when write_unrated creates it.
@@ -330,7 +337,7 @@ def validate(p):
     """The payload, checked against the contract and normalised (level -> int id)."""
     if not isinstance(p, dict):
         raise Refuse("the payload isn't a JSON object")
-    extra = set(p) - {"requestId", "editor", "role", "owner", "ops", "dryRun", "upkeep"}
+    extra = set(p) - {"requestId", "editor", "role", "owner", "ops", "gd", "dryRun", "upkeep"}
     if extra:
         raise Refuse(f"unknown payload field(s): {', '.join(sorted(map(show, extra)))}")
     if not isinstance(p.get("requestId"), str) or not re.fullmatch(r"[0-9a-f]{16}", p["requestId"]):
@@ -424,7 +431,15 @@ def validate(p):
             raise Refuse(f"edit {i} ({o['op']}): only Nigel can {OWNER_ONLY[o['op']]}")
         if o["op"] in HEAD_ONLY and role != "head":
             raise Refuse(f"edit {i} ({o['op']}): only head mods can {HEAD_ONLY[o['op']]}")
-    return {"requestId": p["requestId"], "editor": editor, "role": role, "owner": owner, "ops": out,
+    # RobTop's answers that the Function got for the ops' levels (functions/api/edit.js):
+    # at most one per level, keyed by its id as the ops have it, each a bounded string
+    gd = p.get("gd", {})
+    levels = {str(o["level"]) for o in out if "level" in o}
+    if (not isinstance(gd, dict) or len(gd) > 10
+            or not all(k in levels and isinstance(v, str) and 1 <= len(v) <= MAX_ANSWER for k, v in gd.items())):
+        raise Refuse(f"gd must be RobTop's answers about this edit's levels: {{level id: answer}}, at most 10, "
+                     f"each 1-{MAX_ANSWER} characters, got {show(gd)}")
+    return {"requestId": p["requestId"], "editor": editor, "role": role, "owner": owner, "ops": out, "gd": dict(gd),
             "dryRun": bool(p.get("dryRun")), "upkeep": bool(p.get("upkeep"))}
 
 
@@ -489,6 +504,7 @@ def tool(root, name):
 
 
 def run_tool(root, args, timeout=900):
+    # the whole environment goes along: GDLEVEL_ANSWERS (use_answers) too
     env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1", PYTHONDONTWRITEBYTECODE="1")
     r = subprocess.run([sys.executable, os.path.join(root, "tools", args[0])] + args[1:], cwd=root, env=env,
                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
@@ -515,9 +531,35 @@ def curl_json(url):
 
 def gd_servers(lid):
     """gdbrowser's level JSON for lid from RobTop's servers or GDHistory, for when
-    gdbrowser doesn't answer (tools/gdlevel.py): a dict, -1 (no such level) or
-    None (no answer). The tests stub this."""
+    gdbrowser doesn't answer (tools/gdlevel.py; on GitHub's runners RobTop's answer
+    is the one the Function sent with the edit, use_answers): a dict, -1 (no such
+    level) or None (no answer). The tests stub this."""
     return tool(REPO, "gdlevel").level(lid)
+
+
+@contextlib.contextmanager
+def use_answers(gd):
+    """RobTop's answers that came with the edit (the payload's "gd") as what
+    tools/gdlevel.py's ask() returns for those levels while the block runs, here and
+    in every tool started from here (they inherit the environment): a temp JSON file
+    named by GDLEVEL_ANSWERS. No answers, nothing to do."""
+    if not gd:
+        yield
+        return
+    var = tool(REPO, "gdlevel").ANSWERS
+    fd, path = tempfile.mkstemp(prefix="gd-answers-", suffix=".json")
+    with io.open(fd, "w", encoding="utf-8") as f:
+        json.dump(gd, f, ensure_ascii=False)
+    old = os.environ.get(var)
+    os.environ[var] = path
+    try:
+        yield
+    finally:
+        if old is None:
+            os.environ.pop(var, None)
+        else:
+            os.environ[var] = old
+        os.remove(path)
 
 
 def gdbrowser_level(lid):
@@ -813,7 +855,8 @@ class Engine:
     def unrated_facts(self, lid):
         """add_unrated's one look-up: gdbrowser's facts about an unrated level, or
         Refuse (unrated_facts_from). When gdbrowser doesn't answer, RobTop's own
-        servers in gdbrowser's shape (gd_servers). The tests stub this."""
+        servers (or their answer that came with the edit), then GDHistory, in
+        gdbrowser's shape (gd_servers). The tests stub this."""
         code, body = curl(f"https://gdbrowser.com/api/level/{lid}")
         if body.strip() != "-1" and not (code == 200 and body.lstrip().startswith("{")):
             gb = gd_servers(lid)
@@ -2026,7 +2069,13 @@ def main():
         sys.exit(1)
     dry = "--dry-run" in opts or p["dryRun"]
     print(f"Edit {p['requestId']} by {p['editor']}: {len(p['ops'])} op(s){' (dry run)' if dry else ''}")
+    with use_answers(p["gd"]):  # RobTop's answers from the Function, for a dry run and a real one alike
+        apply_payload(p, dry, opts)
 
+
+def apply_payload(p, dry, opts):
+    """Apply the checked payload p: to a throwaway copy of the site (dry), else to
+    the repo, then commit and push (opts: the command line's --no-push)."""
     if dry:  # a throwaway copy of the working tree: the real one is never touched
         tmp = tempfile.mkdtemp(prefix="apply-edit-")
         root = os.path.join(tmp, "site")

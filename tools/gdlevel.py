@@ -12,23 +12,52 @@ the game's answers, read the same way from its newest copy of the servers'
 own answer. Either way the keys come out as gdbrowser's, so the rest of each
 tool doesn't change.
 
+GDHistory only has levels it has archived, so on a runner a brand-new level
+couldn't be looked up at all. The mod page's Function does reach RobTop's
+servers (functions/api/edit.js): it asks them about the levels an edit looks
+up and sends their answers with the edit (payload "gd"). apply-edit.py writes
+those to a JSON file ({level id: answer}) named by the GDLEVEL_ANSWERS
+environment variable, which the tools it runs inherit, and ask() returns the
+answer there for that level instead of asking (any other level it asks as
+before).
+
 Used by add-records.py (fetch_level), build-goal-levels.py and apply-edit.py
-(add_unrated). No third-party modules, so it runs anywhere the tools run.
+(gd_servers). No third-party modules, so it runs anywhere the tools run.
 """
 
-import base64, json, subprocess, urllib.parse
+import base64, io, json, os, subprocess, urllib.parse
 
 SEARCH = "https://www.boomlings.com/database/getGJLevels21.php"
 HISTORY = "https://history.geometrydash.eu/api/v1/level/{}/"
 SECRET = "Wmfd2893gb7"  # the game's public request secret: every GD client sends it
+ANSWERS = "GDLEVEL_ANSWERS"  # names a JSON file of RobTop's answers that came with the edit
 DIFFICULTY = {"0": "Unrated", "10": "Easy", "20": "Normal", "30": "Hard", "40": "Harder", "50": "Insane"}
 DEMONS = {"3": "Easy", "4": "Medium", "5": "Insane", "6": "Extreme"}  # anything else: Hard
 LENGTHS = ["Tiny", "Short", "Medium", "Long", "XL", "Plat."]
 
 
+def attached(lid):
+    """RobTop's answer for level lid that came with the edit (the file GDLEVEL_ANSWERS
+    names, {level id: answer}), or None: no such file, or nothing in it for lid."""
+    path = os.environ.get(ANSWERS)
+    if not path:
+        return None
+    try:
+        with io.open(path, encoding="utf-8") as f:
+            got = json.load(f)
+    except (OSError, ValueError):
+        return None
+    answer = got.get(str(int(lid))) if isinstance(got, dict) else None
+    return answer if isinstance(answer, str) else None
+
+
 def ask(lid, timeout=25):
-    """RobTop's raw answer for level lid, or None when it didn't answer. No
-    User-Agent at all: the servers turn curl's default one away."""
+    """RobTop's raw answer for level lid, or None when it didn't answer: the one that
+    came with the edit when there is one (attached), else asked. No User-Agent at
+    all: the servers turn curl's default one away."""
+    got = attached(lid)
+    if got is not None:
+        return got
     try:
         r = subprocess.run(["curl", "-sS", "-A", "", "--max-time", str(timeout), "-X", "POST",
                             "--data", f"str={int(lid)}&type=0&secret={SECRET}", SEARCH],
@@ -166,8 +195,9 @@ def history(lid, timeout=25):
 
 
 def level(lid, timeout=25):
-    """gdbrowser's level JSON for lid: from RobTop's servers, else GDHistory's
-    newest server copy. -1 when the game says there's no such level (or GDHistory
-    says it was deleted), None when nobody answered. "_from" says which one did."""
+    """gdbrowser's level JSON for lid: from RobTop's servers (or their answer that
+    came with the edit), else GDHistory's newest server copy. -1 when the game
+    says there's no such level (or GDHistory says it was deleted), None when
+    nobody answered. "_from" says which one did."""
     got = parse(lid, ask(lid, timeout))
     return got if got is not None else history(lid, timeout)

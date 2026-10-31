@@ -433,6 +433,52 @@ function editReq(body, { cookie = nigelCookie, origin = ORIGIN, type = "applicat
   return req("/api/edit", { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) });
 }
 const GH_DISPATCH = `https://api.github.com/repos/${SITE.repo}/dispatches`;
+// What went to GitHub (an edit that looks a level up asks RobTop's servers first)
+function dispatched() {
+  const c = calls.find((x) => x.url === GH_DISPATCH);
+  return c ? JSON.parse(c.init.body) : null;
+}
+
+// Real getGJLevels21.php answers (2026-10-30): Solar (Nigel's, unrated in game with
+// an Insane face from players' votes), Dragonlocked (a rated Insane Demon), LIMBO (a
+// rated Extreme Demon), Forsaken City (a rated platformer), and a search that found
+// other levels (two of the most liked platformers, cut down from ten). Nothing here
+// asks RobTop's servers for real.
+const RT = {
+  solar: "1:151420421:2:Solar:5:1:6:235854263:8:10:9:50:10:43:12:0:13:22:14:3:17::43:6:25::18:0:19:0:42:0:45:63250:3:"
+    + "SW5zYW5lIERlbW9uIHZlcnNpb24gb2YgU29sYXIgRmxhcmU=:15:3:30:0:31:0:37:0:38:0:39:10:46:1:47:2:35:493898#235854263:"
+    + "Nigelx1:29098728#1~|~493898~|~2~|~[J] - Solar Wind~|~3~|~482~|~4~|~Jumper~|~5~|~2.61~|~6~|~~|~10~|~-~|~16~|~~|~7~|~~|~8~|~1"
+    + "#9999:0:10#127875862cff610d0a37d0ec035798bb557e2c5d",
+  dragonlocked: "1:72211008:2:Dragonlocked:5:1:6:97447676:8:10:9:40:10:158131:12:19:13:21:14:6576:17:1:43:5:25::18:10:19:22675"
+    + ":42:0:45:65535:3:TXkgZmlyc3QgdGltZSB0cnlpbmcgc29tZSBnbG93IGRlc2lnbi4gVGhpcyBpcyBteSBoYXJkZXN0IGRpZmZpY3VsdHkgbGV2ZWwg"
+    + "SSd2ZSBjcmVhdGVkIHNvIGZhciwgR0whIFZlcmlmaWVkIGJ5IFJ5dURpZURyYWdvbg==:15:3:30:0:31:0:37:0:38:0:39:10:46:1:47:2:35:0"
+    + "#97447676:FrostDragonGD:11616084##9999:0:10#2cf4ff21a15f6e0932cfefb8c642b7d77c69c0e9",
+  limbo: "1:86084399:2:LIMBO:5:4:6:7460784:8:10:9:50:10:21351942:12:0:13:22:14:518397:17:1:43:6:25::18:10:19:28972:42:1:45:65535"
+    + ":3:Rk9DVVM=:15:4:30:0:31:0:37:0:38:0:39:0:46:1:47:2:35:76743#7460784:MindCap:2156992#1~|~76743~|~2~|~NH22 - Isolation"
+    + "~|~3~|~60~|~4~|~NightHawk22~|~5~|~3.04~|~6~|~~|~10~|~-~|~16~|~~|~7~|~~|~8~|~1#9999:0:10#f3010f571d2401e6d3987d6a137b8c312ee9ea08",
+  forsaken: "1:97906220:2:Forsaken City:5:7:6:23972310:8:10:9:10:10:12881910:12:0:13:22:14:429432:17:1:43:3:25::18:10:19:32963"
+    + ":42:0:45:26770:3:Q2VsZXN0ZSBpcyBub24gcmh5dGhtLWJhc2VkIHBsYXRmb3JtZXIgZGV2ZWxvcGVkIGJ5IFJvYnRvcEdhbWVzIGluIDIwMjMuIEl0J3Mg"
+    + "YSBnYW1lIGFib3V0IEN1YmUgY2xpbWJpbmcgdGhlIG1vdW50YWluLCBhbmQgb3ZlcmNvbWluZyB0aGVpciBkZXByZXNzaW9uLg==:15:5:30:0:31:0:37:1"
+    + ":38:1:39:10:46:1:47:2:35:1098278#23972310:LightPotatoDev:6690628#1~|~1098278~|~2~|~Winter Solstice~|~3~|~4255~|~4~|~pftq"
+    + "~|~5~|~4.69~|~6~|~~|~10~|~-~|~16~|~~|~7~|~~|~8~|~1#9999:0:10#6b19b06cd8c4fc144a8ce456c6cd580e3d5540a8",
+  search: "1:98972163:2:Coin temple:5:3:6:6224297:8:10:9:30:10:10609708:12:0:13:22:14:618587:17::43:0:25::18:5:19:33684:42:1:45"
+    + ":5871:3:QSB0eWNvb24tcGxhdGZvcm1lciBsZXZlbCB3aGVyZSB5b3UgbmVlZCB0byBnZXQgMSBtaWxsaW9uIGNvaW5zIHRvIGJlYXQhIChPciBwbGF5IGV2"
+    + "ZW4gbW9yZSBpZiB5b3Ugd2FudCB0aGUgdXNlciBjb2lucykuIEhhdmUgZnVuISA6KQ==:15:5:30:0:31:0:37:3:38:1:39:5:46:1:47:2:35:10001504"
+    + "|1:98128088:2:Dash Cave:5:2:6:1434560:8:10:9:30:10:11067372:12:0:13:22:14:528823:17::43:0:25::18:4:19:33330:42:1:45:18317"
+    + ":3:V2hlcmUgYW0gST8=:15:5:30:0:31:0:37:3:38:1:39:10:46:1:47:2:35:1107353#1434560:Booglee:233733|6224297:Santylolcat:1507115"
+    + "#1~|~1107353~|~2~|~Uxvellda - Epiphany~|~3~|~51016~|~4~|~uxvellda~|~5~|~13.14~|~6~|~~|~10~|~-~|~16~|~~|~7~|~~|~8~|~1~:~1~|~"
+    + "10001504~|~2~|~Factory Funk~|~3~|~10001825~|~4~|~Strikecast~|~5~|~1.72~|~6~|~~|~10~|~-~|~16~|~~|~7~|~~|~8~|~1#9999:0:10"
+    + "#5a0ccd34d63a0934a8ae8fa9a2fdba0ed8c4f2b2",
+};
+const ROBTOP = "https://www.boomlings.com/database/getGJLevels21.php";
+const CHALLENGE_PAGE = "<!DOCTYPE html><title>Just a moment...</title>";
+// A fetch stub route for RobTop's servers: answer(level id) is the text they send, a
+// Response, or null for "down".
+const robtopRoute = (answer) => ["POST", ROBTOP, (url, init) => {
+  const v = answer(Number(/^str=([0-9]+)&/.exec(init.body)[1]));
+  if (v === null) throw new TypeError("fetch failed (RobTop's servers are down)");
+  return v instanceof Response ? v : new Response(v);
+}];
 
 // --- head mods and mods ---------------------------------------------------------------------
 {
@@ -444,7 +490,7 @@ const GH_DISPATCH = `https://api.github.com/repos/${SITE.repo}/dispatches`;
   }
   stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
   const r = await api.edit.onRequestPost(ctx(editReq({ ops: [{ op: "set_grind", player: "ace", level: 1, best: 5, segments: [] }] }, { cookie: aceCookie })));
-  const sent = calls[0] && JSON.parse(calls[0].init.body);
+  const sent = dispatched();
   check("roles: a mod can update the Grind, sent as role mod", r.status === 200 && sent && sent.client_payload.role === "mod" && sent.client_payload.editor === "ace");
   let threw = "";
   try { contract.checkRole([{ op: "refresh_order" }], "head"); } catch (e) { threw = e.message; }
@@ -512,7 +558,7 @@ print(json.dumps(out))
     const em = (await rm.json()).error, sentByMod = calls.length;
     stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
     const rh = await api.edit.onRequestPost(ctx(editReq({ ops: [op] })));
-    const sh = calls[0] && JSON.parse(calls[0].init.body);
+    const sh = dispatched();
     check(`unrated: ${op.op} - head mod yes, mod no`, rm.status === 403 && /only head mods can/.test(em) && sentByMod === 0
       && rh.status === 200 && sh && sh.client_payload.ops[0].op === op.op, em);
   }
@@ -529,7 +575,7 @@ print(json.dumps(out))
     const em = (await rm.json()).error, sentByMod = calls.length;
     stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
     const rh = await api.edit.onRequestPost(ctx(editReq({ ops: pair })));
-    const sh = calls[0] && JSON.parse(calls[0].init.body);
+    const sh = dispatched();
     check(`unrated: [add_unrated, ${second.op}] - a head mod's goes out in order, a mod's is refused`,
       rm.status === 403 && /edit 1 \(add_unrated\): only head mods can add unrated levels/.test(em) && sentByMod === 0
       && rh.status === 200 && sh && eq(sh.client_payload.ops, pair), em);
@@ -623,7 +669,7 @@ print(json.dumps(out + [m.OWNER_ID]))
   stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
   let r = await api.edit.onRequestPost(ctx(editReq(good)));
   const out = await r.json();
-  const d = calls[0];
+  const d = calls.find((c) => c.url === GH_DISPATCH);
   const sent = d && JSON.parse(d.init.body);
   check("edit: 200 {requestId}", r.status === 200 && /^[0-9a-f]{16}$/.test(out.requestId), JSON.stringify(out));
   check("edit: dispatch request", d && d.url === GH_DISPATCH && d.method === "POST" && d.init.headers.Authorization === "Bearer github_pat_test"
@@ -668,6 +714,145 @@ print(json.dumps(out + [m.OWNER_ID]))
   check("edit: GitHub unreachable -> 502", r.status === 502 && (await r.json()).error.includes("couldn't reach GitHub"));
   r = await api.edit.onRequestPost(ctx(editReq(good), { ...ENV, GITHUB_TOKEN: "" }));
   check("edit: 503 without GITHUB_TOKEN", r.status === 503 && (await r.json()).error.includes("GITHUB_TOKEN is missing"));
+}
+
+// --- RobTop's answers go along with an edit (payload "gd", _lib/robtop.js) ---------------------
+// RobTop's servers turn GitHub's runners away, so the Function asks them about the
+// levels the edit looks up and sends what they say: a real answer for that level or
+// "-1", one request per level. When they don't answer, the edit goes as before.
+
+{
+  const rt = await fn("_lib/robtop.js");
+  const SOLAR = 151420421;
+  const sent204 = ["POST", GH_DISPATCH, () => new Response(null, { status: 204 })];
+  const robtopCalls = () => calls.filter((c) => c.url === ROBTOP);
+  const pair = [{ op: "add_unrated", level: SOLAR, rating: 23 }, { op: "set_grind", player: "Nigel", level: SOLAR, best: 40, segments: [[50, 100]] }];
+
+  stubFetch([robtopRoute((id) => (id === SOLAR ? RT.solar : "-1")), sent204]);
+  let r = await api.edit.onRequestPost(ctx(editReq({ ops: pair })));
+  let sent = dispatched();
+  check("edit: [add_unrated, set_grind] - RobTop's answer about the level goes along as gd", r.status === 200 && sent
+    && eq(Object.keys(sent.client_payload), ["requestId", "editor", "role", "ops", "gd"]) && eq(sent.client_payload.gd, { [SOLAR]: RT.solar })
+    && eq(sent.client_payload.ops, pair), JSON.stringify(sent && sent.client_payload).slice(0, 300));
+  const q = robtopCalls();
+  check("edit: ...asked once, the way the tools ask, before GitHub hears of it", q.length === 1 && q[0].method === "POST"
+    && q[0].init.body === `str=${SOLAR}&type=0&secret=Wmfd2893gb7` && q[0].init.headers["Content-Type"] === "application/x-www-form-urlencoded"
+    && !Object.keys(q[0].init.headers).some((h) => h.toLowerCase() === "user-agent")
+    && calls.indexOf(q[0]) < calls.findIndex((c) => c.url === GH_DISPATCH), JSON.stringify(q.map((c) => [c.init.body, c.init.headers])));
+
+  stubFetch([robtopRoute(() => null), sent204]);
+  r = await api.edit.onRequestPost(ctx(editReq({ ops: pair })));
+  sent = dispatched();
+  check("edit: RobTop's servers down - the edit goes as before, without gd", r.status === 200 && sent
+    && eq(Object.keys(sent.client_payload), ["requestId", "editor", "role", "ops"]) && robtopCalls().length === 1);
+  for (const [what, answer] of [["an error", () => new Response(CHALLENGE_PAGE, { status: 403 })], ["a page that's no answer", () => CHALLENGE_PAGE],
+    ["a search that found other levels", () => RT.search], ["an answer too long to send", () => RT.solar + " ".repeat(rt.MAX_ANSWER)]]) {
+    stubFetch([robtopRoute(answer), sent204]);
+    r = await api.edit.onRequestPost(ctx(editReq({ ops: pair })));
+    sent = dispatched();
+    check(`edit: RobTop's servers send ${what} - it isn't sent along`, r.status === 200 && sent && !("gd" in sent.client_payload));
+  }
+  stubFetch([robtopRoute(() => "-1"), sent204]);
+  r = await api.edit.onRequestPost(ctx(editReq({ ops: [{ op: "add_unrated", level: 999999999, rating: 20 }] })));
+  sent = dispatched();
+  check("edit: no such level - RobTop's \"-1\" goes along too", r.status === 200 && sent && eq(sent.client_payload.gd, { 999999999: "-1" }));
+
+  // a mod's clears and Grind goals too, one request per level however many edits name it
+  const several = [{ op: "add_record", player: "ace", level: 86084399, progress: 100 }, { op: "add_record", player: "ace", level: 72211008, progress: 60 },
+    { op: "set_grind", player: "ace", level: "https://gdbrowser.com/86084399", best: 10, segments: [] }];
+  stubFetch([robtopRoute((id) => ({ 86084399: RT.limbo, 72211008: RT.dragonlocked })[id] ?? "-1"), sent204]);
+  r = await api.edit.onRequestPost(ctx(editReq({ ops: several }, { cookie: aceCookie })));
+  sent = dispatched();
+  check("edit: add_record and set_grind - one request per level", r.status === 200 && sent && sent.client_payload.role === "mod"
+    && eq(sent.client_payload.gd, { 72211008: RT.dragonlocked, 86084399: RT.limbo })
+    && eq(robtopCalls().map((c) => c.init.body.split("&")[0]).sort(), ["str=72211008", "str=86084399"]), JSON.stringify(sent && sent.client_payload.gd));
+
+  // edits that don't look their level up never ask
+  const others = [[nigelCookie, [{ op: "refresh_order" }, { op: "remove_grind", player: "ace", level: 86084399 },
+    { op: "set_unrated", level: SOLAR, rating: 24 }, { op: "remove_record", player: "ace", level: 86084399 },
+    { op: "set_record_video", player: "ace", level: 86084399, url: "https://youtu.be/abcdefghijk" },
+    { op: "remove_record_video", player: "ace", level: 86084399 }, { op: "remove_unrated", level: SOLAR },
+    { op: "undo", requestId: "0123456789abcdef" }, { op: "add_member", name: "Newbie", nationality: "US" },
+    { op: "rename_member", name: "ace", newName: "acee" }]],
+  [ownerCookie, [{ op: "refresh_showcases" }, { op: "set_member_country", name: "ace", nationality: "CA" }, { op: "remove_member", name: "ace" },
+    { op: "set_mod", discordId: "777777777777777777", name: "Newmod", role: "mod" }, { op: "remove_mod", discordId: "444444444444444444" }]]];
+  for (const [who, batch] of others) {
+    stubFetch([robtopRoute(() => RT.solar), sent204]);
+    r = await api.edit.onRequestPost(ctx(editReq({ ops: batch }, { cookie: who })));
+    sent = dispatched();
+    check(`edit: edits that look no level up don't ask RobTop's servers (${batch.map((o) => o.op).join(", ")})`, r.status === 200 && sent
+      && calls.length === 1 && !("gd" in sent.client_payload), JSON.stringify(calls.map((c) => c.url)));
+  }
+  check("edit: every edit is in one of the lists above", eq(Object.keys(contract.OPS).sort(),
+    [...new Set([...others.flatMap(([, b]) => b.map((o) => o.op)), "add_unrated", "add_record", "set_grind"])].sort()));
+
+  // gd only ever comes from the Function
+  stubFetch([robtopRoute(() => RT.solar), sent204]);
+  r = await api.edit.onRequestPost(ctx(editReq({ ops: pair, gd: { [SOLAR]: "1:151420421:2:Fake:18:10#x#y" } })));
+  let e = await r.json();
+  check("edit: a gd from the page is refused - only the Function sends one", r.status === 400 && e.error === "unknown field(s): \"gd\""
+    && calls.length === 0, e.error);
+  r = await api.edit.onRequestPost(ctx(editReq({ ops: [{ ...pair[0], gd: RT.solar }] })));
+  e = await r.json();
+  check("edit: ...and so is one inside an edit", r.status === 400 && e.error === "edit 1 (add_unrated): unknown field(s) \"gd\""
+    && calls.length === 0, e.error);
+  r = await api.edit.onRequestPost(ctx(editReq({ ops: pair }, { cookie: aceCookie })));
+  check("edit: a mod's head-mod edit is refused before anything is asked", r.status === 403 && calls.length === 0);
+
+  // apply-edit.py takes the Function's gd as it comes, and refuses anything else
+  stubFetch([robtopRoute((id) => (id === SOLAR ? RT.solar : "-1")), sent204]);
+  await api.edit.onRequestPost(ctx(editReq({ ops: [...pair, { op: "add_record", player: "ace", level: 999999999, progress: 100 }] })));
+  const payload = dispatched().client_payload;
+  const ops = [{ op: "add_unrated", level: SOLAR, rating: 23 }, { op: "set_grind", player: "Nigel", level: "https://gdbrowser.com/151420421", best: 40, segments: [] },
+    { op: "add_record", player: "ace", level: 5, progress: 100 }];
+  const GDS = [
+    payload, // the Function's
+    { ops, gd: { [SOLAR]: RT.solar, 5: "-1" } },
+    { ops, gd: {} },
+    { ops, gd: { [SOLAR]: "x".repeat(rt.MAX_ANSWER) } },
+    { ops, gd: [RT.solar] }, // refused from here on: not an object,
+    { ops, gd: "x" },
+    { ops, gd: null },
+    { ops, gd: { [SOLAR]: "x".repeat(rt.MAX_ANSWER + 1) } }, // too long,
+    { ops, gd: { [SOLAR]: "" } }, // empty,
+    { ops, gd: { [SOLAR]: 5 } }, // not text,
+    { ops, gd: { [SOLAR]: null } },
+    { ops, gd: { 86084399: "-1" } }, // a level the edits don't name,
+    { ops, gd: { "0151420421": RT.solar } }, // not the id as the edits have it,
+    { ops, gd: { " 151420421": RT.solar } },
+    { ops, gd: { "151420421.0": RT.solar } },
+    { ops, gd: Object.fromEntries([5, SOLAR, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((k) => [k, "-1"])) }, // more than 10
+  ];
+  const PYPAYLOAD = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("apply_edit", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+out = []
+for p in json.load(sys.stdin):
+    try:
+        out.append(m.validate(dict({"requestId": "0" * 16, "editor": "Nigel", "role": "head"}, **p))["gd"])
+    except m.Refuse as e:
+        out.append("refused: " + str(e))
+    except Exception as e:
+        out.append("crashed: " + repr(e))
+print(json.dumps([m.MAX_ANSWER, out]))
+`;
+  const res = spawnSync("python", ["-c", PYPAYLOAD, path.join(ROOT, "tools", "apply-edit.py")], { input: JSON.stringify(GDS), encoding: "utf8" });
+  let got = null;
+  try { got = JSON.parse(res.stdout); } catch { /* below */ }
+  if (!got) {
+    if (res.error || /not found|not recognized/i.test(res.stderr || "")) console.log("(python not available - skipping the gd checks in apply-edit.py)");
+    else check("edit (py): the gd harness ran", false, (res.stdout + res.stderr).slice(-600));
+  } else {
+    const [max, out] = got;
+    check("edit (py): apply-edit.py takes the Function's gd as it comes", eq(out[0], { [SOLAR]: RT.solar, 999999999: "-1" })
+      && eq(out[0], payload.gd), JSON.stringify(out[0]).slice(0, 200));
+    check("edit (py): ...a good one, none, and one as long as it may be", eq(out[1], { [SOLAR]: RT.solar, 5: "-1" }) && eq(out[2], {})
+      && eq(out[3], GDS[3].gd) && max === rt.MAX_ANSWER, JSON.stringify(out.slice(1, 4)).slice(0, 300));
+    const bad = out.slice(4).map((x, i) => (typeof x === "string" && x.startsWith("refused: gd must be RobTop's answers") ? null : i + 4)).filter((x) => x !== null);
+    check("edit (py): ...and refuses anything else", !bad.length, JSON.stringify(bad.map((i) => [i, out[i]])).slice(0, 300));
+  }
 }
 
 // --- GET /api/status -------------------------------------------------------------------------
@@ -806,6 +991,63 @@ print(json.dumps(out + [m.OWNER_ID]))
   body = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie)))).json();
   check("level: a rated level with gdbrowser challenged - gdladder's rating, GDHistory's stars", body.name === "LIMBO"
     && body.stars === 10 && body.difficulty === "Extreme Demon" && body.rating === 36.89 && body.creator === "MindCap", JSON.stringify(body));
+
+  // RobTop's own servers come before GDHistory (_lib/robtop.js): they know a level
+  // the moment it's uploaded, and GDHistory is asked only when they can't say
+  const SOLAR = 151420421;
+  const solarAt = JSON.parse(demonsSrc.slice(demonsSrc.indexOf("window.DEMONS =") + "window.DEMONS =".length).trim().replace(/;\s*$/, ""))
+    .find((d) => Number(d.levelId) === SOLAR);
+  const asked = (prefix) => calls.filter((c) => c.url.startsWith(prefix));
+  const historyDown = ["GET", HIST, () => jsonResp({ success: false }, 500)];
+  stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, challenge], robtopRoute((id) => (id === SOLAR ? RT.solar : "-1")), historyDown]);
+  r = await api.level.onRequestGet(ctx(req(`/api/level?level=${SOLAR}`, cookie)));
+  body = await r.json();
+  check("level: gdbrowser challenged - RobTop's servers stand in (a new unrated level with a face from votes)", r.status === 200 && eq(body, {
+    id: SOLAR, name: "Solar", creator: "Nigelx1", difficulty: "Insane", tier: null, rating: null, stars: 0, platformer: false,
+    onList: !!solarAt, position: solarAt ? solarAt.position : null,
+  }), JSON.stringify(body));
+  const rq = asked(ROBTOP);
+  check("level: ...asked the way the tools ask them, and GDHistory isn't asked", rq.length === 1 && rq[0].method === "POST"
+    && rq[0].init.body === `str=${SOLAR}&type=0&secret=Wmfd2893gb7` && !Object.keys(rq[0].init.headers).some((h) => h.toLowerCase() === "user-agent")
+    && !asked(HIST).length, JSON.stringify(calls.map((c) => [c.url, c.init.body])));
+  stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, challenge], robtopRoute(() => "-1"), historyDown]);
+  r = await api.level.onRequestGet(ctx(req("/api/level?level=999999999", cookie)));
+  body = await r.json();
+  check("level: RobTop's servers say there's no such level - 404, saying who said so", r.status === 404
+    && body.error === "level 999999999 isn't on gdladder or the Geometry Dash servers" && !asked(HIST).length, JSON.stringify(body));
+  stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, challenge], robtopRoute(() => RT.search), historyDown]);
+  r = await api.level.onRequestGet(ctx(req("/api/level?level=5", cookie)));
+  check("level: ...and so does a search that found only other levels, as in the tools", r.status === 404 && !asked(HIST).length);
+  for (const [what, down] of [["are down", () => null], ["send an error", () => new Response(CHALLENGE_PAGE, { status: 403 })],
+    ["send something that isn't an answer", () => "error code: 1015"]]) {
+    stubFetch([["GET", GL + "99999999", () => jsonResp({})], ["GET", GB, challenge], robtopRoute(down),
+      ["GET", HIST + "99999999/", () => jsonResp({ online_id: 99999999, is_deleted: false, cache_username: "Someone", records: [copy({})] })]]);
+    body = await (await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)))).json();
+    check(`level: RobTop's servers ${what} - GDHistory's copy, as before`, eq(body, {
+      id: 99999999, name: "Unrated Thing", creator: "Someone", difficulty: "Unrated", tier: null, rating: null, stars: 0, platformer: false,
+      onList: false, position: null,
+    }) && asked(ROBTOP).length === 1, JSON.stringify(body));
+  }
+  stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, challenge], robtopRoute(() => null), historyDown]);
+  r = await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)));
+  body = await r.json();
+  check("level: gdbrowser, RobTop's servers and GDHistory all silent - 502, naming them", r.status === 502 && body.error
+    === "gdladder doesn't know level 99999999 and gdbrowser didn't answer, nor did the Geometry Dash servers or GDHistory - check the id, or try again in a minute",
+  JSON.stringify(body));
+  stubFetch([robtopRoute(() => null)]);
+  r = await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)));
+  body = await r.json();
+  check("level: ...and gdladder too", r.status === 502
+    && body.error === "gdladder and gdbrowser didn't answer, nor did the Geometry Dash servers or GDHistory - try again in a minute", JSON.stringify(body));
+  stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB, challenge], robtopRoute(() => RT.limbo)]);
+  body = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie)))).json();
+  check("level: a rated level - gdladder's rating, RobTop's stars and face", body.name === "LIMBO" && body.stars === 10
+    && body.difficulty === "Extreme Demon" && body.tier === "Extreme" && body.rating === 36.89 && body.creator === "MindCap"
+    && body.onList === !!limbo, JSON.stringify(body));
+  stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, challenge], robtopRoute(() => RT.forsaken)]);
+  body = await (await api.level.onRequestGet(ctx(req("/api/level?level=97906220", cookie)))).json();
+  check("level: a platformer, as RobTop's servers have it", body.name === "Forsaken City" && body.platformer === true
+    && body.difficulty === "Easy Demon" && body.tier === "Easy" && body.stars === 10 && body.creator === "LightPotatoDev", JSON.stringify(body));
 }
 
 // --- the Function's GDHistory reading agrees with tools/gdlevel.py's ----------------------------
@@ -851,6 +1093,54 @@ print(json.dumps([g.from_history(i, d) for i, d in json.load(sys.stdin)]))
     && js[3] === null && js[4].difficulty === "Extreme Demon" && js[5].difficulty === "Hard Demon" && js[6].difficulty === "Auto"
     && js[7].platformer === true && js[7].length === "Plat." && !("stars" in js[8]) && !("length" in js[8])
     && js[8].difficulty === "Harder" && js[9] === null && js[10] === null, JSON.stringify(js));
+}
+
+// --- the Function's reading of RobTop's answers agrees with tools/gdlevel.py's -------------------
+
+{
+  const rt = await fn("_lib/robtop.js");
+  const CASES = [
+    [151420421, RT.solar], [72211008, RT.dragonlocked], [86084399, RT.limbo], [97906220, RT.forsaken],
+    [98972163, RT.search], [98128088, RT.search], [5, RT.search], [5, "-1"], [5, " -1\n"],
+    [5, CHALLENGE_PAGE], [5, "error code: 1015"], [5, ""], [5, "1:5:2:Cut off"], [5, "1:5:2:Cut off#"], [5, null],
+    [5, "1:5:2:x:6:9#9:Who:1|9:Other#c"], [5, "1:5:2:x:6:9#9#c"], [5, "1:5:9:constructor:17:1:43:__proto__:__proto__:1:15:9#a#b"],
+    [5, "1:5:18:-0:25:1:15:5#a#b"], [5, "\x1c-1\x85"], [5, String.fromCharCode(0xfeff) + "-1"],
+  ];
+  const js = CASES.map(([id, a]) => rt.parse(id, a));
+  const PYR = `
+import importlib.util, json, os, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("gdlevel", os.path.join(sys.argv[1], "tools", "gdlevel.py"))
+g = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(g)
+print(json.dumps([g.parse(i, a) for i, a in json.load(sys.stdin)]))
+`;
+  const ps = spawnSync("python", ["-c", PYR, ROOT], { input: JSON.stringify(CASES), encoding: "utf8", env: { ...process.env, PYTHONUTF8: "1" } });
+  let py = null;
+  try { py = JSON.parse(ps.stdout); } catch { /* below */ }
+  if (!py) {
+    if (ps.error || /not found|not recognized/i.test(ps.stderr || "")) console.log("(python not available - skipping the RobTop cross-check)");
+    else check("robtop (py): the cross-check ran", false, (ps.stdout + ps.stderr).slice(-600));
+  } else {
+    const KEYS = ["name", "author", "stars", "difficulty", "length", "platformer"];
+    const pick = (x) => (x && typeof x === "object" ? Object.fromEntries(KEYS.filter((k) => k in x).map((k) => [k, x[k]])) : x);
+    const differ = js.map((x, i) => (eq(pick(x), pick(py[i])) ? null : { case: i + 1, js: x, py: py[i] })).filter(Boolean);
+    check(`robtop: the Function and gdlevel.py read ${CASES.length} answers the same way`, !differ.length, JSON.stringify(differ[0] || ""));
+  }
+  check("robtop: what the Function reads", eq(js[0], { name: "Solar", author: "Nigelx1", difficulty: "Insane", stars: 0, length: "Long", platformer: false })
+    && eq(js[1], { name: "Dragonlocked", author: "FrostDragonGD", difficulty: "Insane Demon", stars: 10, length: "Long", platformer: false })
+    && js[2].difficulty === "Extreme Demon" && js[2].length === "XL" && js[3].platformer === true && js[3].difficulty === "Easy Demon"
+    && js[4].name === "Coin temple" && js[4].author === "Santylolcat" && js[5].name === "Dash Cave" && js[5].author === "Booglee"
+    && js.slice(6, 9).every((x) => x === -1) && js.slice(9, 15).every((x) => x === null) && js[19] === -1 && js[20] === null, JSON.stringify(js));
+  // the servers never send a number Python's int() would read another way or choke
+  // on; if one came, gdlevel.py could crash, so here it's no answer at all
+  check("robtop: a number gdlevel.py would read another way is no answer here", rt.parse(5, "1:5:2:x:18:--3#a#b") === null
+    && rt.parse(5, "1:5:2:x:45:" + String.fromCharCode(0x663) + "#a#b") === null && rt.parse(5, "1:5:2:x:18:-3#a#b").stars === -3);
+  check("robtop: what goes along with an edit - a real answer for the level, or -1", rt.forEdit(151420421, RT.solar) === RT.solar
+    && rt.forEdit(5, "-1") === "-1" && rt.forEdit(5, "-1\n") === "-1\n" && rt.forEdit(5, RT.search) === null && rt.forEdit(72211008, RT.solar) === null
+    && rt.forEdit(5, CHALLENGE_PAGE) === null && rt.forEdit(5, "") === null && rt.forEdit(5, null) === null
+    && rt.forEdit(151420421, RT.solar + " ".repeat(rt.MAX_ANSWER - RT.solar.length)) !== null
+    && rt.forEdit(151420421, RT.solar + " ".repeat(rt.MAX_ANSWER - RT.solar.length + 1)) === null);
 }
 
 // --- the list views (static/js/views.js) --------------------------------------------------------
@@ -1999,6 +2289,42 @@ try:
     ok("gdlevel: GDHistory - a missing field is left out, an invalid copy skipped, an official song named like gdbrowser",
        isinstance(hg, dict) and "stars" not in hg and "gameVersion" not in hg and "objects" not in hg
        and hg["songID"] == "Level 5" and "songName" not in hg, hg)
+    # RobTop's answers that came with the edit (apply-edit.py writes them to the file
+    # GDLEVEL_ANSWERS names): ask() returns that level's instead of asking; any other
+    # level, or a missing or broken file, is asked as before (curl, here a stand-in)
+    import subprocess, tempfile
+    ga, ran, real_run = load("gdlevel_attached", "gdlevel.py"), [], subprocess.run
+    def stand_in(args, **kw):
+        ran.append(args)
+        return subprocess.CompletedProcess(args, 0, STORY, "")
+    fd, answers = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
+    subprocess.run = stand_in
+    try:
+        with open(answers, "w", encoding="utf-8") as f:
+            json.dump({"86084399": LIMBO, "5": "-1"}, f)
+        os.environ[ga.ANSWERS] = answers
+        ok("gdlevel: an answer that came with the edit is used instead of asking", ga.ask(86084399) == LIMBO
+           and ga.ask("86084399") == LIMBO and ga.level(5) == -1 and ga.level(86084399)["name"] == "LIMBO" and not ran, ran)
+        ok("gdlevel: ...any other level is asked as before", ga.ask(151488121) == STORY and len(ran) == 1
+           and "str=151488121&type=0&secret=Wmfd2893gb7" in ran[0], ran)
+        for what, text in (("broken", "{not json"), ("not a list of answers", '["-1"]')):
+            with open(answers, "w", encoding="utf-8") as f:
+                f.write(text)
+            del ran[:]
+            ok("gdlevel: an answers file that's " + what + " - asked as before", ga.ask(86084399) == STORY and len(ran) == 1, ran)
+        os.remove(answers)
+        del ran[:]
+        ok("gdlevel: ...one that's gone too", ga.ask(86084399) == STORY and len(ran) == 1, ran)
+        del os.environ[ga.ANSWERS]
+        del ran[:]
+        ok("gdlevel: ...and none named at all", ga.ask(86084399) == STORY and len(ran) == 1 and ga.ANSWERS == "GDLEVEL_ANSWERS", ran)
+    finally:
+        subprocess.run = real_run
+        os.environ.pop(ga.ANSWERS, None)
+        if os.path.exists(answers):
+            os.remove(answers)
+
     calls = []
     g.history = lambda lid, timeout=25: calls.append(lid) or hs
     g.ask = lambda lid, timeout=25: None
@@ -2215,6 +2541,198 @@ out.write(json.dumps({"results": results, "levels": levels}))
       check("build-goal-levels: ...and the other levels' everywhere", [902, 904, 907, 908, 909].every((id) => eq(shown(id), [true, true, true, true])),
         all([902, 904, 907, 908, 909]));
     }
+  }
+}
+
+// --- An edit on a runner nothing answers: RobTop's answers came with it (payload "gd") ------------
+// GitHub's runners can't reach RobTop's servers, and GDHistory doesn't have a brand-new
+// level, so the Function sends RobTop's answers along. Here tools/apply-edit.py runs on a
+// temp copy of the site with every network source failing - curl and urllib, in this
+// process and in the tools it starts (a sitecustomize.py on PYTHONPATH) - and with
+// build-goal-levels.py running for real in its own process: only what came with the
+// edit can say anything about the level.
+
+{
+  const PYRUNNER = String.raw`
+import contextlib, importlib.util, io, json, os, shutil, sys, tempfile
+sys.dont_write_bytecode = True
+results = []
+def ok(label, cond, detail=""):
+    results.append({"label": label, "ok": bool(cond), "detail": "" if cond else str(detail)[:400]})
+
+OFFLINE = r'''
+# No network for the tests: curl fails at once and urllib opens nothing, and what was
+# tried goes in the file OFFLINE_LOG names. (An empty Pillow stands in if there's none.)
+import os, subprocess, sys, urllib.request
+_run = subprocess.run
+def _log(line):
+    with open(os.environ["OFFLINE_LOG"], "a", encoding="utf-8") as f:
+        f.write(" ".join(line.split()) + "\n")
+def _offline_run(args, *a, **k):
+    if isinstance(args, (list, tuple)) and args and str(args[0]) == "curl":
+        _log("curl " + str(args[-1]) + " " + (args[args.index("--data") + 1] if "--data" in args else ""))
+        return subprocess.CompletedProcess(args, 7, "", "curl: (7) offline (test)")
+    return _run(args, *a, **k)
+def _offline_urlopen(url, *a, **k):
+    _log("urlopen " + str(getattr(url, "full_url", url)))
+    raise OSError("offline (test)")
+subprocess.run, urllib.request.urlopen = _offline_run, _offline_urlopen
+try:
+    import PIL.Image
+except ImportError:
+    import types
+    sys.modules["PIL"] = types.ModuleType("PIL")
+    sys.modules["PIL"].Image = None
+'''
+
+out, sys.stdout = sys.stdout, sys.stderr  # the engine's own output goes to stderr; stdout is the results
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+SOLAR = json.load(sys.stdin)["solar"]
+tmp = tempfile.mkdtemp(prefix="gd-answers-test-")
+root = os.path.join(tmp, "site")
+saved_env = {k: os.environ.get(k) for k in ("PYTHONPATH", "OFFLINE_LOG", "GDLEVEL_ANSWERS")}
+try:
+    shutil.copytree(sys.argv[1], root, ignore=shutil.ignore_patterns(".git", "videos", "__pycache__"))
+    with io.open(os.path.join(root, "data", "config.js"), "a", encoding="utf-8", newline="") as f:
+        f.write("\nwindow.SITE.ratedPlus = true;\n")
+    offline, log = os.path.join(tmp, "offline"), os.path.join(tmp, "offline.log")
+    os.makedirs(offline)
+    with io.open(os.path.join(offline, "sitecustomize.py"), "w", encoding="utf-8") as f:
+        f.write(OFFLINE)
+    os.environ["OFFLINE_LOG"] = log
+    os.environ["PYTHONPATH"] = offline + (os.pathsep + saved_env["PYTHONPATH"] if saved_env["PYTHONPATH"] else "")
+    os.environ.pop("GDLEVEL_ANSWERS", None)
+    spec = importlib.util.spec_from_file_location("offline_here", os.path.join(offline, "sitecustomize.py"))
+    spec.loader.exec_module(importlib.util.module_from_spec(spec))  # this process too
+    spec = importlib.util.spec_from_file_location("apply_edit_runner", os.path.join(root, "tools", "apply-edit.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    sys.stdout = sys.stderr
+
+    class Ran:  # what run_tool returns
+        def __init__(self, code):
+            self.returncode, self.stdout, self.stderr = code, "", ""
+    real_run_tool, ran, seen = m.run_tool, [], []
+    def tools(_root, args, timeout=900):
+        ran.append(args[0])
+        if args[0] == "build-goal-levels.py":  # the real script, in its own process
+            path = os.environ.get("GDLEVEL_ANSWERS")
+            seen.append((path, bool(path) and os.path.exists(path)))
+            return real_run_tool(_root, args, timeout)
+        if args[0] == "apply-showcases.py":  # it reads YouTube through node: "couldn't read the channel"
+            return Ran(1)
+        raise m.Refuse("(test) " + args[0] + " was run")
+    m.run_tool = tools
+
+    s = m.load_state(root)
+    taken = {d["levelId"] for d in s["DEMONS"]} | {g["levelId"] for g in s["GOALS"]} | {int(k) for k in s["GOAL_LEVELS"]}
+    taken |= {u["levelId"] for u in s["UNRATED"]} | {int(k) for k in m.Engine(root).showcase_overrides()}
+    NEW, NEW2 = [i for i in range(990000301, 990000400) if i not in taken][:2]
+    A = (s["SITE"].get("members") or [])[0]["name"]
+    def answer(lid):  # Solar's real answer, as if it were level lid
+        return SOLAR.replace("1:151420421:", "1:%d:" % lid, 1)
+    def tried():
+        with io.open(log, encoding="utf-8") as f:
+            return f.read().splitlines()
+    def asked_robtop(lid):
+        return [t for t in tried() if t.startswith("curl https://www.boomlings.com/") and ("str=%d&" % lid) in t]
+    def run(ops, gd):
+        """apply-edit.py on the copy as on the runner: validate, then use_answers around
+        the edits and check(). (None, say lines), or (why, lines) with data/ put back."""
+        data = os.path.join(root, "data")
+        kept = {f: m.read(root, "data/" + f) for f in os.listdir(data)}
+        open(log, "w").close()
+        e = m.Engine(root, "head")
+        try:
+            p = m.validate(dict({"requestId": "0" * 16, "editor": "Nigel", "role": "head", "ops": ops}, **({"gd": gd} if gd else {})))
+            with m.use_answers(p["gd"]):
+                e.apply(p["ops"])
+                m.check(root)
+            return None, e.lines
+        except m.Refuse as x:
+            for f, text in kept.items():
+                m.write(root, "data/" + f, text)
+            return str(x), e.lines
+
+    grind = [{"op": "set_grind", "player": A, "level": NEW, "best": 40, "segments": [[50, 100]]}]
+    err, _ = run(grind, None)
+    ok("runner: nothing answers and nothing came with the edit - a brand-new level can't be looked up",
+       err and "wasn't found on gdladder, gdbrowser, the Geometry Dash servers or GDHistory" in err and asked_robtop(NEW), err or tried())
+    err, _ = run(grind, {str(NEW): answer(NEW)})
+    ok("runner: set_grind alone with RobTop's answer along - refused, the answer says it's unrated (0 stars)",
+       err and "Solar is unrated: a head mod puts it on Rated+ first" in err and not asked_robtop(NEW)
+       and any(t.startswith("curl https://gdbrowser.com/api/level/%d" % NEW) for t in tried()), err or tried())
+
+    del ran[:], seen[:]
+    err, lines = run([{"op": "add_unrated", "level": NEW, "rating": 23}] + grind, {str(NEW): answer(NEW)})
+    st = m.load_state(root)
+    u = next((x for x in st["UNRATED"] if x["levelId"] == NEW), None)
+    g = st["GOAL_LEVELS"].get(str(NEW)) or {}
+    others = {x["levelId"] for x in st["GOALS"]} - {NEW}
+    ok("runner: [add_unrated, set_grind] on a brand-new level goes through on the answer that came with it",
+       err is None and u and any(x["player"] == A and x["levelId"] == NEW for x in st["GOALS"]), err or lines)
+    ok("runner: ...data/unrated.js has its name, creator, star-less face and facts", u and u["name"] == "Solar"
+       and u["publisher"] == "Nigelx1" and u["creators"] == ["Nigelx1"] and u["difficulty"] == "Extreme" and u["rating"] == 23
+       and u["description"] == "Insane Demon version of Solar Flare" and u["gd"] == {"length": "Long", "objects": 63250,
+       "gameVersion": "2.2", "inGameDifficulty": "Insane", "song": {"id": "493898", "name": "[J] - Solar Wind", "artist": "Jumper"},
+       "songOfficial": False}, u)
+    ok("runner: ...and build-goal-levels.py, in its own process, read it too (data/goal-levels.js)", g.get("name") == "Solar"
+       and g.get("publisher") == "Nigelx1" and g.get("difficulty") == "Insane" and g.get("description") == "Insane Demon version of Solar Flare"
+       and (g.get("gd") or {}).get("stars") == 0 and (g.get("gd") or {}).get("length") == "Long"
+       and (g.get("gd") or {}).get("inGameDifficulty") == "Insane" and ran.count("build-goal-levels.py") == 1, g)
+    ok("runner: ...the answers file was there for it, and gone after", len(seen) == 1 and seen[0][1]
+       and not os.path.exists(seen[0][0]) and "GDLEVEL_ANSWERS" not in os.environ, seen)
+    ok("runner: ...RobTop's servers were never asked about it; the other Grind levels were, as before (nothing answered)",
+       not asked_robtop(NEW) and all(asked_robtop(x) for x in others), [t for t in tried() if "boomlings" in t][:12])
+
+    # a dry run (main(), dryRun) reads them the same way, on its own throwaway copy
+    payload = {"requestId": "1" * 16, "editor": "Nigel", "role": "head", "dryRun": True, "gd": {str(NEW2): answer(NEW2)},
+               "ops": [{"op": "add_unrated", "level": NEW2, "rating": 18.5},
+                       {"op": "set_grind", "player": A, "level": NEW2, "best": 12, "segments": []}]}
+    pf = os.path.join(tmp, "payload.json")
+    with io.open(pf, "w", encoding="utf-8") as f:
+        json.dump(payload, f)
+    before = m.read(root, "data/unrated.js")
+    del ran[:], seen[:]
+    open(log, "w").close()
+    # (a real text stream: the tools it imports reconfigure sys.stdout)
+    said, code, argv = io.TextIOWrapper(io.BytesIO(), encoding="utf-8", write_through=True), None, sys.argv
+    sys.argv = ["apply-edit.py", pf]
+    try:
+        with contextlib.redirect_stdout(said):
+            m.main()
+    except SystemExit as x:
+        code = x.code
+    finally:
+        sys.argv = argv
+    said = said.buffer.getvalue().decode("utf-8", "replace")
+    ok("runner: a dry run reads the answers that came with the edit the same way", code is None
+       and "would change data/unrated.js" in said and "would change data/goal-levels.js" in said
+       and "Solar is on Rated+ as an unrated Insane (GDDL estimate 18.50)" in said and not asked_robtop(NEW2)
+       and m.read(root, "data/unrated.js") == before, said[-1200:])
+    ok("runner: ...and its answers file is gone after it too", len(seen) == 1 and seen[0][1] and not os.path.exists(seen[0][0])
+       and "GDLEVEL_ANSWERS" not in os.environ, seen)
+except Exception:
+    import traceback
+    ok("runner: the harness ran", False, traceback.format_exc()[-400:])
+finally:
+    for k, v in saved_env.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    shutil.rmtree(tmp, ignore_errors=True)
+out.write(json.dumps(results))
+`;
+  const r = spawnSync("python", ["-c", PYRUNNER, ROOT], { input: JSON.stringify({ solar: RT.solar }), encoding: "utf8",
+    env: { ...process.env, PYTHONUTF8: "1" }, maxBuffer: 64 << 20, timeout: 600000 });
+  let got = null;
+  try { got = JSON.parse(r.stdout); } catch { /* below */ }
+  if (!got) {
+    if (r.error || /not found|not recognized/i.test(r.stderr || "")) console.log("(python not available - skipping the runner checks)");
+    else check("runner (py): the harness ran", false, (r.stdout + r.stderr).slice(-600));
+  } else {
+    got.forEach((x) => check(x.label, x.ok, x.detail));
   }
 }
 

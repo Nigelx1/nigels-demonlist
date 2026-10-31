@@ -3,21 +3,25 @@
 //   {id, name, creator, difficulty, tier, rating, stars, platformer, onList, position}
 // difficulty is the in-game one ("Extreme Demon"), tier the demon tier
 // ("Extreme") or null for a non-demon, rating gdladder's (2 dp) or null,
-// stars gdbrowser's star count (0 = unrated in game; null when gdbrowser didn't
-// answer or doesn't know the level), platformer as add-records.py decides it,
+// stars the in-game star count (0 = unrated in game; null when gdbrowser and
+// what stands in for it can't say), platformer as add-records.py decides it,
 // onList/position from the live data/demons.js (onList null if that couldn't
-// be read). When gdbrowser doesn't answer, GDHistory's copy stands in for it
-// (_lib/gdhistory.js), as it does in the tools.
-// 400 for a bad level; 404 only when gdbrowser (or GDHistory, for a deleted
-// level) says it isn't in the game - gdladder doesn't know unrated levels, so
-// its "no" alone proves nothing; 502 when that couldn't be found out.
+// be read). When gdbrowser doesn't answer, RobTop's own servers stand in for
+// it (_lib/robtop.js), then GDHistory's copy (_lib/gdhistory.js), as in the
+// tools.
+// 400 for a bad level; 404 only when gdbrowser or RobTop's servers (or
+// GDHistory, for a deleted level) say it isn't in the game - gdladder doesn't
+// know unrated levels, so its "no" alone proves nothing; 502 when that couldn't
+// be found out.
 //
-// Logged-in editors only, so this isn't an open proxy to gdladder/gdbrowser.
+// Logged-in editors only, so this isn't an open proxy to gdladder, gdbrowser or
+// RobTop's servers.
 
 import { json, jsonError, missingEnv, notSetUp } from "../_lib/http.js";
 import { currentEditor } from "../_lib/session.js";
 import { Refuse, checkLevel } from "../_lib/contract.js";
 import { HISTORY, fromHistory } from "../_lib/gdhistory.js";
+import * as robtop from "../_lib/robtop.js";
 import SITE from "../site.json";
 
 const UA = `${SITE.name.replace(/[^A-Za-z0-9]/g, "")}/1.0 (+${SITE.url})`;
@@ -70,24 +74,34 @@ export async function onRequestGet({ request, env }) {
   ]);
   const gl = glRaw && glRaw.ID ? glRaw : {};
   let gb = gbRaw && gbRaw.name ? gbRaw : {};
-  let known = gbOk, deleted = false; // whether "no name" means the level isn't in the game
-  if (!gbOk) {
-    const [hOk, hRaw] = await getJson(`${HISTORY}${id}/`);
-    const h = hOk ? fromHistory(id, hRaw) : null;
-    if (h === -1) known = deleted = true;
-    else if (h) {
-      gb = h;
+  // whether "no name" means the level isn't in the game, and who said so
+  let known = gbOk, deleted = false, said = "gdbrowser";
+  if (!gbOk) { // RobTop's servers, then GDHistory
+    const rt = robtop.parse(id, await robtop.ask(id));
+    if (rt === -1) {
       known = true;
+      said = "the Geometry Dash servers";
+    } else if (rt) {
+      gb = rt;
+      known = true;
+    } else {
+      const [hOk, hRaw] = await getJson(`${HISTORY}${id}/`);
+      const h = hOk ? fromHistory(id, hRaw) : null;
+      if (h === -1) known = deleted = true;
+      else if (h) {
+        gb = h;
+        known = true;
+      }
     }
   }
   const meta = gl.Meta || {};
   const name = gb.name || meta.Name;
   if (!name) {
     if (deleted) return jsonError(404, `level ${id} was deleted from Geometry Dash`);
-    if (known) return jsonError(404, `level ${id} isn't on gdladder or gdbrowser`);
+    if (known) return jsonError(404, `level ${id} isn't on gdladder or ${said}`);
     return jsonError(502, glOk
-      ? `gdladder doesn't know level ${id} and gdbrowser didn't answer - check the id, or try again in a minute`
-      : "gdladder and gdbrowser didn't answer - try again in a minute");
+      ? `gdladder doesn't know level ${id} and gdbrowser didn't answer, nor did the Geometry Dash servers or GDHistory - check the id, or try again in a minute`
+      : "gdladder and gdbrowser didn't answer, nor did the Geometry Dash servers or GDHistory - try again in a minute");
   }
   // same rules as fetch_level() in tools/add-records.py
   const difficulty = gb.difficulty || `${meta.Difficulty || "?"} Demon`;
