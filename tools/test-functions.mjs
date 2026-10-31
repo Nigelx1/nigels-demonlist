@@ -913,8 +913,16 @@ print(json.dumps([m.MAX_ANSWER, out]))
 // --- GET /api/level -----------------------------------------------------------------------------
 
 {
+  // (RobTop's servers are asked on every Check, at the same time as gdladder and
+  // gdbrowser. Where a stub below leaves them out they're down - the fetch fails -
+  // and gdbrowser's answer is used, as before.)
   const cookie = { headers: { Cookie: nigelCookie } };
   const GL = "https://gdladder.com/api/levels/", GB = "https://gdbrowser.com/api/level/";
+  // gdladder, gdbrowser and GDHistory get the site's User-Agent; RobTop's servers get
+  // none at all (robtop.ask, as the tools ask them)
+  const UA = `${SITE.name.replace(/[^A-Za-z0-9]/g, "")}/1.0 (+${SITE.url})`;
+  const sentUA = () => calls.every((c) => (c.url === ROBTOP
+    ? !Object.keys(c.init.headers).some((h) => h.toLowerCase() === "user-agent") : c.init.headers["User-Agent"] === UA));
   const limboGl = { ID: 86084399, Rating: 36.888888888888886, Meta: { Name: "LIMBO", Length: 5, Difficulty: "Extreme", Publisher: { name: "MindCap" } } };
   const limboGb = { name: "LIMBO", id: "86084399", author: "MindCap", difficulty: "Extreme Demon", stars: 10, length: "XL", platformer: false };
   stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB + "86084399", () => jsonResp(limboGb)]]);
@@ -929,7 +937,8 @@ print(json.dumps([m.MAX_ANSWER, out]))
     id: 86084399, name: "LIMBO", creator: "MindCap", difficulty: "Extreme Demon", tier: "Extreme", rating: 36.89, stars: 10, platformer: false,
     onList: !!limbo, position: limbo ? limbo.position : null,
   }), JSON.stringify(body));
-  check("level: sends a User-Agent", calls.every((c) => c.init.headers["User-Agent"]));
+  check("level: sends the site's User-Agent to gdladder and gdbrowser, none to RobTop's servers", sentUA()
+    && [GL, GB, ROBTOP].every((p) => calls.some((c) => c.url.startsWith(p))), JSON.stringify(calls.map((c) => [c.url, c.init.headers])));
   stubFetch([["GET", GL + "777", () => jsonResp({ ID: 777, Rating: 20, Meta: { Name: "Plat", Length: 6, Difficulty: "Insane" } })], ["GET", GB + "777", () => new Response("-1")]]);
   body = await (await api.level.onRequestGet(ctx(req("/api/level?level=777", cookie)))).json();
   check("level: gdladder only, platformer, off the list", body.name === "Plat" && body.platformer === true && body.difficulty === "Insane Demon"
@@ -977,6 +986,8 @@ print(json.dumps([m.MAX_ANSWER, out]))
     id: 99999999, name: "Unrated Thing", creator: "Someone", difficulty: "Unrated", tier: null, rating: null, stars: 0, platformer: false,
     onList: false, position: null,
   }), JSON.stringify(body));
+  check("level: ...GDHistory gets the site's User-Agent too", sentUA() && calls.some((c) => c.url.startsWith(HIST)),
+    JSON.stringify(calls.map((c) => [c.url, c.init.headers])));
   stubFetch([["GET", GL + "99999999", () => jsonResp({})], ["GET", GB, challenge], ["GET", HIST, () => jsonResp({ success: false }, 404)]]);
   r = await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)));
   body = await r.json();
@@ -1018,8 +1029,9 @@ print(json.dumps([m.MAX_ANSWER, out]))
   stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, challenge], robtopRoute(() => RT.search), historyDown]);
   r = await api.level.onRequestGet(ctx(req("/api/level?level=5", cookie)));
   check("level: ...and so does a search that found only other levels, as in the tools", r.status === 404 && !asked(HIST).length);
-  for (const [what, down] of [["are down", () => null], ["send an error", () => new Response(CHALLENGE_PAGE, { status: 403 })],
-    ["send something that isn't an answer", () => "error code: 1015"]]) {
+  const cantSay = [["are down", () => null], ["send an error", () => new Response(CHALLENGE_PAGE, { status: 403 })],
+    ["send something that isn't an answer", () => "error code: 1015"]];
+  for (const [what, down] of cantSay) {
     stubFetch([["GET", GL + "99999999", () => jsonResp({})], ["GET", GB, challenge], robtopRoute(down),
       ["GET", HIST + "99999999/", () => jsonResp({ online_id: 99999999, is_deleted: false, cache_username: "Someone", records: [copy({})] })]]);
     body = await (await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)))).json();
@@ -1048,6 +1060,68 @@ print(json.dumps([m.MAX_ANSWER, out]))
   body = await (await api.level.onRequestGet(ctx(req("/api/level?level=97906220", cookie)))).json();
   check("level: a platformer, as RobTop's servers have it", body.name === "Forsaken City" && body.platformer === true
     && body.difficulty === "Easy Demon" && body.tier === "Easy" && body.stars === 10 && body.creator === "LightPotatoDev", JSON.stringify(body));
+
+  // A Check doesn't wait for gdbrowser: RobTop's servers are asked at the same time
+  // as gdladder and gdbrowser, and when they say something about the level, that's
+  // the answer (gdbrowser only reads them; from Cloudflare it never answers now, so
+  // waiting out its 10 s timeout made every Check that slow). Here gdbrowser holds
+  // its answer (a challenge) until the Function has answered - or for 5 s, if the
+  // Function waits for it.
+  async function gdbrowserStalled(id, routes) {
+    let release = null, answered = false;
+    stubFetch([["GET", GB, () => new Promise((resolve) => {
+      release = () => {
+        answered = true;
+        resolve(challenge());
+      };
+    })], ...routes]);
+    const late = setTimeout(() => release && release(), 5000);
+    const res = await api.level.onRequestGet(ctx(req(`/api/level?level=${id}`, cookie)));
+    const first = !!release && !answered; // it asked gdbrowser, and answered before gdbrowser did
+    clearTimeout(late);
+    if (release) release();
+    return [res, await res.json(), first];
+  }
+  let first;
+  [r, body, first] = await gdbrowserStalled(SOLAR, [["GET", GL, () => jsonResp({})], robtopRoute((id) => (id === SOLAR ? RT.solar : "-1")),
+    historyDown]);
+  check("level: RobTop's servers answer - Solar's facts at once, without waiting for gdbrowser", first && r.status === 200 && eq(body, {
+    id: SOLAR, name: "Solar", creator: "Nigelx1", difficulty: "Insane", tier: null, rating: null, stars: 0, platformer: false,
+    onList: !!solarAt, position: solarAt ? solarAt.position : null,
+  }) && asked(ROBTOP).length === 1 && !asked(HIST).length, JSON.stringify([first, body]));
+  // the same facts make the same answer, whoever gave them: LIMBO from gdbrowser (the
+  // servers down, as before) and from the servers (gdbrowser not answering yet)
+  stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB + "86084399", () => jsonResp(limboGb)]]);
+  const fromGdbrowser = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie)))).json();
+  [r, body, first] = await gdbrowserStalled(86084399, [["GET", GL + "86084399", () => jsonResp(limboGl)], robtopRoute(() => RT.limbo)]);
+  check("level: ...field for field the answer gdbrowser's facts make (LIMBO)", first && r.status === 200 && eq(body, fromGdbrowser)
+    && fromGdbrowser.name === "LIMBO" && fromGdbrowser.stars === 10, JSON.stringify([first, body, fromGdbrowser]));
+  [r, body, first] = await gdbrowserStalled(999999999, [["GET", GL, () => jsonResp({})], robtopRoute(() => "-1"), historyDown]);
+  check("level: RobTop's servers say there's no such level - the 404 at once, saying who said so", first && r.status === 404
+    && body.error === "level 999999999 isn't on gdladder or the Geometry Dash servers" && !asked(HIST).length, JSON.stringify([first, body]));
+  // what the servers say wins over gdbrowser's answer (gdbrowser only reads them)
+  stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], robtopRoute(() => RT.limbo),
+    ["GET", GB, () => jsonResp({ ...limboGb, name: "LIMBO (old)", author: "Someone", difficulty: "Insane Demon", stars: 0, length: "Long" })]]);
+  body = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie)))).json();
+  check("level: RobTop's servers and gdbrowser both answer, and differ - the servers' facts", eq(body, fromGdbrowser), JSON.stringify(body));
+  stubFetch([["GET", GL, () => jsonResp({})], robtopRoute(() => "-1"), historyDown,
+    ["GET", GB, () => jsonResp({ name: "Another Level", author: "Someone", difficulty: "Hard", stars: 0, length: "Long" })]]);
+  r = await api.level.onRequestGet(ctx(req("/api/level?level=999999999", cookie)));
+  body = await r.json();
+  check("level: ...and so does their \"no such level\"", r.status === 404
+    && body.error === "level 999999999 isn't on gdladder or the Geometry Dash servers", JSON.stringify(body));
+  // they can't say: gdbrowser's answer is waited for and used, as before; GDHistory isn't asked
+  for (const [what, down] of cantSay) {
+    stubFetch([["GET", GL + "86084399", () => jsonResp(limboGl)], ["GET", GB + "86084399", () => jsonResp(limboGb)], robtopRoute(down), historyDown]);
+    body = await (await api.level.onRequestGet(ctx(req("/api/level?level=86084399", cookie)))).json();
+    check(`level: RobTop's servers ${what} - gdbrowser's answer, as before`, eq(body, fromGdbrowser) && asked(ROBTOP).length === 1
+      && !asked(HIST).length, JSON.stringify(body));
+    stubFetch([["GET", GL, () => jsonResp({})], ["GET", GB, () => new Response("-1")], robtopRoute(down), historyDown]);
+    r = await api.level.onRequestGet(ctx(req("/api/level?level=99999999", cookie)));
+    body = await r.json();
+    check(`level: RobTop's servers ${what} - gdbrowser's "no such level" is the 404, saying gdbrowser said so`, r.status === 404
+      && body.error === "level 99999999 isn't on gdladder or gdbrowser" && !asked(HIST).length, JSON.stringify(body));
+  }
 }
 
 // --- the Function's GDHistory reading agrees with tools/gdlevel.py's ----------------------------
@@ -1727,6 +1801,56 @@ if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
       && DL.grindLevelShown(2006, v) && /Voted Hard/.test(chips(v)) && /Rated Ten/.test(chips(v))));
   }
 
+  // The stats viewer's Grind row in a Future view (Nigel, 2026-10-30): a level the
+  // view counts as beaten for the player - a projected clear, which their Beaten row
+  // lists - is off it, as it's off In Progress. DL.renderGrindChips' beaten ({level
+  // id: true}, the stats viewer's demonIds of the projected entries in completed)
+  // leaves out those levels' chips and only those; without it the row is what
+  // DL.grindLevelShown shows, as before. Every player, in every view, with every set
+  // of their levels.
+  {
+    const W = world(), DL = W.DL;
+    DL.withView = (href) => href;
+    DL.escapeHtml = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const chipsOf = (html) => html.match(/<a class="grind-chip"[\s\S]*?<\/a>/g) || []; // one per goal, in DL.goalsForPlayer's order
+    const idOf = (chip) => Number(/goal\.html\?level=(\d+)/.exec(chip)[1]);
+    const asBeaten = (ids) => Object.fromEntries(ids.map((id) => [id, true]));
+    const players = [...new Set(W.GOALS.map((g) => g.player))];
+    const V = {};
+    for (const [t, r] of VIEWS) V[t + "|" + r] = DL.listView(t, r, true);
+    const bad = [];
+    for (const v of Object.values(V).concat([null])) {
+      for (const name of players) {
+        const where = `${name} in ${v ? v.time + " + " + v.rating : "no view"}`;
+        const plain = DL.renderGrindChips(name, v), chips = chipsOf(plain);
+        const shown = DL.goalsForPlayer(name).filter((g) => DL.grindLevelShown(g.levelId, v)).map((g) => Number(g.levelId));
+        if (!eq(chips.map(idOf), shown) || chips.join("") !== plain) bad.push(`${where}: without beaten, not the goals DL.grindLevelShown shows`);
+        if ([null, {}, asBeaten([9999])].some((b) => DL.renderGrindChips(name, v, b) !== plain)) {
+          bad.push(`${where}: an empty beaten, or one with none of their levels, changed the row`);
+        }
+        for (let set = 1; set < 1 << shown.length; set++) {
+          const out = shown.filter((_, i) => set & (1 << i));
+          if (DL.renderGrindChips(name, v, asBeaten(out)) !== chips.filter((c) => !out.includes(idOf(c))).join("")) {
+            bad.push(`${where}: leaving out ${out.join(", ")}`);
+          }
+        }
+      }
+    }
+    check(`grind row: DL.renderGrindChips leaves out the levels in beaten and only those, and is as before without it (${players.length} players, 7 views)`,
+      !bad.length && players.length === 7, bad.slice(0, 4).join("; "));
+
+    // as the stats viewer passes it: the levels the view counts as beaten for them
+    const beatenIn = (v, name) => asBeaten(((v.players.find((p) => p.name === name) || {}).completed || [])
+      .filter((c) => c.projected).map((c) => c.demon.id));
+    const row = (v, name) => DL.renderGrindChips(name, v, beatenIn(v, name));
+    check("grind row: P5 - Current both levels; Future without Hard Off (its 76% counts as beaten); Future+ nothing (both do), so it's hidden",
+      eq(chipsOf(row(V["current|rated"], "P5")).map(idOf), [2001, 2002]) && eq(chipsOf(row(V["future|rated"], "P5")).map(idOf), [2002])
+      && row(V["plus|rated"], "P5") === "", JSON.stringify(["current|rated", "future|rated", "plus|rated"].map((k) => chipsOf(row(V[k], "P5")).map(idOf))));
+    check("grind row: P1 in Rated+ - Future without both (L1002's 90%, U3002's 90%), Current with both",
+      eq(chipsOf(row(V["current|plus"], "P1")).map(idOf), [1002, 3002]) && row(V["future|plus"], "P1") === "",
+      JSON.stringify(["current|plus", "future|plus"].map((k) => chipsOf(row(V[k], "P1")).map(idOf))));
+  }
+
   // the mod page: list-utils.js and views.js, no static/js/goals.js
   {
     const base = world(), W = {};
@@ -1754,9 +1878,24 @@ if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
     SITE.futureList = SITE.futurePlus = SITE.ratedPlus = true;
     if (typeof SITE.grindInProgress !== "number") SITE.grindInProgress = 50;
     const hasClear = (lv, name) => (lv.records || []).some((rec) => rec.player === name && rec.progress >= 100);
+    // the stats viewer's Grind row for name in view v: its chips' levels, with the
+    // projected entries in their completed as beaten, the way statsviewer.js passes them
+    DL.withView = (href) => href;
+    DL.escapeHtml = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const grindRow = (v, name) => {
+      const beaten = {};
+      ((v.players.find((p) => p.name === name) || {}).completed || []).forEach((c) => { if (c.projected) beaten[c.demon.id] = true; });
+      return [...DL.renderGrindChips(name, v, beaten).matchAll(/goal\.html\?level=(\d+)/g)].map((m) => Number(m[1]));
+    };
+    const grinders = [...new Set((W.GOALS || []).map((g) => g.player))];
     for (const [t, r] of VIEWS) {
       const v = DL.listView(t, r, true), what = `future views (real) ${t} + ${r}:`;
       const pj = DL.projectedClears(v);
+      const off = grinders.filter((name) => {
+        const mine = new Set(pj.filter((x) => x.player === name).map((x) => x.id));
+        return !eq(grindRow(v, name), DL.goalsForPlayer(name).map((g) => Number(g.levelId)).filter((id) => DL.grindLevelShown(id, v) && !mine.has(id)));
+      });
+      check(`${what} every Grind row leaves out that player's projected clears, and only those`, !off.length, JSON.stringify(off));
       check(`${what} projections only in the Future views, each on a row the player hasn't beaten`, t === "current" ? pj.length === 0
         : pj.every((x) => v.row(x.id) && !hasClear(v.row(x.id).level, x.player)));
       if (t === "future") {
@@ -1835,6 +1974,12 @@ if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
       check("future views (real): the labels - Congregation (42–100%) in Future, Tartarus (10%) in Future+",
         nig && nig.projected && DL.runLabel(nig.run) === "42–100%" && tart && tart.projected && DL.runLabel(tart.run) === "10%"
         && !P(fut, dih).completed.some((x) => x.demon.id === TART), JSON.stringify([nig && nig.run, tart && tart.run]));
+      // his Grind row in the stats viewer: in Future, Slaughterhouse is in his Beaten
+      // row instead (Tartarus, not In Progress, stays); in Current it's there as before
+      check("future views (real): the Grind row - Dihmaster500's has no Slaughterhouse in Future, given his projected clears, but has it in Current",
+        !grindRow(fut, dih).includes(SH) && grindRow(fut, dih).includes(TART) && grindRow(today, dih).includes(SH)
+        && grindRow(today, dih).includes(TART) && DL.renderGrindChips(dih, fut).includes(`goal.html?level=${SH}#`),
+        JSON.stringify([grindRow(fut, dih), grindRow(today, dih)]));
     }
   }
 }
@@ -2561,9 +2706,10 @@ def ok(label, cond, detail=""):
     results.append({"label": label, "ok": bool(cond), "detail": "" if cond else str(detail)[:400]})
 
 OFFLINE = r'''
-# No network for the tests: curl fails at once and urllib opens nothing, and what was
+# No network for the tests: curl fails at once, urllib opens nothing, and a node script
+# that fetches (apply-showcases.py's YouTube reader) fails without running; what was
 # tried goes in the file OFFLINE_LOG names. (An empty Pillow stands in if there's none.)
-import os, subprocess, sys, urllib.request
+import os, re, subprocess, sys, urllib.request
 _run = subprocess.run
 def _log(line):
     with open(os.environ["OFFLINE_LOG"], "a", encoding="utf-8") as f:
@@ -2572,6 +2718,9 @@ def _offline_run(args, *a, **k):
     if isinstance(args, (list, tuple)) and args and str(args[0]) == "curl":
         _log("curl " + str(args[-1]) + " " + (args[args.index("--data") + 1] if "--data" in args else ""))
         return subprocess.CompletedProcess(args, 7, "", "curl: (7) offline (test)")
+    if isinstance(args, (list, tuple)) and args and str(args[0]) == "node" and any("fetch(" in str(x) for x in args):
+        _log("node " + " ".join(re.findall(r"https?://[\w./?=-]+", " ".join(map(str, args)))[:1]))
+        return subprocess.CompletedProcess(args, 1, "", "node: offline (test)")
     return _run(args, *a, **k)
 def _offline_urlopen(url, *a, **k):
     _log("urlopen " + str(getattr(url, "full_url", url)))
@@ -2627,7 +2776,7 @@ try:
     s = m.load_state(root)
     taken = {d["levelId"] for d in s["DEMONS"]} | {g["levelId"] for g in s["GOALS"]} | {int(k) for k in s["GOAL_LEVELS"]}
     taken |= {u["levelId"] for u in s["UNRATED"]} | {int(k) for k in m.Engine(root).showcase_overrides()}
-    NEW, NEW2 = [i for i in range(990000301, 990000400) if i not in taken][:2]
+    NEW, NEW2, NEW3 = [i for i in range(990000301, 990000400) if i not in taken][:3]
     A = (s["SITE"].get("members") or [])[0]["name"]
     def answer(lid):  # Solar's real answer, as if it were level lid
         return SOLAR.replace("1:151420421:", "1:%d:" % lid, 1)
@@ -2712,6 +2861,71 @@ try:
        and m.read(root, "data/unrated.js") == before, said[-1200:])
     ok("runner: ...and its answers file is gone after it too", len(seen) == 1 and seen[0][1] and not os.path.exists(seen[0][0])
        and "GDLEVEL_ANSWERS" not in os.environ, seen)
+
+    # The real run, not a dry one: apply-edit.py as the runner starts it, in a process of
+    # its own (the stubs above come along on PYTHONPATH, into every tool it starts), on a
+    # copy of the site that's a git repo of its own - one commit, no remote, --no-push.
+    # Nothing else answers, so the level's facts are in the new commit only if the real
+    # path hands the answer that came with the edit on to the engine and its tools.
+    import glob, subprocess
+    repo, rtmp, hooks = os.path.join(tmp, "repo"), os.path.join(tmp, "repo-tmp"), os.path.join(tmp, "no-hooks")
+    os.makedirs(rtmp)
+    os.makedirs(hooks)
+    shutil.copytree(sys.argv[1], repo, ignore=shutil.ignore_patterns(".git", "videos", "__pycache__"))
+    with io.open(os.path.join(repo, "data", "config.js"), "a", encoding="utf-8", newline="") as f:
+        f.write("\nwindow.SITE.ratedPlus = true;\n")
+    genv = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}  # nothing points git at another repo
+    def git(*args):
+        return subprocess.run(["git", "-C", repo] + list(args), env=genv, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace")
+    for args in (["init", "-q"], ["config", "user.name", "Test"], ["config", "user.email", "test@example.com"],
+                 ["config", "core.autocrlf", "false"], ["config", "commit.gpgsign", "false"], ["config", "core.hooksPath", hooks],
+                 ["add", "-A"], ["commit", "-q", "-m", "The site"]):
+        done = git(*args)
+        if done.returncode:
+            raise RuntimeError("git " + " ".join(args) + ": " + (done.stderr or done.stdout).strip()[:300])
+    if git("rev-parse", "--git-dir").stdout.strip() != ".git" or git("remote").stdout.strip():
+        raise RuntimeError("the copy isn't a git repo of its own")
+    base = git("rev-parse", "HEAD").stdout.strip()
+    payload = {"requestId": "2" * 16, "editor": "Nigel", "role": "head", "gd": {str(NEW3): answer(NEW3)},
+               "ops": [{"op": "add_unrated", "level": NEW3, "rating": 23},
+                       {"op": "set_grind", "player": A, "level": NEW3, "best": 40, "segments": [[50, 100]]}]}
+    pf = os.path.join(tmp, "payload-real.json")  # (outside the repo: a run needs a clean tree)
+    with io.open(pf, "w", encoding="utf-8") as f:
+        json.dump(payload, f)
+    env = dict(genv, TEMP=rtmp, TMP=rtmp, TMPDIR=rtmp, PYTHONUTF8="1", PYTHONIOENCODING="utf-8", PYTHONDONTWRITEBYTECODE="1")
+    for k in ("GDLEVEL_ANSWERS", "GITHUB_ACTIONS", "GITHUB_STEP_SUMMARY"):  # only the payload's answers; no Actions summary
+        env.pop(k, None)
+    open(log, "w").close()
+    done = subprocess.run([sys.executable, "-B", os.path.join(repo, "tools", "apply-edit.py"), pf, "--no-push"], cwd=repo, env=env,
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+    said = done.stdout + done.stderr
+    def committed(rel, var):
+        """window.<var> in the new commit's rel, or None (no new commit, or no such file)"""
+        shown = git("show", "HEAD:" + rel)
+        if shown.returncode or git("rev-parse", "HEAD").stdout.strip() == base:
+            return None
+        return json.loads(shown.stdout[shown.stdout.index("=", shown.stdout.index("window." + var)) + 1:].strip().rstrip(";"))
+    ok("runner: a real run (--no-push) of [add_unrated, set_grind] on a brand-new level with RobTop's answer along - one new commit, all of it in it",
+       done.returncode == 0 and "(not pushed)" in said and git("rev-parse", "HEAD~1").stdout.strip() == base
+       and not git("status", "--porcelain").stdout.strip() and git("log", "-1", "--format=%an").stdout.strip() == m.BOT_NAME
+       and "Solar" in git("log", "-1", "--format=%s").stdout and ("levelId: %d," % NEW3) in git("show", "HEAD:data/goals.js").stdout,
+       said[-1200:])
+    u = next((x for x in committed("data/unrated.js", "UNRATED") or [] if x["levelId"] == NEW3), None)
+    ok("runner: ...the commit's data/unrated.js has the level's name, creator, star-less face and facts, from the answer", u
+       and u["name"] == "Solar" and u["publisher"] == "Nigelx1" and u["creators"] == ["Nigelx1"] and u["difficulty"] == "Extreme"
+       and u["rating"] == 23 and u["description"] == "Insane Demon version of Solar Flare" and u["gd"] == {"length": "Long",
+       "objects": 63250, "gameVersion": "2.2", "inGameDifficulty": "Insane", "song": {"id": "493898", "name": "[J] - Solar Wind",
+       "artist": "Jumper"}, "songOfficial": False}, u or said[-600:])
+    g = (committed("data/goal-levels.js", "GOAL_LEVELS") or {}).get(str(NEW3)) or {}
+    ok("runner: ...and its data/goal-levels.js too (build-goal-levels.py, in a process of its own)", g.get("name") == "Solar"
+       and g.get("publisher") == "Nigelx1" and g.get("difficulty") == "Insane" and g.get("description") == "Insane Demon version of Solar Flare"
+       and (g.get("gd") or {}).get("stars") == 0 and (g.get("gd") or {}).get("length") == "Long"
+       and (g.get("gd") or {}).get("inGameDifficulty") == "Insane", g or said[-600:])
+    ok("runner: ...RobTop's servers never asked about it; gdbrowser and YouTube tried and cut off; its answers file gone after",
+       not asked_robtop(NEW3) and any(t.startswith("curl https://gdbrowser.com/api/level/%d" % NEW3) for t in tried())
+       and any(t.startswith("node https://www.youtube.com/") for t in tried()) and not glob.glob(os.path.join(rtmp, "gd-answers-*")),
+       [t for t in tried() if "boomlings" not in t][:12])
 except Exception:
     import traceback
     ok("runner: the harness ran", False, traceback.format_exc()[-400:])
@@ -2721,6 +2935,12 @@ finally:
             os.environ.pop(k, None)
         else:
             os.environ[k] = v
+    for d, _, files in os.walk(tmp):  # git's object files are read-only, which rmtree can't delete on Windows
+        for f in files:
+            try:
+                os.chmod(os.path.join(d, f), 0o600)
+            except OSError:
+                pass
     shutil.rmtree(tmp, ignore_errors=True)
 out.write(json.dumps(results))
 `;

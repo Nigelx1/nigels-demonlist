@@ -3,13 +3,16 @@
 //   {id, name, creator, difficulty, tier, rating, stars, platformer, onList, position}
 // difficulty is the in-game one ("Extreme Demon"), tier the demon tier
 // ("Extreme") or null for a non-demon, rating gdladder's (2 dp) or null,
-// stars the in-game star count (0 = unrated in game; null when gdbrowser and
-// what stands in for it can't say), platformer as add-records.py decides it,
-// onList/position from the live data/demons.js (onList null if that couldn't
-// be read). When gdbrowser doesn't answer, RobTop's own servers stand in for
-// it (_lib/robtop.js), then GDHistory's copy (_lib/gdhistory.js), as in the
+// stars the in-game star count (0 = unrated in game; null when RobTop's
+// servers, gdbrowser and GDHistory can't say), platformer as add-records.py
+// decides it, onList/position from the live data/demons.js (onList null if
+// that couldn't be read). The in-game facts come from RobTop's own servers
+// (_lib/robtop.js), asked at the same time as gdladder and gdbrowser:
+// gdbrowser only reads those servers, and from Cloudflare it doesn't answer at
+// all (its challenge, since late October 2026), so it's waited for only when
+// they can't say. GDHistory's copy (_lib/gdhistory.js) comes last, as in the
 // tools.
-// 400 for a bad level; 404 only when gdbrowser or RobTop's servers (or
+// 400 for a bad level; 404 only when RobTop's servers or gdbrowser (or
 // GDHistory, for a deleted level) say it isn't in the game - gdladder doesn't
 // know unrated levels, so its "no" alone proves nothing; 502 when that couldn't
 // be found out.
@@ -67,24 +70,28 @@ export async function onRequestGet({ request, env }) {
     throw e;
   }
 
-  const [[glOk, glRaw], [gbOk, gbRaw], listed] = await Promise.all([
+  // Everything at once, gdbrowser too, so it's no later when it's needed - but
+  // it's waited for only when RobTop's servers can't say: from Cloudflare it
+  // never answers now, and waiting out its timeout made every Check take 10 s.
+  const gbAsked = getJson(`https://gdbrowser.com/api/level/${id}`);
+  const [[glOk, glRaw], answer, listed] = await Promise.all([
     getJson(`https://gdladder.com/api/levels/${id}`),
-    getJson(`https://gdbrowser.com/api/level/${id}`),
+    robtop.ask(id),
     listedPositions(request, env),
   ]);
   const gl = glRaw && glRaw.ID ? glRaw : {};
-  let gb = gbRaw && gbRaw.name ? gbRaw : {};
+  // gb: the in-game facts in gdbrowser's keys - RobTop's servers' (-1: no such
+  // level; null: they can't say), else gdbrowser's, else GDHistory's
+  const rt = robtop.parse(id, answer);
+  let gb = rt && rt !== -1 ? rt : {};
   // whether "no name" means the level isn't in the game, and who said so
-  let known = gbOk, deleted = false, said = "gdbrowser";
-  if (!gbOk) { // RobTop's servers, then GDHistory
-    const rt = robtop.parse(id, await robtop.ask(id));
-    if (rt === -1) {
-      known = true;
-      said = "the Geometry Dash servers";
-    } else if (rt) {
-      gb = rt;
-      known = true;
-    } else {
+  let known = rt !== null, deleted = false, said = "the Geometry Dash servers";
+  if (rt === null) { // gdbrowser, then GDHistory
+    const [gbOk, gbRaw] = await gbAsked;
+    if (gbRaw && gbRaw.name) gb = gbRaw;
+    known = gbOk;
+    said = "gdbrowser";
+    if (!gbOk) {
       const [hOk, hRaw] = await getJson(`${HISTORY}${id}/`);
       const h = hOk ? fromHistory(id, hRaw) : null;
       if (h === -1) known = deleted = true;

@@ -1,8 +1,9 @@
-// RobTop's own servers (the game's level search, getGJLevels21.php) for when
-// gdbrowser doesn't answer: gdbrowser has shown scripts a Cloudflare challenge
-// since late October 2026, and it only reads these servers anyway. Asked the
-// way tools/gdlevel.py's ask() asks them and read the way its parse() reads the
-// answer, for the fields the Functions use; change both together
+// RobTop's own servers (the game's level search, getGJLevels21.php): gdbrowser
+// only reads these servers, and it has shown scripts a Cloudflare challenge
+// since late October 2026, so /api/level asks them on every Check, at the same
+// time as gdbrowser, and waits for gdbrowser only when they can't say. Asked
+// the way tools/gdlevel.py's ask() asks them and read the way its parse()
+// reads the answer, for the fields the Functions use; change both together
 // (tools/test-functions.mjs checks they agree).
 //
 // These servers answer Cloudflare's network but turn GitHub's runners away, so
