@@ -106,6 +106,65 @@ header nav .nav-drop-down .nav-hover-dropdown a {
   padding-left: 35px;
 }
 
+/*
+ * The theme switch (static/js/theme.js): a moon under pointercrate's look, a
+ * sun under the site's own theme. Only on a site that offers a theme.
+ */
+header nav .theme-switch {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  line-height: 1;
+}
+
+html.theme-switchable header nav .theme-switch {
+  display: flex;
+}
+
+header nav .theme-switch .fa-sun,
+html[data-theme] header nav .theme-switch .fa-moon {
+  display: none;
+}
+
+html[data-theme] header nav .theme-switch .fa-sun {
+  display: inline-block;
+}
+
+/* (ui.css takes every focus outline away; a keyboard user still sees this one) */
+header nav .theme-switch:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -8px;
+}
+
+/* phones: narrower, so the site's name, the switch and the menu button still
+   fit on one line */
+@media (max-width: 1071px) {
+  header nav .theme-switch {
+    padding: 5px 12px;
+  }
+}
+
+/* (and on a 320px screen the site's name and the menu button give up some of
+   their room too - only where there's a switch to make room for) */
+@media (max-width: 359px) {
+  html.theme-switchable header nav .nav-icon {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  html.theme-switchable header nav .collapse-button {
+    margin-right: 14px;
+  }
+
+  header nav .theme-switch {
+    padding: 5px 8px;
+  }
+}
+
 /* --------- smartphone ----------- */
 @media (max-width: 1071px) {
   .collapse > :not(.nav-drop-down).nav-group:not(.nav-nohide) {

@@ -1,0 +1,1566 @@
+/* Night Cabin (data-theme="cabin") - the Aceabase list's own theme (Nigel,
+   2026-10-31; navy is ace's favorite color, "cozy fs").
+   A deep navy night sky seen through a cabin window, warmed by lamplight:
+   navy backgrounds and panels in a few navy steps, warm cream text, honey for
+   buttons, links and highlights, soft rounded corners and soft shadows, and a
+   quiet field of warm stars behind everything.
+
+   Every rule is scoped under html[data-theme="cabin"], so this file does
+   nothing unless that attribute is set: static/js/theme.js sets it for a
+   viewer who picked the theme, and adds its font, Nunito, from Google Fonts.
+   The site's own variables (main.css) are overridden first, then whatever the
+   stylesheets hard-code.
+   !important appears only where an inline style forces it: the Grind page's
+   palette and body background (goals.js) and a few inline fills inside the
+   world map's SVG - each one commented. */
+
+/* ------------------------------------------------------------------------ */
+/* 1. Palette                                                                */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] {
+  /* the night: canvas, panels, raised cells, hover, pressed */
+  --cab-night0: #0a1226;
+  --cab-night1: #101c38;
+  --cab-night2: #162648;
+  --cab-night3: #1d3058;
+  --cab-night4: #26406f;
+  --cab-footer: #070d1c;
+  --cab-line: #2a3d66;
+  --cab-line-soft: #213256;
+  --cab-field-line: #5b6e98; /* input edges: 3:1 against a panel */
+
+  /* lamplight on paper */
+  --cab-cream: #f0e6d2;
+  --cab-cream-strong: #fbf3e4;
+  --cab-cream-muted: #cbbfa8;
+  --cab-cream-faint: #a99f8e;
+
+  /* the lamp */
+  --cab-honey: #f2b65e;
+  --cab-honey-bright: #f7c87e;
+  --cab-honey-deep: #e19d3f;
+  --cab-honey-ink: #0d1530;
+  --cab-honey-tint: rgba(242, 182, 94, 0.13);
+  --cab-honey-glow: rgba(242, 182, 94, 0.32);
+
+  /* meaning colours, lifted for the dark */
+  --cab-moss: #84c870;   /* Future / added (the changelog's green) */
+  --cab-lilac: #b592f2;  /* Rated+ / unrated (the site's purple) */
+  --cab-ember: #ec6f5f;  /* removed / danger */
+  --cab-sky: #8fbcea;    /* info */
+
+  --cab-radius: 16px;
+  --cab-radius-sm: 10px;
+  --cab-shadow: 0 14px 34px -14px rgba(1, 4, 12, 0.85), 0 2px 8px rgba(1, 4, 12, 0.35);
+  --cab-shadow-lift: 0 22px 44px -16px rgba(1, 4, 12, 0.9), 0 0 0 1px rgba(242, 182, 94, 0.35);
+  --cab-rim: inset 0 1px 0 rgba(255, 236, 200, 0.05);
+
+  /* --- the site's variables (static/core/css/main.css, ui.css) --- */
+  --color-ok-bg: #15302b;
+  --color-ok-border: #3f7d52;
+  --color-ok-text: #bfe6b4;
+  --color-ok-accent: var(--cab-moss);
+
+  --color-warn-bg: #33290f;
+  --color-warn-border: #8a6d2a;
+  --color-warn-text: #f5dfa2;
+
+  --color-error-bg: #3a1a22;
+  --color-error-border: #8f3b47;
+  --color-error-text: #f6c0c0;
+
+  --color-consider-bg: #16304a;
+  --color-consider-text: #a9d3ea;
+
+  --color-text: var(--cab-cream);
+  --color-text-accent: var(--cab-cream-strong);
+
+  --color-border: var(--cab-line);
+  --color-border-broken: var(--cab-line);
+
+  --color-bg: var(--cab-night1);
+
+  --color-link: var(--cab-honey);
+  --color-link-dark: var(--cab-honey);
+
+  --color-pc-button-bg: var(--cab-honey);
+  --color-pc-button-bg-hover: var(--cab-honey-bright);
+  --color-pc-button-bg-click: var(--cab-honey-deep);
+  --color-pc-button-text: var(--cab-honey-ink);
+  --color-pc-button-text-click: var(--cab-honey-ink);
+
+  --color-imp-button-bg: var(--cab-ember);
+  --color-imp-button-bg-hover: #f2867a;
+  --color-imp-button-bg-click: #d95849;
+
+  --color-unobstrusive-button-bg: var(--cab-night1);
+  --color-unobstrusive-button-bg-hover: var(--cab-night3);
+  --color-unobstrusive-button-bg-click: var(--cab-night4);
+  --color-unobstrusive-button-text: var(--cab-cream);
+  --color-unobstrusive-button-text-click: var(--cab-cream-strong);
+
+  --bg-strength: 1;
+
+  color-scheme: dark;
+  background: var(--cab-night0);
+  scrollbar-color: #33497a var(--cab-night0);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 2. Page, type, selection, focus                                           */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] body {
+  font-family: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--cab-cream);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* goals.js paints the level's (light) wash on <body> as an inline style;
+   !important is the only way past it - the night sky shows instead and the
+   level's colour lives on #goal-page (section 16) */
+html[data-theme="cabin"] body[style*="background"] {
+  background: transparent !important;
+}
+
+html[data-theme="cabin"] input,
+html[data-theme="cabin"] button,
+html[data-theme="cabin"] select,
+html[data-theme="cabin"] textarea {
+  font-family: inherit;
+}
+
+html[data-theme="cabin"] h1,
+html[data-theme="cabin"] h2,
+html[data-theme="cabin"] h3,
+html[data-theme="cabin"] h4,
+html[data-theme="cabin"] h5 {
+  color: var(--cab-cream-strong);
+  letter-spacing: 0.005em;
+}
+
+html[data-theme="cabin"] h1 {
+  font-weight: 850;
+  text-shadow: 0 0 28px rgba(242, 182, 94, 0.16);
+}
+
+html[data-theme="cabin"] h2 {
+  font-weight: 800;
+}
+
+html[data-theme="cabin"] h3 {
+  font-weight: 750;
+}
+
+html[data-theme="cabin"] b,
+html[data-theme="cabin"] strong {
+  font-weight: 800;
+}
+
+html[data-theme="cabin"] q,
+html[data-theme="cabin"] code {
+  color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] ::selection {
+  background: rgba(242, 182, 94, 0.38);
+  color: var(--cab-cream-strong);
+}
+
+/* the base removes every focus outline (ui.css *:focus); keyboard focus gets
+   a soft honey ring back (it follows each element's own rounded corners; it
+   no longer re-rounds the element, which squared off cards and pills while
+   they had focus) */
+html[data-theme="cabin"] :focus-visible {
+  outline: 2px solid var(--cab-honey);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 3. The window: a quiet field of warm stars + lamplight                    */
+/* ------------------------------------------------------------------------ */
+
+/* #bg was pointercrate's blue squares down the sides (ui.css, wide screens
+   only). Here the whole page is the night outside instead: the stars live on
+   the page canvas (so they reach every edge of any page, at every width) and
+   #bg is not needed. Fine warm specks (280px tile) and a few brighter stars
+   with a soft halo (a 940x760 tile, so they never line up in rows). They
+   scroll with the page (a fixed sky repaints on every scroll on phones, and
+   iOS ignores it anyway). */
+html[data-theme="cabin"] {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='940' height='760'%3E%3Cdefs%3E%3CradialGradient id='h'%3E%3Cstop offset='0' stop-color='%23ffe2a6' stop-opacity='.42'/%3E%3Cstop offset='1' stop-color='%23ffe2a6' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='88' cy='64' r='7' fill='url(%23h)'/%3E%3Ccircle cx='571' cy='213' r='8' fill='url(%23h)'/%3E%3Ccircle cx='861' cy='389' r='6' fill='url(%23h)'/%3E%3Ccircle cx='298' cy='498' r='7.5' fill='url(%23h)'/%3E%3Ccircle cx='690' cy='671' r='6.5' fill='url(%23h)'/%3E%3Cg fill='%23fff3dc'%3E%3Ccircle cx='88' cy='64' r='1.15'/%3E%3Ccircle cx='571' cy='213' r='1.35'/%3E%3Ccircle cx='861' cy='389' r='1.05'/%3E%3Ccircle cx='298' cy='498' r='1.25'/%3E%3Ccircle cx='690' cy='671' r='1.1'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='280'%3E%3Cg fill='%23ffefd2'%3E%3Ccircle cx='23' cy='41' r='.9' opacity='.5'/%3E%3Ccircle cx='97' cy='12' r='.7' opacity='.38'/%3E%3Ccircle cx='151' cy='77' r='1.05' opacity='.62'/%3E%3Ccircle cx='212' cy='33' r='.8' opacity='.42'/%3E%3Ccircle cx='259' cy='118' r='.95' opacity='.48'/%3E%3Ccircle cx='64' cy='149' r='.7' opacity='.32'/%3E%3Ccircle cx='183' cy='191' r='.9' opacity='.46'/%3E%3Ccircle cx='118' cy='246' r='1.15' opacity='.56'/%3E%3Ccircle cx='31' cy='227' r='.8' opacity='.36'/%3E%3Ccircle cx='244' cy='252' r='.7' opacity='.32'/%3E%3C/g%3E%3Cg fill='%23d9e5ff'%3E%3Ccircle cx='136' cy='158' r='.8' opacity='.36'/%3E%3Ccircle cx='8' cy='96' r='.6' opacity='.3'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 940px 760px, 280px 280px;
+  background-position: 0 0, 70px 40px;
+  background-repeat: repeat;
+}
+
+html[data-theme="cabin"] #bg {
+  display: none;
+}
+
+/* moonlight in the top corner, the lamp's warm glow low on the left (just
+   above the footer) - on the page wrapper, so they sit at the top and the end
+   of the page rather than following the window */
+html[data-theme="cabin"] .content {
+  background:
+    radial-gradient(ellipse 760px 460px at 100% 0, rgba(150, 182, 255, 0.075), rgba(150, 182, 255, 0) 72%),
+    radial-gradient(ellipse 900px 520px at 0 100%, rgba(242, 168, 82, 0.11), rgba(242, 168, 82, 0) 72%);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 4. Top bar and its menus                                                  */
+/* ------------------------------------------------------------------------ */
+
+/* frosted window glass: the stars blur through the bar. .see-through fades
+   the whole bar, text and menus included (the page ghosted through the phone
+   menu), so the bar is opaque and only its glass is see-through */
+html[data-theme="cabin"] header nav {
+  opacity: 1;
+  background: rgba(13, 23, 51, 0.86);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  backdrop-filter: blur(12px) saturate(1.15);
+  border-bottom: 1px solid var(--cab-line-soft);
+  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.9);
+}
+
+html[data-theme="cabin"] header nav .nav-icon a {
+  color: var(--cab-cream-strong);
+  transition: color 0.25s ease;
+}
+
+html[data-theme="cabin"] header nav .nav-icon a:hover {
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] header nav .nav-item.white {
+  background: transparent;
+  color: var(--cab-cream);
+}
+
+/* (the long :not() chains out-rank the generic .white hover rules - core.css's
+   and section 7's - which would otherwise keep the bar's items cream) */
+html[data-theme="cabin"] header nav .nav-item.white.hover:not(.disabled):not([disabled]):hover,
+html[data-theme="cabin"] header nav .nav-group:hover > .nav-item.white.hover:not(.disabled):not([disabled]) {
+  background: rgba(29, 48, 88, 0.7);
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] header nav .nav-item .fa-sort-down {
+  color: var(--cab-honey);
+}
+
+/* the hover menu under DEMONLIST */
+html[data-theme="cabin"] header nav .nav-group .nav-hover-dropdown {
+  background: var(--cab-night1);
+  border: 1px solid var(--cab-line-soft);
+  border-top: 0;
+  border-radius: 0 0 var(--cab-radius-sm) var(--cab-radius-sm);
+  overflow: hidden;
+  box-shadow: 0 18px 30px -12px rgba(1, 4, 12, 0.9);
+}
+
+html[data-theme="cabin"] header nav .nav-hover-dropdown a.white {
+  color: var(--cab-cream);
+  background: transparent;
+}
+
+html[data-theme="cabin"] header nav .nav-hover-dropdown a.white.hover:not(.disabled):not([disabled]):hover {
+  background: var(--cab-night3);
+  color: var(--cab-honey-bright);
+}
+
+/* phones: the menu the hamburger opens */
+html[data-theme="cabin"] header nav .nav-drop-down {
+  background: var(--cab-night1);
+  border-bottom: 1px solid var(--cab-line-soft);
+  border-radius: 0 0 var(--cab-radius) var(--cab-radius);
+  box-shadow: 0 22px 36px -14px rgba(1, 4, 12, 0.95);
+}
+
+html[data-theme="cabin"] .hamburger.hover {
+  opacity: 0.8;
+}
+
+html[data-theme="cabin"] .hamburger span,
+html[data-theme="cabin"] .hamburger.hover > span {
+  background: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] .hamburger input:checked ~ span {
+  background: var(--cab-honey);
+}
+
+html[data-theme="cabin"] .hamburger.hover:hover {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 5. Footer                                                                 */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] footer {
+  background: linear-gradient(180deg, #0b1430 0%, var(--cab-footer) 70%);
+  color: var(--cab-cream-muted);
+  border-top: 1px solid var(--cab-line-soft);
+  box-shadow: 0 -16px 34px -18px rgba(0, 0, 0, 0.9);
+}
+
+html[data-theme="cabin"] footer h2 {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] footer a.link {
+  color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] footer a.link:hover {
+  color: var(--cab-honey-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 6. Panels and lines                                                       */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] .panel {
+  background: var(--cab-night1);
+  border-radius: var(--cab-radius);
+}
+
+/* pointercrate's dashed grey frame + grey haze -> a soft rim and a soft
+   shadow (also the bars and dropdowns that share .fade) */
+html[data-theme="cabin"] .fade {
+  border: 1px solid var(--cab-line-soft);
+  box-shadow: var(--cab-shadow), var(--cab-rim);
+}
+
+html[data-theme="cabin"] .bordered {
+  border-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] .underlined {
+  border-bottom-color: var(--cab-line);
+}
+
+/* inside a panel, the divider under a heading glows faintly in the middle,
+   like lamplight along a shelf */
+html[data-theme="cabin"] .panel .underlined,
+html[data-theme="cabin"] .panel.underlined {
+  border-image: linear-gradient(90deg, var(--cab-line) 0%, rgba(242, 182, 94, 0.5) 50%, var(--cab-line) 100%) 1;
+}
+
+html[data-theme="cabin"] .overlined {
+  border-top-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] .leftlined {
+  border-left-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] .rightlined {
+  border-right-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] .overlay {
+  background-color: rgba(5, 9, 20, 0.78);
+}
+
+html[data-theme="cabin"] .dialog {
+  background: var(--cab-night2);
+  border: 1px solid var(--cab-line);
+  border-radius: var(--cab-radius);
+  box-shadow: var(--cab-shadow);
+}
+
+html[data-theme="cabin"] .tooltip .tooltiptext {
+  border: 1px solid var(--cab-line);
+  border-radius: var(--cab-radius-sm);
+  background: var(--cab-night2);
+  color: var(--cab-cream);
+  box-shadow: var(--cab-shadow);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 7. Buttons                                                                */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] .button {
+  border-radius: var(--cab-radius-sm);
+}
+
+html[data-theme="cabin"] .hover,
+html[data-theme="cabin"] .hover:hover:not(.disabled):not([disabled]) {
+  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+html[data-theme="cabin"] .blue {
+  font-weight: 750;
+}
+
+/* honey buttons: a soft sheen from above, like light on a lampshade */
+html[data-theme="cabin"] .button.blue {
+  background-image: linear-gradient(180deg, rgba(255, 248, 230, 0.22), rgba(255, 248, 230, 0) 60%);
+  box-shadow: 0 6px 16px -10px rgba(242, 182, 94, 0.55);
+}
+
+html[data-theme="cabin"] .button.fade {
+  box-shadow: 0 10px 24px -12px rgba(1, 4, 12, 0.9);
+}
+
+/* lifted buttons glow like a lamp instead of casting a black shadow */
+html[data-theme="cabin"] .button.hover:not(.disabled):not(.no-shadow):not([disabled]):hover {
+  box-shadow: 0 8px 22px -8px rgba(1, 4, 12, 0.9), 0 0 0 1px rgba(242, 182, 94, 0.28);
+}
+
+html[data-theme="cabin"] .button.blue.hover:not(.disabled):not(.no-shadow):not([disabled]):hover {
+  box-shadow: 0 8px 24px -6px var(--cab-honey-glow), 0 0 0 3px rgba(242, 182, 94, 0.16);
+}
+
+html[data-theme="cabin"] .button.red.hover:not(.disabled):not(.no-shadow):not([disabled]):hover {
+  box-shadow: 0 8px 24px -6px rgba(236, 111, 95, 0.4), 0 0 0 3px rgba(236, 111, 95, 0.16);
+}
+
+/* a selected white option (Players/Nations, Alphabetical/Position, the list
+   views, the current demon in a dropdown): lifted navy, honey text and a
+   honey hairline - plainly different from a hovered one */
+html[data-theme="cabin"] .white.active,
+html[data-theme="cabin"] .white.hover:not(.disabled):not([disabled]).active:hover {
+  background-color: var(--cab-night3);
+  color: var(--cab-honey-bright);
+  box-shadow: inset 0 0 0 1px rgba(242, 182, 94, 0.4);
+}
+
+html[data-theme="cabin"] .white.hover:not(.disabled):not([disabled]):hover {
+  color: var(--cab-cream-strong);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 8. Links                                                                  */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] a {
+  transition: color 0.25s ease, border-color 0.25s ease;
+}
+
+html[data-theme="cabin"] a:not(.button):not(.white):not(.blue):not(.red):hover {
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] a.link:hover,
+html[data-theme="cabin"] a.video-link:hover {
+  color: var(--cab-honey-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* player names: a dotted honey underline that firms up on hover */
+html[data-theme="cabin"] .underdotted {
+  border-bottom: 1px dotted rgba(242, 182, 94, 0.55);
+}
+
+html[data-theme="cabin"] a.underdotted:hover {
+  border-bottom-style: solid;
+  border-bottom-color: var(--cab-honey-bright);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 9. Inputs                                                                 */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] input[type="text"],
+html[data-theme="cabin"] input[type="number"],
+html[data-theme="cabin"] input[type="url"],
+html[data-theme="cabin"] input[type="password"],
+html[data-theme="cabin"] input[type="datetime-local"],
+html[data-theme="cabin"] textarea,
+html[data-theme="cabin"] select {
+  background: var(--cab-night0);
+  color: var(--cab-cream);
+  border-color: var(--cab-field-line);
+  border-radius: 8px;
+}
+
+html[data-theme="cabin"] input::placeholder,
+html[data-theme="cabin"] textarea::placeholder {
+  color: var(--cab-cream-faint);
+  opacity: 1;
+}
+
+html[data-theme="cabin"] input[type="text"]:focus,
+html[data-theme="cabin"] input[type="number"]:focus,
+html[data-theme="cabin"] input[type="url"]:focus,
+html[data-theme="cabin"] input[type="password"]:focus,
+html[data-theme="cabin"] textarea:focus,
+html[data-theme="cabin"] select:focus {
+  border-color: var(--cab-honey);
+  box-shadow: 0 0 0 3px rgba(242, 182, 94, 0.22);
+}
+
+/* fields show focus with their honey edge + glow (and the filter boxes on
+   their frame), so no second ring around them */
+html[data-theme="cabin"] input:not([type="radio"]):not([type="checkbox"]):focus-visible,
+html[data-theme="cabin"] select:focus-visible,
+html[data-theme="cabin"] textarea:focus-visible {
+  outline: none;
+}
+
+/* the browser's autofill would paint a light box into a dark field */
+html[data-theme="cabin"] input:-webkit-autofill,
+html[data-theme="cabin"] input:-webkit-autofill:hover,
+html[data-theme="cabin"] input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--cab-cream);
+  -webkit-box-shadow: 0 0 0 1000px var(--cab-night0) inset;
+  caret-color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] form input:valid,
+html[data-theme="cabin"] textarea:valid {
+  border-bottom-color: var(--color-ok-border);
+}
+
+/* the filter boxes (stats viewer, list dropdowns): one rounded field with
+   the magnifier and the clear icon inside it */
+html[data-theme="cabin"] .search {
+  border: 1px solid var(--cab-field-line);
+  border-radius: var(--cab-radius-sm);
+  background: var(--cab-night0);
+  color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] .search:focus-within {
+  border-color: var(--cab-honey);
+  box-shadow: 0 0 0 3px rgba(242, 182, 94, 0.2);
+}
+
+html[data-theme="cabin"] .search input[type="text"],
+html[data-theme="cabin"] .search input[type="text"]:focus {
+  background: transparent;
+  border-top: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html[data-theme="cabin"] .search.seperated input[type="text"] {
+  border-left: 1px solid var(--cab-line);
+  border-right: 1px solid var(--cab-line);
+}
+
+html[data-theme="cabin"] .search::before,
+html[data-theme="cabin"] .search::after {
+  color: var(--cab-cream-faint);
+}
+
+/* the custom checkbox (stats viewer's Show political subdivisions) */
+html[data-theme="cabin"] .checkmark {
+  background-color: var(--cab-night0);
+  border: 1px solid var(--cab-field-line);
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+html[data-theme="cabin"] .cb-container:hover input ~ .checkmark {
+  background-color: var(--cab-night3);
+}
+
+html[data-theme="cabin"] .cb-container input:checked ~ .checkmark {
+  background-color: var(--cab-honey);
+  border-color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] .cb-container .checkmark:after {
+  left: 4px;
+  top: 1px;
+  border-color: var(--cab-honey-ink);
+}
+
+html[data-theme="cabin"] .cb-container input:focus-visible ~ .checkmark {
+  outline: 2px solid var(--cab-honey);
+  outline-offset: 2px;
+}
+
+/* the generic dropdown-menu widget */
+html[data-theme="cabin"] .dropdown-menu .menu {
+  background: var(--cab-night2);
+  border-color: var(--cab-line);
+  box-shadow: var(--cab-shadow);
+}
+
+html[data-theme="cabin"] .dropdown-menu div:focus-within {
+  border-color: var(--cab-honey);
+  box-shadow: 0 0 0 3px rgba(242, 182, 94, 0.2);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 10. Notes: ok / warn / error boxes, small marks                           */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] .info-green,
+html[data-theme="cabin"] .info-yellow,
+html[data-theme="cabin"] .info-red {
+  border-radius: var(--cab-radius-sm);
+}
+
+html[data-theme="cabin"] .info-yellow a,
+html[data-theme="cabin"] .info-red a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+html[data-theme="cabin"] p.error {
+  color: var(--cab-ember);
+}
+
+html[data-theme="cabin"] .plus:before,
+html[data-theme="cabin"] .plus:after,
+html[data-theme="cabin"] .arrow:before,
+html[data-theme="cabin"] .arrow:after {
+  background-color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] .arrow.hover,
+html[data-theme="cabin"] .plus.hover,
+html[data-theme="cabin"] i.fa.hover {
+  opacity: 0.7;
+}
+
+html[data-theme="cabin"] .arrow.hover:hover,
+html[data-theme="cabin"] .plus.hover:hover,
+html[data-theme="cabin"] i.fa.hover:hover {
+  opacity: 1;
+}
+
+html[data-theme="cabin"] .arrow.hover:hover:before,
+html[data-theme="cabin"] .arrow.hover:hover:after {
+  background-color: var(--cab-honey);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 11. Pictures: thumbnails, difficulty cards, videos                        */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] .thumb {
+  background-color: var(--cab-night0);
+  border-radius: 12px;
+}
+
+html[data-theme="cabin"] .demon-card {
+  color: #fff;
+}
+
+html[data-theme="cabin"] iframe.ratio-16-9,
+html[data-theme="cabin"] .demon-video,
+html[data-theme="cabin"] .record-video {
+  border-radius: 14px;
+  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.9);
+}
+
+html[data-theme="cabin"] .js-demon-video:hover .demon-video-play,
+html[data-theme="cabin"] .js-demon-video:focus .demon-video-play {
+  background: var(--cab-honey-deep);
+}
+
+html[data-theme="cabin"] .js-demon-video:hover .demon-video-play::before,
+html[data-theme="cabin"] .js-demon-video:focus .demon-video-play::before {
+  border-left-color: var(--cab-honey-ink);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 12. The list: bars, dropdowns, views, demon panels, sidebar               */
+/* ------------------------------------------------------------------------ */
+
+/* the Main List / Extended List bar and the view options: a tray of soft
+   pills (a little inner padding so the pills sit inside the rounded tray) */
+html[data-theme="cabin"] #lists,
+html[data-theme="cabin"] #view-options,
+html[data-theme="cabin"] #sv-modes {
+  background: var(--cab-night1);
+  border-radius: var(--cab-radius);
+  padding: 5px;
+  box-sizing: border-box;
+  gap: 5px;
+}
+
+/* the list bar hangs from the top bar like a drawer */
+html[data-theme="cabin"] #lists {
+  border-top: 0;
+  border-radius: 0 0 var(--cab-radius) var(--cab-radius);
+}
+
+html[data-theme="cabin"] #view-options {
+  gap: 6px 18px;
+  margin-top: 10px;
+}
+
+@media (max-width: 1071px) {
+  /* full-bleed on narrow screens: no side rims on the drawer */
+  html[data-theme="cabin"] #lists {
+    border-left: 0;
+    border-right: 0;
+  }
+}
+
+html[data-theme="cabin"] #lists .button,
+html[data-theme="cabin"] #view-options a.button,
+html[data-theme="cabin"] #sv-modes .button {
+  background-color: transparent;
+}
+
+html[data-theme="cabin"] #lists .button.hover:not(.disabled):not([disabled]):hover,
+html[data-theme="cabin"] #view-options a.button.hover:not(.disabled):not([disabled]):hover,
+html[data-theme="cabin"] #sv-modes .button.hover:not(.disabled):not([disabled]):hover {
+  background-color: var(--cab-night2);
+}
+
+/* the selected pills: lifted navy, honey text, hairline + underline */
+html[data-theme="cabin"] #view-options a.button.active,
+html[data-theme="cabin"] #sv-modes .button.active,
+html[data-theme="cabin"] #view-options a.button.active.hover:not(.disabled):not([disabled]):hover,
+html[data-theme="cabin"] #sv-modes .button.active.hover:not(.disabled):not([disabled]):hover {
+  background-color: var(--cab-night3);
+  color: var(--cab-honey-bright);
+  box-shadow: inset 0 0 0 1px rgba(242, 182, 94, 0.3), inset 0 -2px 0 var(--cab-honey);
+}
+
+/* the dropdown under Main List / Extended List: opaque (.see-through let the
+   panels underneath ghost through the names) */
+html[data-theme="cabin"] .dropdown {
+  opacity: 1;
+  background: var(--cab-night1);
+  border-radius: var(--cab-radius);
+  margin-top: 6px;
+  /* width:100% plus its 1px rims made an open dropdown 2px wider than a
+     390px phone (sideways scroll); the rims now sit inside the width */
+  box-sizing: border-box;
+}
+
+html[data-theme="cabin"] .dropdown p {
+  color: var(--cab-cream-muted);
+}
+
+/* small radius: the Future / Rated+ edges below stay straight bars */
+html[data-theme="cabin"] .dropdown li {
+  border-radius: 6px;
+}
+
+html[data-theme="cabin"] .dropdown li a {
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] .dropdown li.hover:hover a {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .dropdown li.active a {
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] .dropdown i {
+  color: var(--cab-cream-faint);
+}
+
+/* a view's extras in the dropdowns: Future (green) and Rated+ (purple) edges */
+html[data-theme="cabin"] .dropdown li.view-new-item {
+  box-shadow: inset 3px 0 0 var(--cab-moss);
+}
+
+html[data-theme="cabin"] .dropdown li.view-unrated-item {
+  box-shadow: inset 3px 0 0 var(--cab-lilac);
+}
+
+html[data-theme="cabin"] .dropdown li.view-new-item.view-unrated-item {
+  box-shadow: inset 3px 0 0 var(--cab-moss), inset 6px 0 0 var(--cab-lilac);
+}
+
+/* demon panels */
+html[data-theme="cabin"] .demon-byline h2 a {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .demon-byline h2 a:hover {
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] .demon-byline h3 {
+  color: var(--cab-cream-muted);
+  font-weight: 650;
+}
+
+html[data-theme="cabin"] .demon-byline > div {
+  color: var(--cab-cream-faint);
+}
+
+html[data-theme="cabin"] .demon-panel-records {
+  color: var(--cab-honey);
+  font-weight: 650;
+}
+
+/* phones: the thumbnail fades into the panel (demonlist.css uses
+   --color-bg for that already) - just keep its top corners round */
+@media (max-width: 767px) {
+  html[data-theme="cabin"] .demon-panel-thumb {
+    border-radius: 12px 12px 0 0;
+  }
+}
+
+/* Future / Rated+ marks on the panels */
+html[data-theme="cabin"] .future-joining {
+  border-left: 4px solid var(--cab-moss);
+}
+
+html[data-theme="cabin"] .view-unrated {
+  border-left: 4px solid var(--cab-lilac);
+}
+
+html[data-theme="cabin"] .future-joining.view-unrated {
+  border-left: 4px dashed var(--cab-lilac);
+}
+
+html[data-theme="cabin"] .future-note {
+  color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] .future-badge {
+  background: rgba(132, 200, 112, 0.16);
+  color: var(--cab-moss);
+  border: 1px solid rgba(132, 200, 112, 0.5);
+  border-radius: 999px;
+  padding: 0 8px;
+}
+
+html[data-theme="cabin"] .future-badge.unrated-badge {
+  background: rgba(181, 146, 242, 0.16);
+  color: var(--cab-lilac);
+  border-color: rgba(181, 146, 242, 0.5);
+}
+
+html[data-theme="cabin"] #view-intro p,
+html[data-theme="cabin"] #view-rules p {
+  color: var(--cab-cream);
+}
+
+/* sidebar */
+html[data-theme="cabin"] #sidebar .panel p {
+  color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] .staff-names,
+html[data-theme="cabin"] #editors ul {
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] #editors ul b {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .stat-row {
+  border-bottom-color: var(--cab-line-soft);
+}
+
+html[data-theme="cabin"] .stat-row span {
+  color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] .stat-row b {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .mini-ranking li {
+  border-bottom-color: var(--cab-line-soft);
+}
+
+html[data-theme="cabin"] .mini-ranking li::before {
+  color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] .mini-ranking li > span {
+  color: var(--cab-cream-faint);
+}
+
+html[data-theme="cabin"] .changelog-teaser-date {
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] .changelog-teaser-more {
+  color: var(--cab-cream-muted);
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 13. Demon and record pages: heading, level info, tables                   */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] #demon-heading a,
+html[data-theme="cabin"] #demon-heading a i {
+  color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] #demon-heading a:hover i {
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] #level-info b {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] #level-info span {
+  color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] #level-info span a.link {
+  color: var(--cab-honey);
+}
+
+/* tables: a raised header row with honey text over soft navy stripes,
+   rounded at the corners (separate borders: collapsed cells can't round) */
+html[data-theme="cabin"] table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+html[data-theme="cabin"] th,
+html[data-theme="cabin"] th.blue {
+  background: var(--cab-night3);
+  color: var(--cab-honey-bright);
+  font-weight: 800;
+  border-bottom: 2px solid rgba(242, 182, 94, 0.55);
+}
+
+html[data-theme="cabin"] tr th:first-child {
+  border-top-left-radius: 12px;
+}
+
+html[data-theme="cabin"] tr th:last-child {
+  border-top-right-radius: 12px;
+}
+
+html[data-theme="cabin"] tr {
+  background: var(--cab-night1);
+}
+
+html[data-theme="cabin"] tr:nth-child(even) {
+  background: var(--cab-night2);
+}
+
+html[data-theme="cabin"] tr:last-child td:first-child {
+  border-bottom-left-radius: 12px;
+}
+
+html[data-theme="cabin"] tr:last-child td:last-child {
+  border-bottom-right-radius: 12px;
+}
+
+html[data-theme="cabin"] a.video-link {
+  color: var(--cab-honey);
+}
+
+/* position history: same colours as the note boxes (dark versions) */
+html[data-theme="cabin"] #history-table tr {
+  background: var(--color-warn-bg);
+  color: var(--color-warn-text);
+}
+
+html[data-theme="cabin"] #history-table tr.moved-up {
+  background: var(--color-ok-bg);
+  color: var(--color-ok-text);
+}
+
+html[data-theme="cabin"] #history-table tr.moved-down {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+@media (max-width: 479px) {
+  /* the narrow history table is a grid of rows: round the grid, not cells */
+  html[data-theme="cabin"] #history-table th {
+    border-radius: 0;
+  }
+
+  html[data-theme="cabin"] #history-table tr:first-child th:first-child {
+    border-top-left-radius: 12px;
+  }
+
+  html[data-theme="cabin"] #history-table tr:first-child th:nth-child(3) {
+    border-top-right-radius: 12px;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* 14. Changelog                                                             */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] .changelog-item {
+  border-bottom-color: var(--cab-line-soft);
+}
+
+/* the kinds as soft pills: grey-blue note, green added, honey moved, red
+   removed */
+html[data-theme="cabin"] .changelog-badge {
+  background: rgba(143, 160, 196, 0.14);
+  color: #c3cde3;
+  border: 1px solid rgba(143, 160, 196, 0.42);
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+html[data-theme="cabin"] .changelog-add .changelog-badge {
+  background: rgba(132, 200, 112, 0.15);
+  color: var(--cab-moss);
+  border-color: rgba(132, 200, 112, 0.5);
+}
+
+html[data-theme="cabin"] .changelog-move .changelog-badge {
+  background: var(--cab-honey-tint);
+  color: var(--cab-honey);
+  border-color: rgba(242, 182, 94, 0.5);
+}
+
+html[data-theme="cabin"] .changelog-remove .changelog-badge {
+  background: rgba(236, 111, 95, 0.15);
+  color: #f38a7c;
+  border-color: rgba(236, 111, 95, 0.5);
+}
+
+html[data-theme="cabin"] .changelog-item a {
+  color: var(--cab-cream-strong);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 15. Stats viewer: map, ranking list, profile, Grind chips                 */
+/* ------------------------------------------------------------------------ */
+
+/* the world at night: dark sea, slate land, countries with players lit like
+   windows (honey, brighter with more points) and the selected one in
+   moonlight blue, so it can't be mistaken for a bright window */
+html[data-theme="cabin"] #world-map-wrapper {
+  --dl-ocean: #0b1630;
+  --dl-land: #2b3c61;
+  --dl-accent: var(--cab-honey);
+  --dl-accent-strong: #8ec5ff;
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, #0f1d3c 0%, var(--dl-ocean) 75%);
+}
+
+/* a few shapes in the map's SVG (France's overseas parts incl. French
+   Guiana, Svalbard, Spain's islands, Tierra del Fuego, the Philippines)
+   carry an inline light-grey fill and white stroke that the light theme hid;
+   on the night map they glowed white. !important is the only way past an
+   inline style; :where() keeps these rules below statsviewer.css's own
+   (!important) hover and selection colours. */
+html[data-theme="cabin"] #world :where(path[style*="fill"]) {
+  fill: var(--dl-land) !important;
+  stroke: var(--dl-ocean) !important;
+}
+
+/* ...and when they belong to a place with players, its warm heat */
+html[data-theme="cabin"] #world :where(.dl-present.land, .dl-present.island, .land-with-states.dl-present:not(.subdivided)) :where(path[style*="fill"]:not(.state)) {
+  fill: var(--dl-accent) !important;
+  fill-opacity: var(--dl-heat, 0.85);
+}
+
+/* a country shown by its states hides its outline shapes (statsviewer.css) */
+html[data-theme="cabin"] #world .land-with-states.subdivided :where(path[style*="fill"]:not(.state)) {
+  fill: none !important;
+  stroke: none !important;
+}
+
+html[data-theme="cabin"] #world-map-wrapper .map-controls button {
+  background: var(--cab-night2);
+  border-color: var(--cab-line);
+  border-radius: 8px;
+  color: var(--cab-cream);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html[data-theme="cabin"] #world-map-wrapper .map-controls button:hover {
+  background: var(--cab-night3);
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] #world-map-wrapper .map-hint {
+  background: rgba(8, 14, 32, 0.78);
+  color: var(--cab-cream-muted);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+html[data-theme="cabin"] ul.selection-list {
+  border-color: var(--cab-line);
+  border-radius: 12px;
+  background: var(--cab-night0);
+  scrollbar-color: #33497a transparent;
+}
+
+html[data-theme="cabin"] .selection-list li.white {
+  background-color: transparent;
+}
+
+html[data-theme="cabin"] .selection-list li i {
+  color: var(--cab-cream-faint);
+}
+
+html[data-theme="cabin"] .selection-list li:hover:not(.active) {
+  background: var(--cab-night3);
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .selection-list li.active {
+  background: var(--cab-honey);
+  color: var(--cab-honey-ink);
+  font-weight: 750;
+}
+
+html[data-theme="cabin"] .selection-list li.active i {
+  color: rgba(13, 21, 48, 0.78);
+}
+
+html[data-theme="cabin"] .viewer-welcome {
+  color: var(--cab-cream-muted);
+}
+
+html[data-theme="cabin"] .stats-container b {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .stats-container a {
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] .stats-container a:hover {
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] #sv-scope {
+  color: var(--cab-cream-muted);
+  opacity: 1;
+}
+
+html[data-theme="cabin"] .sv-select {
+  background: var(--cab-night0);
+  border-color: var(--cab-field-line);
+  border-radius: var(--cab-radius-sm);
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] .right p {
+  color: var(--cab-cream-muted);
+}
+
+/* the Grind chips: honey edge, raised navy */
+html[data-theme="cabin"] .grind-chip {
+  background: var(--cab-night2);
+  border: 1px solid var(--cab-line);
+  border-left: 3px solid var(--cab-honey);
+  border-radius: 8px;
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] .grind-chip:hover {
+  background: var(--cab-night3);
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .grind-chip-pct {
+  color: var(--cab-honey);
+}
+
+/* ------------------------------------------------------------------------ */
+/* 16. The Grind page (goal.html): the level's own colour, by night          */
+/* ------------------------------------------------------------------------ */
+
+/* goals.js writes the level's palette inline on #goal-page. --accent and
+   --deep (the level's colour) are kept; the three made for a light page are
+   re-derived from the level's own accent for the night - !important because
+   only that beats an inline declaration. */
+html[data-theme="cabin"] #goal-page {
+  --mist: color-mix(in srgb, var(--accent) 16%, #14213f) !important;
+  --ink: color-mix(in srgb, var(--accent) 24%, #f6eddb) !important;
+  /* the level's colour glows down from the hero and fades into the sky */
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 14%, transparent) 0,
+    color-mix(in srgb, var(--accent) 5%, transparent) 900px,
+    transparent 1500px);
+}
+
+/* a level with no palette of its own (Solar today) gets goals.js's
+   FALLBACK_PALETTE, which is pointercrate's blue (#0881c6 on #0c2c3d). Here
+   it becomes the cabin's own lamp on the night instead - !important, because
+   the palette is inline custom properties on #goal-page. */
+html[data-theme="cabin"] #goal-page[style*="#0881c6"] {
+  --accent: var(--cab-honey) !important;
+  --deep: #14213f !important;
+  --on-accent: var(--cab-honey-ink) !important;
+}
+
+/* ...and its hero, with no picture, is a patch of the night sky */
+html[data-theme="cabin"] .goal-hero:not([style]) {
+  background-color: var(--deep);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='940' height='760'%3E%3Cdefs%3E%3CradialGradient id='h'%3E%3Cstop offset='0' stop-color='%23ffe2a6' stop-opacity='.42'/%3E%3Cstop offset='1' stop-color='%23ffe2a6' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='88' cy='64' r='7' fill='url(%23h)'/%3E%3Ccircle cx='571' cy='213' r='8' fill='url(%23h)'/%3E%3Ccircle cx='861' cy='389' r='6' fill='url(%23h)'/%3E%3Ccircle cx='298' cy='498' r='7.5' fill='url(%23h)'/%3E%3Ccircle cx='690' cy='671' r='6.5' fill='url(%23h)'/%3E%3Cg fill='%23fff3dc'%3E%3Ccircle cx='88' cy='64' r='1.15'/%3E%3Ccircle cx='571' cy='213' r='1.35'/%3E%3Ccircle cx='861' cy='389' r='1.05'/%3E%3Ccircle cx='298' cy='498' r='1.25'/%3E%3Ccircle cx='690' cy='671' r='1.1'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='280'%3E%3Cg fill='%23ffefd2'%3E%3Ccircle cx='23' cy='41' r='.9' opacity='.5'/%3E%3Ccircle cx='97' cy='12' r='.7' opacity='.38'/%3E%3Ccircle cx='151' cy='77' r='1.05' opacity='.62'/%3E%3Ccircle cx='212' cy='33' r='.8' opacity='.42'/%3E%3Ccircle cx='259' cy='118' r='.95' opacity='.48'/%3E%3Ccircle cx='64' cy='149' r='.7' opacity='.32'/%3E%3Ccircle cx='183' cy='191' r='.9' opacity='.46'/%3E%3Ccircle cx='118' cy='246' r='1.15' opacity='.56'/%3E%3Ccircle cx='31' cy='227' r='.8' opacity='.36'/%3E%3Ccircle cx='244' cy='252' r='.7' opacity='.32'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 940px 760px, 280px 280px;
+  background-position: 30% 0, 70px 40px;
+  background-repeat: repeat;
+}
+
+/* (keeps goals.css's dark shadow - the title sits on the level's picture -
+   instead of the lamplight glow other page titles get) */
+html[data-theme="cabin"] .goal-hero h1 {
+  font-weight: 900;
+  letter-spacing: 0;
+  text-shadow: 0 2px 22px rgba(0, 0, 0, 0.55);
+}
+
+/* the hero's chips: the level's accent, a shade deeper towards the night so
+   their small white text clears 4.5:1 (on the raw accent it was ~3.9:1) */
+html[data-theme="cabin"] .goal-kicker,
+html[data-theme="cabin"] .goal-badge {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 75%, var(--cab-night0));
+}
+
+html[data-theme="cabin"] .goal-kicker {
+  padding: 3px 11px;
+}
+
+/* (the fallback's honey is a light colour: its chips stay plain honey with
+   dark ink, 10:1) */
+html[data-theme="cabin"] #goal-page[style*="#0881c6"] .goal-kicker,
+html[data-theme="cabin"] #goal-page[style*="#0881c6"] .goal-badge {
+  background: var(--cab-honey);
+}
+
+html[data-theme="cabin"] .goal-body .panel {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--cab-line-soft));
+}
+
+/* its heading dividers glow in the level's colour, not the lamp's */
+html[data-theme="cabin"] #goal-page .panel .underlined {
+  border-image: linear-gradient(90deg, var(--cab-line) 0%, color-mix(in srgb, var(--accent) 65%, transparent) 50%, var(--cab-line) 100%) 1;
+}
+
+html[data-theme="cabin"] .goal-writeup {
+  border-radius: 0 12px 12px 0;
+}
+
+html[data-theme="cabin"] .goal-ingame {
+  color: var(--cab-cream-muted);
+  opacity: 1;
+}
+
+html[data-theme="cabin"] .goal-grind h3 {
+  color: var(--cab-cream-muted);
+  opacity: 1;
+}
+
+html[data-theme="cabin"] .grind-card {
+  background: color-mix(in srgb, var(--accent) 6%, var(--cab-night2));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--cab-line));
+  border-top: 3px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 14px 30px -18px rgba(1, 4, 12, 0.9);
+}
+
+html[data-theme="cabin"] .grind-card-focus {
+  box-shadow: 0 0 0 3px var(--accent), 0 14px 30px -18px rgba(1, 4, 12, 0.9);
+}
+
+/* the big percentage and the log's numbers: the accent, lifted towards
+   cream so a dark level colour still reads on the night */
+html[data-theme="cabin"] .grind-big,
+html[data-theme="cabin"] .grind-log li b {
+  color: color-mix(in srgb, var(--accent) 72%, #fff3dc);
+}
+
+/* its small "%" was the accent faded to 0.7 (2.4:1 on Congregation's
+   indigo): it's a unit, so it takes the quiet cream instead */
+html[data-theme="cabin"] .grind-big i {
+  color: var(--cab-cream-muted);
+  opacity: 1;
+}
+
+/* (goals.css fades the writeup's source line to 0.7: its honey link fell
+   to 4.3:1 on a dark level tint) */
+html[data-theme="cabin"] .goal-writeup-cite {
+  opacity: 1;
+}
+
+html[data-theme="cabin"] .grind-track {
+  border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+/* the % label at the end of the bar: white on a raw level colour is as low
+   as 3.1:1 (Quantum Processing's green), so it sits on a small night-dark
+   pill (6.5:1 or better) and the bar keeps the level's own colour. (The
+   honey fallback above already has dark ink on it.) */
+html[data-theme="cabin"] #goal-page:not([style*="#0881c6"]) .grind-tick b {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(7, 13, 28, 0.42);
+  line-height: 1.45;
+}
+
+html[data-theme="cabin"] .grind-note,
+html[data-theme="cabin"] .grind-facts {
+  color: var(--cab-cream-muted);
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 17. Home                                                                  */
+/* ------------------------------------------------------------------------ */
+
+/* the welcome sits right on the night sky, with lamplight behind the words */
+html[data-theme="cabin"] .information-banner {
+  background-color: transparent;
+}
+
+html[data-theme="cabin"] .information-banner > * {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* (closest-side: the glow fades out inside the block, no edge) */
+html[data-theme="cabin"] .information-banner.left > * {
+  background: radial-gradient(ellipse closest-side at 42% 50%, rgba(242, 182, 94, 0.1), rgba(242, 182, 94, 0));
+}
+
+html[data-theme="cabin"] #site-tagline {
+  color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] #site-description {
+  color: var(--cab-cream);
+}
+
+/* the stats stripe: a band of warm light across the window */
+html[data-theme="cabin"] .information-stripe {
+  background:
+    linear-gradient(90deg, rgba(242, 182, 94, 0) 0%, rgba(242, 182, 94, 0.14) 50%, rgba(242, 182, 94, 0) 100%),
+    #0e1834;
+  color: var(--cab-cream-strong);
+  border-top: 1px solid rgba(242, 182, 94, 0.28);
+  border-bottom: 1px solid rgba(242, 182, 94, 0.28);
+}
+
+html[data-theme="cabin"] .information-stripe span {
+  font-weight: 800;
+}
+
+html[data-theme="cabin"] .tab-active {
+  color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] .home-demon-card {
+  background: var(--cab-night1);
+  border: 1px solid var(--cab-line-soft);
+  border-radius: var(--cab-radius);
+  overflow: hidden;
+  box-shadow: var(--cab-shadow), var(--cab-rim);
+  color: var(--cab-cream);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+html[data-theme="cabin"] .home-demon-card:hover {
+  box-shadow: var(--cab-shadow-lift);
+}
+
+html[data-theme="cabin"] .home-demon-card .thumb {
+  border-radius: 0;
+}
+
+html[data-theme="cabin"] .home-demon-card-body b {
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] .home-demon-card:hover .home-demon-card-body b {
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] .home-demon-card-body span {
+  color: var(--cab-cream-muted);
+}
+
+/* the three "about" columns: one soft card */
+html[data-theme="cabin"] .information-banner #about-inner {
+  background: var(--cab-night1);
+  border: 1px solid var(--cab-line-soft);
+  border-radius: var(--cab-radius);
+  box-shadow: var(--cab-shadow), var(--cab-rim);
+  margin: 10px;
+}
+
+html[data-theme="cabin"] #about-inner > div + div {
+  border-left-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] #about-inner h3 {
+  color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] #about-inner p {
+  color: var(--cab-cream);
+}
+
+@media (max-width: 1199px) {
+  html[data-theme="cabin"] #about-inner > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--cab-line);
+  }
+}
+
+@media (max-width: 767px) {
+  /* phones: the top-three cards get the 10px gutters the panels have, so
+     their rounded corners don't run into the screen edge */
+  html[data-theme="cabin"] #home-top3 {
+    padding: 0 10px;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* 18. Mod page                                                              */
+/* ------------------------------------------------------------------------ */
+
+html[data-theme="cabin"] #admin-page .hint,
+html[data-theme="cabin"] #admin-page .muted,
+html[data-theme="cabin"] #admin-page .field i,
+html[data-theme="cabin"] #admin-page .counter,
+html[data-theme="cabin"] #admin-page .runs .dash,
+html[data-theme="cabin"] #admin-page .runs .pct,
+html[data-theme="cabin"] #admin-page .edit .meta {
+  color: var(--cab-cream-faint);
+}
+
+html[data-theme="cabin"] #admin-page .counter.over {
+  color: var(--cab-ember);
+}
+
+html[data-theme="cabin"] #admin-page input[type="text"],
+html[data-theme="cabin"] #admin-page input[type="number"],
+html[data-theme="cabin"] #admin-page input[type="url"],
+html[data-theme="cabin"] #admin-page select {
+  background: var(--cab-night0);
+  border-color: var(--cab-field-line);
+  border-radius: var(--cab-radius-sm);
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] #admin-page input:focus,
+html[data-theme="cabin"] #admin-page select:focus {
+  border-color: var(--cab-honey);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(242, 182, 94, 0.24);
+}
+
+html[data-theme="cabin"] #admin-page button.button,
+html[data-theme="cabin"] #admin-page .big-button {
+  border-radius: var(--cab-radius-sm);
+}
+
+html[data-theme="cabin"] #admin-page .button.white {
+  border-color: var(--cab-field-line);
+}
+
+html[data-theme="cabin"] #admin-page .info-plain {
+  background: var(--cab-night2);
+  border-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] #admin-page .level-info,
+html[data-theme="cabin"] #admin-page .msg,
+html[data-theme="cabin"] #admin-page .new-player,
+html[data-theme="cabin"] #admin-page .current {
+  border-radius: var(--cab-radius-sm);
+}
+
+html[data-theme="cabin"] #admin-page .current {
+  background: var(--cab-night2);
+  border-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] #admin-page .choices label {
+  border-color: var(--cab-field-line);
+  border-radius: var(--cab-radius-sm);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+html[data-theme="cabin"] #admin-page .choices label:hover {
+  background: var(--cab-night2);
+}
+
+html[data-theme="cabin"] #admin-page .choices label:has(input:checked) {
+  border-color: var(--cab-honey);
+  background: var(--cab-honey-tint);
+  color: var(--cab-honey-bright);
+}
+
+html[data-theme="cabin"] #admin-page input[type="radio"] {
+  accent-color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] #admin-page .choices label:has(input:focus-visible) {
+  outline: 2px solid var(--cab-honey);
+  outline-offset: 2px;
+}
+
+html[data-theme="cabin"] #admin-page .goal-list li {
+  border-top-color: var(--cab-line-soft);
+}
+
+html[data-theme="cabin"] #admin-page .roster li,
+html[data-theme="cabin"] #admin-page .mods li,
+html[data-theme="cabin"] #admin-page .edits li.edit {
+  border-bottom-color: var(--cab-line-soft);
+}
+
+html[data-theme="cabin"] #admin-page .badge {
+  background: var(--cab-night3);
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] #admin-page .edit.working .badge {
+  background: rgba(143, 188, 234, 0.16);
+  color: var(--cab-sky);
+  border: 1px solid rgba(143, 188, 234, 0.45);
+}
+
+html[data-theme="cabin"] #admin-page .edit .details {
+  color: var(--cab-honey);
+}
+
+/* (admin.css's #admin-page rules out-rank the general link hover: these two
+   links showed no hover at all) */
+html[data-theme="cabin"] #admin-page .who .logout:hover,
+html[data-theme="cabin"] #admin-page .edit .details:hover {
+  color: var(--cab-honey-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+html[data-theme="cabin"] #admin-page .danger {
+  border-top-color: var(--cab-line);
+}
+
+html[data-theme="cabin"] #admin-page .copy-row code {
+  background: var(--cab-night0);
+  border-color: var(--cab-line);
+  border-radius: 6px;
+  color: var(--cab-cream-strong);
+}
+
+html[data-theme="cabin"] #admin-page .jump a {
+  color: var(--cab-honey);
+}
+
+html[data-theme="cabin"] #admin-page .jump a:hover {
+  color: var(--cab-honey-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
