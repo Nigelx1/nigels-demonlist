@@ -241,6 +241,15 @@ const CASES = [
   ["unrated: no rating", [{ op: "add_unrated", level: 5 }], "missing rating"],
   ["unrated: rating on a remove", [{ op: "remove_unrated", level: 5, rating: 20 }], "unknown field"],
   ["unrated: tier on a clear", [{ op: "add_record", player: "A", level: 5, progress: 100, difficulty: "Extreme" }], "unknown field"],
+  // the mod page's batches for a level that's unrated in game: on Rated+ with its first clear or Grind goal
+  ["unrated: on Rated+ with its first clear", [
+    { op: "add_unrated", level: 99999999, rating: 31.25, difficulty: "Extreme", showcase: "https://youtu.be/abcdefghijk" },
+    { op: "add_record", player: "Nigel", level: 99999999, progress: 76 },
+  ], "ok"],
+  ["unrated: on Rated+ with a Grind goal", [
+    { op: "add_unrated", level: 99999999, rating: 15, difficulty: "Insane", placeBelow: 0 },
+    { op: "set_grind", player: "Nigel", level: 99999999, best: 40, segments: [[50, 100]] },
+  ], "ok"],
 ];
 
 {
@@ -510,6 +519,21 @@ print(json.dumps(out))
   stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
   const rc = await api.edit.onRequestPost(ctx(editReq({ ops: [{ op: "add_record", player: "ace", level: 99999999, progress: 60 }] }, { cookie: aceCookie })));
   check("unrated: a mod can still add a clear on any level", rc.status === 200);
+  // a level that's unrated in game goes on Rated+ with its first clear or Grind goal:
+  // one batch, add_unrated first - head mods only, sent as it came
+  for (const second of [{ op: "add_record", player: "ace", level: 99999999, progress: 76 },
+    { op: "set_grind", player: "ace", level: 99999999, best: 40, segments: [[50, 100]] }]) {
+    const pair = [{ op: "add_unrated", level: 99999999, rating: 26, difficulty: "Extreme" }, second];
+    stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
+    const rm = await api.edit.onRequestPost(ctx(editReq({ ops: pair }, { cookie: aceCookie })));
+    const em = (await rm.json()).error, sentByMod = calls.length;
+    stubFetch([["POST", GH_DISPATCH, () => new Response(null, { status: 204 })]]);
+    const rh = await api.edit.onRequestPost(ctx(editReq({ ops: pair })));
+    const sh = calls[0] && JSON.parse(calls[0].init.body);
+    check(`unrated: [add_unrated, ${second.op}] - a head mod's goes out in order, a mod's is refused`,
+      rm.status === 403 && /edit 1 \(add_unrated\): only head mods can add unrated levels/.test(em) && sentByMod === 0
+      && rh.status === 200 && sh && eq(sh.client_payload.ops, pair), em);
+  }
   const PYUNRATED = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
@@ -1528,13 +1552,42 @@ try:
     spec.loader.exec_module(m)
     sys.stdout = sys.stderr
 
-    FAKE, ran = {}, []
+    # FAKE: gdbrowser's answers for add_unrated; GB: its stand-in's (gd_servers), which
+    # the Rated+ checks on clears and Grind goals see (Engine.in_game)
+    FAKE, GB, ran = {}, {}, []
     m.curl = lambda url, timeout=30: (0, "")
-    m.gd_servers = lambda lid: None
+    m.gd_servers = lambda lid: GB.get(lid)
     m.Engine.unrated_facts = lambda self, lid: m.unrated_facts_from(lid, 200, json.dumps(FAKE[lid]))
     m.Engine.showcase_thumb = lambda self, vid: "https://i.ytimg.com/vi/" + vid + "/hqdefault.jpg"
+
+    class Ran:  # what run_tool returns
+        def __init__(self, code):
+            self.returncode, self.stdout, self.stderr = code, "", ""
+
+    def build_goal_levels(r):
+        """build-goal-levels.py without the network: a new Grind level gets its name
+        from FAKE / GB, the rest keep what they have"""
+        st = m.load_state(r)
+        gl = st["GOAL_LEVELS"]
+        for g in st["GOALS"]:
+            k = str(g["levelId"])
+            if k not in gl:
+                f = FAKE.get(g["levelId"]) or GB.get(g["levelId"]) or {}
+                gl[k] = {"name": f.get("name") or "Level " + k, "publisher": f.get("author"),
+                         "difficulty": (f.get("difficulty") or "").replace(" Demon", "") or "Extreme", "rating": None,
+                         "levelId": g["levelId"], "description": None, "requirementPercent": 100,
+                         "gd": {"inGameDifficulty": f.get("difficulty") or "Unrated"}}
+        src = m.read(r, "data/goal-levels.js")
+        i = src.index("window.GOAL_LEVELS =")
+        m.write(r, "data/goal-levels.js", src[:i] + "window.GOAL_LEVELS = " + json.dumps(gl, indent=2, ensure_ascii=False) + ";\n")
+
     def no_tools(_root, args, timeout=900):
         ran.append(args[0])
+        if args[0] == "build-goal-levels.py":  # a Grind edit
+            build_goal_levels(_root)
+            return Ran(0)
+        if args[0] == "apply-showcases.py":  # a level new to the site: "couldn't read the channel"
+            return Ran(1)
         raise m.Refuse("(test) " + args[0] + " was run")
     m.run_tool = no_tools
 
@@ -1542,7 +1595,8 @@ try:
     site, L = s["SITE"], sorted(s["DEMONS"], key=lambda d: d["position"])
     taken = {d["levelId"] for d in L} | {g["levelId"] for g in s["GOALS"]} | {int(k) for k in s["GOAL_LEVELS"]}
     taken |= {int(k) for k in m.Engine(root).showcase_overrides()}
-    F, U1, U2, U3, U4, U5 = [i for i in range(990000001, 990000200) if i not in taken][:6]
+    free = [i for i in range(990000001, 990000200) if i not in taken]
+    F, U1, U2, U3, U4, U5 = free[:6]
     for lid in (F, U1, U2, U3, U4, U5):
         FAKE[lid] = {"name": "Fixture " + str(lid), "author": "Someone", "difficulty": "Unrated", "stars": 0,
                      "length": "Long", "objects": 1234, "gameVersion": "2.2"}
@@ -1564,14 +1618,19 @@ try:
     def top_note():
         return state()["CHANGELOG"][0]["items"][0]
     def run(ops, role="head"):
-        """(None, say lines) when it went through and check() passed, else (why, lines)."""
-        p = m.validate({"requestId": "0" * 16, "editor": "Nigel", "role": role, "ops": ops})
+        """(None, say lines) when it went through and check() passed, else (why, lines).
+        A refused run leaves data/ as it found it, like the real one (restore())."""
+        data = os.path.join(root, "data")
+        kept = {f: m.read(root, "data/" + f) for f in os.listdir(data)}
         e = m.Engine(root, role)
         try:
+            p = m.validate({"requestId": "0" * 16, "editor": "Nigel", "role": role, "ops": ops})
             e.apply(p["ops"])
             m.check(root)
             return None, e.lines
         except m.Refuse as x:
+            for f, text in kept.items():
+                m.write(root, "data/" + f, text)
             return str(x), e.lines
 
     try:
@@ -1681,6 +1740,120 @@ try:
         ok("engine: the demon leaves, and the stale spot is reported (not rewritten)", err is None
            and any("hand-picked spot no longer fits after this" in x for x in lines)
            and entry(U5)["placeBelow"] == lone["levelId"], err or lines)
+
+    # A level that's unrated in game goes on Rated+ with its first clear or Grind
+    # goal: the mod page sends add_unrated first, in the same batch. A clear, or a
+    # goal on a new Grind level, that skips it is refused - by head mods and mods.
+    U6, U7, U8, U9, U10, U11, U12, U13 = free[6:14]
+    for lid in (U6, U7, U12, U13):
+        FAKE[lid] = GB[lid] = {"name": "Fixture " + str(lid), "author": "Someone", "difficulty": "Unrated", "stars": 0,
+                               "length": "Long", "objects": 1234, "gameVersion": "2.2"}
+    GB[U8] = {"name": "Fixture " + str(U8), "author": "Someone", "difficulty": "Unrated", "stars": 0, "length": "Long"}
+    GB[U9] = {"name": "Fixture " + str(U9), "author": "Someone", "difficulty": "Hard", "length": "Long"}  # no stars
+    GB[U10] = {"name": "Fixture " + str(U10), "author": "Someone", "difficulty": "Unrated", "stars": 0, "length": "Plat.",
+               "platformer": True}
+    GB[U11] = {"name": "Fixture " + str(U11), "author": "Someone", "difficulty": "Extreme Demon", "stars": 10, "length": "XL"}
+    def has_goal(player, lid):
+        return any(g["player"] == player and g["levelId"] == lid for g in state()["GOALS"])
+
+    ran.clear()
+    err, _ = run([{"op": "add_unrated", "level": U6, "rating": 22.5},
+                  {"op": "add_record", "player": A, "level": U6, "progress": 100}])
+    u = entry(U6)
+    rec = next((r for r in (u or {}).get("records", []) if r["player"] == A), None)
+    ok("engine: [add_unrated, add_record] - on Rated+ with its first clear, in one run (add-records.py isn't run)",
+       err is None and u and u["difficulty"] == "Extreme" and u["rating"] == 22.5 and rec and rec["progress"] == 100
+       and u["verifier"] == A and "add-records.py" not in ran, err or (u, ran))
+    items = state()["CHANGELOG"][0]["items"]
+    ok("engine: ...the clear's note on top of the new level's", items[0] == {"kind": "note", "text": A + " beat Fixture "
+       + str(U6) + " (unrated - counts in Rated+)."} and items[1]["text"].startswith("Rated+: Fixture " + str(U6)
+       + " is on as an unrated Extreme, GDDL estimate 22.50"), items[:2])
+    err, _ = run([{"op": "add_unrated", "level": U12, "rating": 18},
+                  {"op": "add_record", "player": B, "level": U12, "progress": 76}])
+    u = entry(U12)
+    ok("engine: [add_unrated, add_record] with a run under 100% - on Rated+, not beaten yet", err is None and u
+       and u["difficulty"] == "Insane" and [(r["player"], r["progress"]) for r in u["records"]] == [(B, 76)]
+       and u["verifier"] is None, err or u)
+
+    ran.clear()
+    err, lines = run([{"op": "add_unrated", "level": U7, "rating": 26, "difficulty": "Extreme"},
+                      {"op": "set_grind", "player": B, "level": U7, "best": 40, "segments": [[50, 100]]}])
+    st = state()
+    goal = next((g for g in st["GOALS"] if g["player"] == B and g["levelId"] == U7), None)
+    ok("engine: [add_unrated, set_grind] - on Rated+ with a Grind goal, in one run", err is None and entry(U7)
+       and entry(U7)["records"] == [] and goal == {"player": B, "levelId": U7, "best": 40, "segments": [[50, 100]]}
+       and (st["GOAL_LEVELS"].get(str(U7)) or {}).get("name") == "Fixture " + str(U7) and "add-records.py" not in ran,
+       err or (goal, lines))
+    row = next((ln for ln in m.read(root, "data/goals.js").split("\n") if "levelId: " + str(U7) + "," in ln), "")
+    ok("engine: ...its row in data/goals.js", row.strip() == "{ player: " + json.dumps(B, ensure_ascii=False) + ", levelId: "
+       + str(U7) + ", best: 40, segments: [[50, 100]] }, // Fixture " + str(U7), row)
+    ok("engine: ...and the new level's note on top of the changelog", top_note()["text"].startswith("Rated+: Fixture " + str(U7)
+       + " is on as an unrated Extreme, GDDL estimate 26.00"), top_note())
+    err, _ = run([{"op": "add_record", "player": B, "level": U7, "progress": 100}], role="mod")
+    u = entry(U7)
+    ok("engine: then beaten (a mod's clear) - on the Rated+ list for real, and off that player's Grind", err is None and u
+       and u["verifier"] == B and [(r["player"], r["progress"]) for r in u["records"]] == [(B, 100)] and not any(
+           g["player"] == B and g["levelId"] == U7 for g in state()["GOALS"]), err or u)
+
+    U14 = free[14]
+    FAKE[U14] = GB[U14] = {"name": "Fixture " + str(U14), "author": "Someone", "difficulty": "Unrated", "stars": 0,
+                           "length": "Long", "objects": 1234, "gameVersion": "2.2"}
+    spot14 = m.unrated_slots({"levelId": U14, "difficulty": t4, "rating": r4}, state()["DEMONS"], site)[0]
+    err, _ = run([{"op": "add_unrated", "level": U14, "rating": r4, "difficulty": t4, "placeBelow": spot14,
+                   "showcase": "https://youtu.be/abcdefghijk"},
+                  {"op": "add_record", "player": B, "level": U14, "progress": 55}])
+    u = entry(U14)
+    ok("engine: [add_unrated with a spot and a showcase, add_record] - all of it kept", err is None and u
+       and u.get("placeBelow") == spot14 and u["videoUrl"] == "https://www.youtube.com/watch?v=abcdefghijk"
+       and [(r["player"], r["progress"]) for r in u["records"]] == [(B, 55)], err or u)
+
+    why = "Fixture " + str(U8) + " is unrated: a head mod puts it on Rated+ first, with its GDDL estimate (check the level on the mod page)"
+    for role in ("head", "mod"):
+        ran.clear()
+        err, _ = run([{"op": "set_grind", "player": A, "level": U8, "best": 30, "segments": []}], role=role)
+        ok("engine: set_grind on a level that's unrated in game but not on Rated+ is refused (" + role + ")",
+           err and why in err and not has_goal(A, U8), err)
+        err, _ = run([{"op": "add_record", "player": A, "level": U8, "progress": 100}], role=role)
+        ok("engine: ...and so is a clear on it, before add-records.py runs (" + role + ")", err and why in err and not ran, err or ran)
+        err, _ = run([{"op": "add_record", "player": A, "level": U8, "progress": 60}], role=role)
+        ok("engine: ...and a run under 100% on it (" + role + ")", err and why in err, err)
+    err, _ = run([{"op": "add_unrated", "level": U8, "rating": 20},
+                  {"op": "set_grind", "player": A, "level": U8, "best": 30, "segments": []}], role="mod")
+    ok("engine: a mod can't send the pair - add_unrated stays head mods'", err and "only head mods can add unrated levels" in err
+       and entry(U8) is None, err)
+    err, _ = run([{"op": "add_record", "player": A, "level": U13, "progress": 100},
+                  {"op": "add_unrated", "level": U13, "rating": 20}])
+    ok("engine: the batch applies in order - a clear before its add_unrated is refused, nothing kept",
+       err and ("Fixture " + str(U13) + " is unrated") in err and entry(U13) is None, err)
+    err, _ = run([{"op": "remove_unrated", "level": U6}, {"op": "add_record", "player": A, "level": U6, "progress": 100}])
+    ok("engine: Move to the list while it's still unrated in game - refused, saying so, nothing kept",
+       err and "is still unrated in game, so it can't move to the list yet" in err and entry(U6) is not None, err)
+    err, _ = run([{"op": "set_grind", "player": A, "level": U10, "best": 30, "segments": []}])
+    ok("engine: an unrated platformer is refused, and it says why", err and "unrated platformer level" in err
+       and not has_goal(A, U10), err)
+    err, _ = run([{"op": "set_grind", "player": A, "level": U9, "best": 10, "segments": []}])
+    ok("engine: stars that can't be told - the Grind goal goes through", err is None and has_goal(A, U9), err)
+    ran.clear()
+    err, _ = run([{"op": "add_record", "player": A, "level": U9, "progress": 100}])
+    ok("engine: ...and a 100% on it gets past the Rated+ check to add-records.py (which decides)",
+       err and "(test) add-records.py was run" in err and ran == ["add-records.py"], err or ran)
+    err, _ = run([{"op": "set_grind", "player": A, "level": U11, "best": 10, "segments": []}])
+    ok("engine: a rated level - the Grind goal goes through", err is None and has_goal(A, U11), err)
+    st = state()
+    skip = {d["levelId"] for d in st["DEMONS"]} | {u["levelId"] for u in st["UNRATED"]} | {U9, U11}
+    old = next((g["levelId"] for g in st["GOALS"] if g["levelId"] not in skip), None)
+    who = old and next((x["name"] for x in roster if not has_goal(x["name"], old)), None)
+    if who:
+        GB[old] = {"name": "Grind Level", "author": "Someone", "difficulty": "Unrated", "stars": 0, "length": "Long"}
+        err, _ = run([{"op": "set_grind", "player": who, "level": old, "best": 5, "segments": []}])
+        ok("engine: a level already in someone's Grind takes more goals, even if it's unrated in game",
+           err is None and has_goal(who, old), err)
+    cfg = m.read(root, "data/config.js")
+    m.write(root, "data/config.js", cfg + "\nwindow.SITE.ratedPlus = false;\n")
+    err, _ = run([{"op": "set_grind", "player": A, "level": U8, "best": 30, "segments": []}])
+    ok("engine: Rated+ off (Nigel's Demonlist) - a Grind goal on an unrated level goes through as before",
+       err is None and has_goal(A, U8), err)
+    m.write(root, "data/config.js", cfg)
 except Exception as x:
     import traceback
     ok("engine: the harness ran", False, traceback.format_exc()[-400:])

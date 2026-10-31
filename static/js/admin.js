@@ -107,7 +107,7 @@
   var GOAL_LEVELS = window.GOAL_LEVELS || {};
   var SITE = window.SITE || {};
   // The unrated levels (Rated+: data/unrated.js, Aceabase only). A list without
-  // the file has none, and the Unrated levels panel stays hidden there.
+  // the file has none, and the Rated+ levels panel stays hidden there.
   var UNRATED = Array.isArray(window.UNRATED) ? window.UNRATED : [];
 
   // Every name the list knows: the roster plus anyone holding a record, on an
@@ -186,6 +186,35 @@
   function unratedByLevel(id) {
     if (demonByLevel(id)) return null;
     return UNRATED.find(function (u) { return u && u.levelId === id; }) || null;
+  }
+
+  // Has someone beaten this unrated level (a record at 100%)? Only then is it on
+  // the Rated+ list; until then it's a Grind level of Rated+. (DL.unratedBeaten.)
+  function unratedBeaten(u) {
+    if (window.DL && typeof DL.unratedBeaten === "function") return DL.unratedBeaten(u);
+    return (u.records || []).some(function (r) { return r.progress >= 100; });
+  }
+
+  // Today's Rated+ list (static/js/views.js, which a list with Rated+ loads here):
+  // where a beaten unrated level sits. null when it can't be built.
+  var plusView;
+  function ratedPlusView() {
+    if (plusView === undefined) {
+      try {
+        plusView = window.DL && typeof DL.listView === "function" ? DL.listView("current", "plus") : null;
+      } catch (e) {
+        plusView = null; // the page still works without positions
+      }
+    }
+    return plusView;
+  }
+
+  // "on Rated+ at #6" / "on Rated+, beaten" / "on Rated+, not beaten yet", for the
+  // level hints
+  function ratedPlusState(u) {
+    if (!unratedBeaten(u)) return "on Rated+, not beaten yet";
+    var v = ratedPlusView(), pos = v ? v.pos(u) : null;
+    return typeof pos === "number" ? "on Rated+ at #" + pos : "on Rated+, beaten";
   }
 
   function levelName(id) {
@@ -382,14 +411,22 @@
 
   // --- level look-up (the Check buttons) -------------------------------------
 
+  // The level id typed in a field, or null.
+  function levelIn(input) {
+    try {
+      return parseLevel(input.value);
+    } catch (e) {
+      if (!(e instanceof Problem)) throw e;
+      return null;
+    }
+  }
+
   // As the editor types: what the list already knows about that level, no
   // network needed. The Check button asks gdladder/gdbrowser through the server.
   // forClear: Add a clear's box (any progress counts on an unrated level).
   function localLevelHint(input, box, forClear) {
-    var id;
-    try {
-      id = parseLevel(input.value);
-    } catch (e) {
+    var id = levelIn(input);
+    if (id === null) {
       hush(box);
       return;
     }
@@ -397,14 +434,15 @@
     var u = unratedByLevel(id);
     var g = GOAL_LEVELS[String(id)];
     if (d) say(box, "info", d.name + " - #" + d.position + " on the list.");
-    else if (u) say(box, "info", String(u.name).trim() + " - unrated (Rated+)" + (forClear ? "; any progress counts." : "."));
+    else if (u) say(box, "info", String(u.name).trim() + " - unrated, " + ratedPlusState(u) + (forClear ? "; any progress counts." : "."));
     else if (g && g.name) say(box, "info", String(g.name).trim() + " - not on the list (someone's grinding it).");
     else hush(box);
   }
 
   // forClear: warn about what the list refuses (wrong difficulty, platformer,
-  // progress under 100 on a level that isn't on it yet).
-  function checkLevel(input, box, button, forClear) {
+  // progress under 100 on a level that isn't on it yet). rated: the panel's
+  // Rated+ box (ratedPlusBox), or null.
+  function checkLevel(input, box, button, forClear, rated) {
     var id;
     try {
       id = parseLevel(input.value);
@@ -416,39 +454,91 @@
     say(box, "info", "Looking it up...");
     api("/api/level?level=" + encodeURIComponent(String(id))).then(function (res) {
       button.disabled = false;
-      if (res.status !== 200) {
-        say(box, "err", errorText(res));
+      showLevel(box, id, res, forClear, rated);
+    });
+  }
+
+  // What the look-up found, in a panel's level box (and, on a list with Rated+,
+  // the panel's Rated+ box). Returns the level's Rated+ case (ratedPlusCase).
+  function showLevel(box, id, res, forClear, rated) {
+    if (res.status !== 200) {
+      var failed = rated ? rated.found(id, null, res.status) : "";
+      say(box, "err", errorText(res));
+      return failed;
+    }
+    var lv = res.data;
+    var facts = [lv.difficulty];
+    if (lv.rating !== null && lv.rating !== undefined) facts.push("rating " + lv.rating);
+    if (lv.platformer) facts.push("platformer");
+    // an unrated level (Rated+) takes any progress: none of the list's refusals apply
+    var unrated = lv.onList !== true ? unratedByLevel(lv.id) : null;
+    // Rated+: "unrated" = unrated in game and on neither list yet (ratedPlusCase).
+    // (An unrated level can show a face from players' votes, like "Hard".)
+    var rp = rated ? rated.found(id, lv, 200) : "";
+    if (rp === "unrated" && lv.difficulty !== "Unrated") facts.push("unrated in game");
+    var where = unrated ? "Unrated, " + ratedPlusState(unrated) + (forClear ? ": any progress counts." : ".")
+      : rp === "added" ? "Unrated, just put on Rated+" + (forClear ? ": any progress counts." : ".")
+      : lv.onList === true ? "On the list at #" + lv.position + "."
+      : rp === "unrated" ? "Not on the list or Rated+ yet."
+      : lv.onList === false ? "Not on the list yet." : "";
+    var warn = [];
+    if (rp === "unrated" && !isHead()) warn.push(ONLY_HEAD);
+    else if (forClear && !unrated && rp !== "unrated" && rp !== "added") {
+      // Only a list that limits difficulties (SITE.allowedDifficulties) refuses the rest.
+      var allowed = SITE.allowedDifficulties;
+      if (lv.platformer) warn.push("It's a platformer level - the list doesn't take those, so this would be refused.");
+      else if (!lv.tier) warn.push("It's not a demon - the list only takes demons, so this would be refused.");
+      else if (allowed && allowed.indexOf(lv.tier) < 0) warn.push("It's " + (lv.difficulty || "not a demon") + " - the list only takes " + allowed.join(" and ") + " Demons, so this would be refused.");
+      else if (lv.onList === false) warn.push("Only a 100% can put it on the list.");
+      // couldn't tell whether it's rated: these hold only if it is (the Rated+ box
+      // under the level asks a head mod)
+      if (rp === "maybe" && isHead()) {
+        warn = warn.map(function (w) { return "If it's rated: " + w.charAt(0).toLowerCase() + w.slice(1); });
+      }
+    } else if (rp === "platformer") {
+      warn.push("It's an unrated platformer level - the list doesn't take those, not even in Rated+, so this would be refused.");
+    }
+    clear(box);
+    box.className = "msg " + (warn.length ? "info-yellow" : "info-plain");
+    box.appendChild(el("b", null, lv.name));
+    box.appendChild(document.createTextNode(" by " + lv.creator + " (ID " + lv.id + ")"));
+    box.appendChild(el("br"));
+    box.appendChild(document.createTextNode(facts.join(" · ") + (where ? " · " + where : "")));
+    warn.forEach(function (w) {
+      box.appendChild(el("br"));
+      box.appendChild(el("b", null, w));
+    });
+    box.hidden = false;
+    return rp;
+  }
+
+  // Save on a level nobody pressed Check for (Rated+ needs to know whether it's
+  // rated): look it up first, show what was found as Check does, then try the save
+  // again. A look-up that fails doesn't stop it: the server checks anyway. Only a
+  // head mod is stopped when it can't tell, to answer the "It's unrated" box first.
+  function lookUpFirst(input, box, forClear, rated, button, msg, again) {
+    var id = levelIn(input);
+    button.disabled = true;
+    say(msg, "info", "Checking the level first...");
+    api("/api/level?level=" + encodeURIComponent(String(id))).then(function (res) {
+      button.disabled = false;
+      if (levelIn(input) !== id) {
+        hush(msg); // the level was changed meanwhile: Save again for the new one
         return;
       }
-      var lv = res.data;
-      var facts = [lv.difficulty];
-      if (lv.rating !== null && lv.rating !== undefined) facts.push("rating " + lv.rating);
-      if (lv.platformer) facts.push("platformer");
-      // an unrated level (Rated+) takes any progress: none of the list's refusals apply
-      var unrated = lv.onList !== true ? unratedByLevel(lv.id) : null;
-      var where = unrated ? "An unrated level (Rated+)" + (forClear ? ": any progress counts." : ".")
-        : lv.onList === true ? "On the list at #" + lv.position + "." : lv.onList === false ? "Not on the list yet." : "";
-      var warn = [];
-      if (forClear && !unrated) {
-        // Only a list that limits difficulties (SITE.allowedDifficulties) refuses the rest.
-        var allowed = SITE.allowedDifficulties;
-        if (lv.platformer) warn.push("It's a platformer level - the list doesn't take those, so this would be refused.");
-        else if (!lv.tier) warn.push("It's not a demon - the list only takes demons, so this would be refused.");
-        else if (allowed && allowed.indexOf(lv.tier) < 0) warn.push("It's " + (lv.difficulty || "not a demon") + " - the list only takes " + allowed.join(" and ") + " Demons, so this would be refused.");
-        else if (lv.onList === false) warn.push("Only a 100% can put it on the list.");
+      if (showLevel(box, id, res, forClear, rated) === "maybe" && isHead()) {
+        say(msg, "warn", "Couldn't tell whether it's rated in game. If it isn't, tick \"It's unrated\" under the level and give its GDDL estimate. Then Save again.");
+        return;
       }
-      clear(box);
-      box.className = "msg " + (warn.length ? "info-yellow" : "info-plain");
-      box.appendChild(el("b", null, lv.name));
-      box.appendChild(document.createTextNode(" by " + lv.creator + " (ID " + lv.id + ")"));
-      box.appendChild(el("br"));
-      box.appendChild(document.createTextNode(facts.join(" · ") + (where ? " · " + where : "")));
-      warn.forEach(function (w) {
-        box.appendChild(el("br"));
-        box.appendChild(el("b", null, w));
-      });
-      box.hidden = false;
+      again();
     });
+  }
+
+  // A level's name for Recent edits: the list's, else what its look-up said (on a
+  // list with Rated+, whose panels look levels up before saving), else "level N".
+  function nameOf(id, rated) {
+    var name = levelName(id);
+    return name === "level " + id && rated ? rated.name(id) : name;
   }
 
   // --- 1. Add a clear ---------------------------------------------------------
@@ -476,19 +566,24 @@
     $("clear-country").addEventListener("change", function () {
       fillSubdivisionSelect($("clear-subdivision"), $("clear-country").value);
     });
-    level.addEventListener("input", function () { localLevelHint(level, info, true); });
+    // Rated+ (a list with unrated levels): the box for a level that's unrated in game
+    var rated = ratedPlusBox("clear", level, info, false);
+    level.addEventListener("input", function () {
+      localLevelHint(level, info, true);
+      if (rated) rated.typed();
+    });
     $("clear-check").addEventListener("click", function () {
-      checkLevel(level, info, $("clear-check"), true);
+      checkLevel(level, info, $("clear-check"), true, rated);
     });
 
-    $("clear-save").addEventListener("click", function () {
-      var ops;
+    function saveClear() {
+      var ops, op, add = null, video;
       try {
         var name = checkName(player.value, "player");
         var who = resolvePlayer(name);
         var id = parseLevel(level.value);
         var progress = parseWhole($("clear-progress").value, "Progress", 1, 100);
-        var op = { op: "add_record", player: who || name, level: id, progress: progress };
+        op = { op: "add_record", player: who || name, level: id, progress: progress };
         if (!who) {
           if (!isHead()) throw new Problem(name + " isn't on the list yet. Only head mods can add new players - ask one to add them first.");
           var cc = $("clear-country").value;
@@ -498,22 +593,32 @@
           if (csub) op.subdivision = csub;
         }
         var d = demonByLevel(id);
-        var unrated = unratedByLevel(id); // Rated+: any progress counts there
-        if (!d && !unrated && progress < 100) {
+        // Rated+: any progress counts there (on a level this page just put on it too)
+        var unrated = unratedByLevel(id) || (rated !== null && rated.onPlus(id));
+        // Rated+: a level that's unrated in game goes on it with this clear (head mods)
+        var need = rated && !d && !unrated ? rated.need(id) : "";
+        if (need === "ask") {
+          lookUpFirst(level, info, true, rated, $("clear-save"), msg, saveClear);
+          return;
+        }
+        if (need === "mod") throw new Problem(ONLY_HEAD);
+        if (need === "add") add = rated.op(id);
+        if (!d && !unrated && !add && progress < 100) {
           throw new Problem("That level isn't on the list, and only a 100% can put it on. (Progress counts only on levels already on the list.)");
         }
-        ops = [op];
-        var video = $("clear-video").value.trim();
-        if (video && unrated) throw new Problem("Videos on unrated levels' clears aren't supported yet - leave the video link empty.");
+        ops = add ? [add, op] : [op];
+        video = $("clear-video").value.trim();
+        if (video && (unrated || add)) throw new Problem("Videos on unrated levels' clears aren't supported yet - leave the video link empty.");
         if (video) ops.push({ op: "set_record_video", player: op.player, level: id, url: checkVideo(video) });
       } catch (e) {
         if (!(e instanceof Problem)) throw e;
         say(msg, "err", e.message);
         return;
       }
-      var what = ops[0].player + " " + ops[0].progress + "% on " + levelName(ops[0].level) +
-        (unratedByLevel(ops[0].level) ? " (unrated)" : "") + (ops.length > 1 ? " (with video)" : "");
+      var what = op.player + " " + op.progress + "% on " + nameOf(op.level, rated) +
+        (add ? " (unrated, new on Rated+)" : unrated ? " (unrated)" : "") + (video ? " (with video)" : "");
       save(ops, what, $("clear-save"), msg, function () {
+        if (add) rated.added(op.level);
         player.value = "";
         level.value = "";
         $("clear-progress").value = "100";
@@ -521,9 +626,11 @@
         $("clear-country").value = "";
         fillSubdivisionSelect($("clear-subdivision"), "");
         hush(info);
+        if (rated) rated.reset();
         onPlayer();
       });
-    });
+    }
+    $("clear-save").addEventListener("click", saveClear);
   }
 
   // --- 2. Grind ---------------------------------------------------------------
@@ -575,10 +682,13 @@
     note.addEventListener("input", countNote);
 
     var editing = null; // {player, levelId} while the form holds an existing goal
+    // Rated+ (a list with unrated levels): the box for a level that's unrated in game
+    var rated = ratedPlusBox("grind", level, info, true);
 
     function resetForm() {
       level.value = "";
       hush(info);
+      if (rated) rated.reset();
       $("grind-best-num").value = "";
       setBestMode("num");
       clear(runs);
@@ -655,17 +765,20 @@
       box.hidden = false;
     }
     player.addEventListener("input", showCurrent);
-    level.addEventListener("input", function () { localLevelHint(level, info); });
+    level.addEventListener("input", function () {
+      localLevelHint(level, info);
+      if (rated) rated.typed();
+    });
     $("grind-check").addEventListener("click", function () {
-      checkLevel(level, info, $("grind-check"), false);
+      checkLevel(level, info, $("grind-check"), false, rated);
     });
     $("grind-clear").addEventListener("click", function () {
       resetForm();
       hush(msg);
     });
 
-    $("grind-save").addEventListener("click", function () {
-      var op;
+    function saveGrind() {
+      var op, add = null;
       try {
         var name = checkName(player.value, "player");
         var who = resolvePlayer(name);
@@ -702,15 +815,26 @@
         var text = checkNote(note.value);
         op = { op: "set_grind", player: who, level: id, best: best, segments: segs };
         if (text) op.note = text;
+        // Rated+: a level that's unrated in game goes on it with this goal (head mods)
+        var need = rated && !d ? rated.need(id) : "";
+        if (need === "ask") {
+          lookUpFirst(level, info, false, rated, $("grind-save"), msg, saveGrind);
+          return;
+        }
+        if (need === "mod") throw new Problem(ONLY_HEAD);
+        if (need === "add") add = rated.op(id);
       } catch (e) {
         if (!(e instanceof Problem)) throw e;
         say(msg, "err", e.message);
         return;
       }
-      save([op], "Grind: " + op.player + " on " + levelName(op.level), $("grind-save"), msg, function () {
+      var what = "Grind: " + op.player + " on " + nameOf(op.level, rated) + (add ? " (unrated, new on Rated+)" : "");
+      save(add ? [add, op] : [op], what, $("grind-save"), msg, function () {
+        if (add) rated.added(op.level);
         resetForm();
       });
-    });
+    }
+    $("grind-save").addEventListener("click", saveGrind);
 
     resetForm();
   }
@@ -930,14 +1054,16 @@
     });
   }
 
-  // --- 5b. Unrated levels (Rated+, head mods) -------------------------------------
+  // --- 5b. Rated+: the unrated levels (head mods) -------------------------------------
   //
   // data/unrated.js: levels that aren't rated in game but count in the list's
   // Rated+ views (Nigel and Dihmaster500, 2026-10-30). A head mod's GD Demon
   // Ladder estimate places and scores each one; a spot picked by hand has to be
   // inside the window static/js/views.js gives (DL.unratedSlots), and the server
-  // checks it again (tools/apply-edit.py slot_ok). Shown only on a list with
-  // SITE.ratedPlus, and only to head mods: the server refuses mods anyway.
+  // checks it again (tools/apply-edit.py slot_ok). One goes on with its first
+  // clear or Grind goal (the Rated+ box in Add a clear and Grind, below); the
+  // Rated+ levels panel edits and removes them. Only on a list with
+  // SITE.ratedPlus, and only for head mods: the server refuses mods anyway.
 
   var TIERS = ["Extreme", "Insane"];
   var SHOWCASE_HOSTS = ["youtube.com", "www.youtube.com", "youtu.be"];
@@ -1023,6 +1149,203 @@
     return !r || r.value === "auto" ? "auto" : Number(r.value);
   }
 
+  function inGrind(id) {
+    return GOALS.some(function (g) { return Number(g.levelId) === id; });
+  }
+
+  // "a", "a and b", "a, b and c"
+  function andList(names) {
+    return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  }
+
+  // --- the Rated+ box in Add a clear and Grind ---
+  //
+  // A level that's unrated in game goes on Rated+ with its first clear or Grind
+  // goal (Nigel, 2026-10-30). When Check finds one - 0 stars, not on the list, not
+  // on Rated+ yet - or Save does (it looks the level up itself when nobody pressed
+  // Check), a head mod gets this box under the level: the GDDL estimate that places
+  // and scores it, the tier it counts as, a showcase and a hand-picked spot. Save
+  // then sends add_unrated first and the clear or the goal after it, as one batch.
+  // A mod is told only a head mod can. When the look-up can't tell whether it's
+  // rated, head mods get an "It's unrated" box to tick for the same fields. The
+  // server checks it all again (tools/apply-edit.py refuse_unrated_in_game).
+
+  var ONLY_HEAD = "It's unrated: only a head mod can put it on Rated+ (with a GDDL estimate).";
+
+  // What a look-up's answer for level id means for Rated+: "unrated" (0 stars, on
+  // neither list), "platformer" (the same, but the list never takes those), "maybe"
+  // (it couldn't tell: no star count and gdladder, which only has rated levels,
+  // doesn't know it, or the look-up failed on the server's side), or "".
+  // lv: /api/level's answer, null when it failed with HTTP status `status`.
+  function ratedPlusCase(id, lv, status) {
+    if (!SITE.ratedPlus || demonByLevel(id) || unratedByLevel(id)) return "";
+    if (!lv) return status === 0 || status >= 500 ? "maybe" : "";
+    if (lv.onList === true) return "";
+    if (lv.stars === 0) return lv.platformer ? "platformer" : "unrated";
+    return typeof lv.stars !== "number" && (lv.rating === null || lv.rating === undefined) && !lv.platformer ? "maybe" : "";
+  }
+
+  // Level ids a save from this page put on Rated+ (with its add_unrated), in either
+  // panel: the list here only shows them after a reload.
+  var addedToPlus = {};
+
+  // One panel's box ("clear" or "grind"), right under its level field; null on a
+  // list without Rated+. forGrind: a level already in someone's Grind needs none
+  // (the server takes more goals on it as it is).
+  function ratedPlusBox(prefix, level, info, forGrind) {
+    if (!SITE.ratedPlus) return null;
+    var found = {}; // level id -> [its look-up's answer or null, HTTP status]
+    var shownFor = null; // the level id the box is open for
+    var typedFor = null; // the level id its fields were filled in for
+    var tierPicked = false; // the tier follows the estimate until the mod picks one
+
+    var tick = el("input", { type: "checkbox", id: prefix + "-unrated-is" });
+    var maybe = el("div", { id: prefix + "-unrated-maybe" },
+      el("label", null, tick, " ", el("b", null, "It's unrated")),
+      el("p", { className: "hint" }, "Couldn't tell whether it's rated in game. Tick this if it isn't; the list checks again when you save."));
+    var est = el("input", { type: "number", id: prefix + "-unrated-rating", min: 1, max: 50, step: 0.01, inputMode: "decimal", placeholder: "e.g. 31.25" });
+    var tier = el("select", { id: prefix + "-unrated-tier" }, el("option", { value: "Extreme" }, "Extreme"), el("option", { value: "Insane" }, "Insane"));
+    var link = el("input", { type: "url", id: prefix + "-unrated-showcase", autocomplete: "off", spellcheck: false, placeholder: "A YouTube link" });
+    var spots = el("div", { id: prefix + "-unrated-place" });
+    var summary = el("summary", null, "Spot on the list ", el("i", null, "(optional)"));
+    summary.style.fontWeight = "bold";
+    summary.style.cursor = "pointer";
+    var fold = el("details", { className: "field", id: prefix + "-unrated-spot" }, summary,
+      el("p", { className: "hint" }, "Where the estimate puts it, or a spot close by when the AREDL order makes it a close call. Its points come from the estimate either way."),
+      spots);
+    var body = el("div", { id: prefix + "-unrated-body" },
+      el("p", null, el("b", null, "Unrated - it counts in Rated+ only.")),
+      el("p", { className: "hint" }, "Saving puts it on Rated+ with this " + (forGrind ? "goal" : "clear") +
+        ". Your GDDL estimate places and scores it. It shows on the Rated+ list once someone beats it."),
+      el("div", { className: "two" },
+        el("label", { className: "field" }, el("span", null, "GDDL estimate"), est),
+        el("label", { className: "field" }, el("span", null, "Counts as"), tier)),
+      el("label", { className: "field" }, el("span", null, "Showcase ", el("i", null, "(optional)")), link),
+      fold);
+    var box = el("div", { className: "info-yellow", id: prefix + "-unrated" }, maybe, body);
+    box.hidden = true;
+    var field = info.parentNode; // the level's field: the box goes right under it
+    field.parentNode.insertBefore(box, field.nextSibling);
+
+    // {levelId, difficulty, rating} for the spot picker, or null until the estimate is valid
+    function picked() {
+      try {
+        return shownFor === null ? null : { levelId: shownFor, difficulty: tier.value, rating: parseEstimate(est.value) };
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        return null;
+      }
+    }
+    function drawSpots() {
+      spotPicker(spots, prefix + "-unrated-spot", picked(), pickedSpot(spots));
+    }
+    est.addEventListener("input", function () {
+      var n = Number(est.value);
+      if (!tierPicked && est.value.trim() && isFinite(n)) tier.value = tierFor(n);
+      drawSpots();
+    });
+    tier.addEventListener("change", function () {
+      tierPicked = true;
+      drawSpots();
+    });
+    tick.addEventListener("change", function () {
+      body.hidden = !tick.checked;
+    });
+
+    function clearFields() {
+      est.value = "";
+      link.value = "";
+      tier.value = "Extreme";
+      tierPicked = false;
+      tick.checked = false;
+      fold.open = false;
+      clear(spots);
+    }
+    function close() {
+      box.hidden = true;
+      shownFor = null;
+    }
+
+    // the Rated+ case of level id, from its last look-up ("" before there is one);
+    // "added" for one this page just put on Rated+
+    function caseOf(id) {
+      if (addedToPlus[id]) return "added";
+      if (!found[id] || (forGrind && inGrind(id))) return "";
+      return ratedPlusCase(id, found[id][0], found[id][1]);
+    }
+
+    // Open the box for level id when it needs it (head mods only), else close it.
+    // Its fields stay as typed while it's the same level.
+    function draw(id) {
+      var c = isHead() ? caseOf(id) : "";
+      if (c !== "unrated" && c !== "maybe") return close();
+      if (typedFor !== id) {
+        clearFields();
+        typedFor = id;
+      }
+      shownFor = id;
+      maybe.hidden = c !== "maybe";
+      body.hidden = c === "maybe" && !tick.checked;
+      box.hidden = false;
+      drawSpots();
+    }
+
+    return {
+      // A look-up's answer for level id (lv null when it failed, with its HTTP
+      // status): opens or closes the box, and says the Rated+ case.
+      found: function (id, lv, status) {
+        found[id] = [lv, status];
+        draw(id);
+        return caseOf(id);
+      },
+      // the level field changed: the box closes until that level is looked up
+      typed: function () {
+        if (levelIn(level) !== shownFor) close();
+      },
+      // Save, for a level that's neither listed nor on Rated+: "ask" (look it up
+      // first), "add" (send add_unrated first), "mod" (only a head mod can put it
+      // on Rated+), or "" (save as usual; the server checks).
+      need: function (id) {
+        if (addedToPlus[id] || (forGrind && inGrind(id))) return "";
+        if (!found[id]) return "ask";
+        draw(id);
+        var c = caseOf(id);
+        if (c === "unrated") return isHead() ? "add" : "mod";
+        return c === "maybe" && shownFor === id && tick.checked ? "add" : "";
+      },
+      // the box's add_unrated for level id; a Problem when it isn't filled in right
+      op: function (id) {
+        if (!est.value.trim()) throw new Problem("It's unrated: give its GDDL estimate (in the box under the level) to put it on Rated+.");
+        var e = parseEstimate(est.value);
+        var op = { op: "add_unrated", level: id, rating: e, difficulty: TIERS.indexOf(tier.value) >= 0 ? tier.value : tierFor(e) };
+        var spot = pickedSpot(spots);
+        if (spot !== "auto") op.placeBelow = spot;
+        if (link.value.trim()) op.showcase = checkShowcase(link.value);
+        return op;
+      },
+      // its name as the look-up gave it (for Recent edits)
+      name: function (id) {
+        var lv = found[id] ? found[id][0] : null;
+        return lv && lv.name ? String(lv.name).trim() : "level " + id;
+      },
+      // a save with its add_unrated went through: it's on Rated+ now
+      added: function (id) {
+        addedToPlus[id] = true;
+      },
+      // did this page put level id on Rated+? (the list here shows it after a reload)
+      onPlus: function (id) {
+        return addedToPlus[id] === true;
+      },
+      reset: function () {
+        close();
+        typedFor = null;
+        clearFields();
+      },
+    };
+  }
+
+  // --- the Rated+ levels panel: every unrated level, beaten or not yet ---
+
   function setupUnrated() {
     var panel = $("panel-unrated");
     if (!panel || !SITE.ratedPlus || !isHead()) return;
@@ -1030,161 +1353,53 @@
     var jump = document.querySelector('a[href="#panel-unrated"]');
     if (jump) jump.hidden = false;
 
-    var level = $("unrated-level");
-    var info = $("unrated-level-info");
-    var rating = $("unrated-rating");
-    var tier = $("unrated-tier");
-    var place = $("unrated-place");
-    var msg = $("unrated-msg");
-    var tierPicked = false; // the tier follows the estimate until the mod picks one
-    var checked = null; // the last Check's {id, name}
-
-    function form() {
-      try {
-        return { levelId: parseLevel(level.value), difficulty: tier.value, rating: parseEstimate(rating.value) };
-      } catch (e) {
-        if (!(e instanceof Problem)) throw e;
-        return null;
-      }
-    }
-    function refreshSpots() {
-      spotPicker(place, "unrated-spot", form(), pickedSpot(place));
-    }
-
-    function localHint() {
-      var id;
-      try {
-        id = parseLevel(level.value);
-      } catch (e) {
-        hush(info);
-        return;
-      }
-      var d = demonByLevel(id);
-      var u = unratedByLevel(id);
-      if (d) say(info, "warn", String(d.name).trim() + " is on the list already (#" + d.position + ") - it's a rated level.");
-      else if (u) say(info, "warn", String(u.name).trim() + " is already an unrated level - edit it below.");
-      else hush(info);
-    }
-
-    level.addEventListener("input", function () {
-      localHint();
-      refreshSpots();
-    });
-    rating.addEventListener("input", function () {
-      var n = Number(rating.value);
-      if (!tierPicked && rating.value.trim() && isFinite(n)) tier.value = tierFor(n);
-      refreshSpots();
-    });
-    tier.addEventListener("change", function () {
-      tierPicked = true;
-      refreshSpots();
-    });
-
-    // gdbrowser through the server: the name, its difficulty, and whether it's rated
-    $("unrated-check").addEventListener("click", function () {
-      var id;
-      try {
-        id = parseLevel(level.value);
-      } catch (e) {
-        if (!(e instanceof Problem)) throw e;
-        say(info, "err", e.message);
-        return;
-      }
-      var button = $("unrated-check");
-      button.disabled = true;
-      say(info, "info", "Looking it up...");
-      api("/api/level?level=" + encodeURIComponent(String(id))).then(function (res) {
-        button.disabled = false;
-        if (res.status !== 200) {
-          // gdladder doesn't know unrated levels, and gdbrowser often won't answer
-          // scripts; Save looks the level up again, on the GD servers if need be
-          say(info, "err", errorText(res) + (res.status === 502 ? ". You can still save it: the list looks it up again when you do." : ""));
-          return;
-        }
-        var lv = res.data;
-        checked = { id: lv.id, name: lv.name };
-        var stars = typeof lv.stars !== "number" ? "stars unknown" : lv.stars === 0 ? "unrated" : lv.stars + (lv.stars === 1 ? " star" : " stars");
-        var warn = [];
-        if (typeof lv.stars === "number" && lv.stars > 0) warn.push("It's rated - add its clears in Add a clear instead.");
-        if (lv.platformer) warn.push("It's a platformer level - the list doesn't take those.");
-        if (lv.onList === true || demonByLevel(lv.id)) warn.push("It's on the list already" + (lv.position ? " (#" + lv.position + ")" : "") + ".");
-        else if (unratedByLevel(lv.id)) warn.push("It's already an unrated level - edit it below.");
-        clear(info);
-        info.className = "msg " + (warn.length ? "info-yellow" : "info-plain");
-        info.appendChild(el("b", null, lv.name));
-        info.appendChild(document.createTextNode(" by " + lv.creator + " (ID " + lv.id + ")"));
-        info.appendChild(el("br"));
-        info.appendChild(document.createTextNode([lv.difficulty, stars].join(" · ")));
-        warn.forEach(function (w) {
-          info.appendChild(el("br"));
-          info.appendChild(el("b", null, w));
-        });
-        info.hidden = false;
-      });
-    });
-
-    $("unrated-save").addEventListener("click", function () {
-      var op;
-      try {
-        var id = parseLevel(level.value);
-        if (demonByLevel(id)) throw new Problem(levelName(id) + " is on the list already - add its clears in Add a clear.");
-        if (unratedByLevel(id)) throw new Problem(levelName(id) + " is already an unrated level - edit it below.");
-        var est = parseEstimate(rating.value);
-        op = { op: "add_unrated", level: id, rating: est, difficulty: TIERS.indexOf(tier.value) >= 0 ? tier.value : tierFor(est) };
-        var spot = pickedSpot(place);
-        if (spot !== "auto") op.placeBelow = spot;
-        var link = $("unrated-showcase").value.trim();
-        if (link) op.showcase = checkShowcase(link);
-      } catch (e) {
-        if (!(e instanceof Problem)) throw e;
-        say(msg, "err", e.message);
-        return;
-      }
-      var name = checked && checked.id === op.level ? checked.name : "level " + op.level;
-      save([op], "Unrated: " + name + " on Rated+", $("unrated-save"), msg, function () {
-        level.value = "";
-        rating.value = "";
-        $("unrated-showcase").value = "";
-        tier.value = "Extreme";
-        tierPicked = false;
-        checked = null;
-        hush(info);
-        refreshSpots();
-      });
-    });
-
-    // --- On Rated+ now: where each one is, its clears, its spot ---
-    var view = null;
-    try {
-      view = typeof DL.listView === "function" ? DL.listView("current", "plus") : null;
-    } catch (e) {
-      view = null; // the list still works without positions
+    // the beaten ones first, in Rated+ order; then the rest, hardest first
+    var view = ratedPlusView();
+    function pos(u) {
+      var p = view && unratedBeaten(u) ? view.pos(u) : null;
+      return typeof p === "number" ? p : null;
     }
     var list = $("unrated-list");
     var entries = UNRATED.filter(function (u) { return u && !demonByLevel(u.levelId); }).sort(function (a, b) {
-      var pa = view ? view.pos(a) : null, pb = view ? view.pos(b) : null;
+      var ba = unratedBeaten(a), bb = unratedBeaten(b), pa = pos(a), pb = pos(b);
+      if (ba !== bb) return ba ? -1 : 1;
       if (pa !== null && pb !== null) return pa - pb;
       return TIERS.indexOf(a.difficulty) - TIERS.indexOf(b.difficulty) || b.rating - a.rating || a.levelId - b.levelId;
     });
     if (!entries.length) list.appendChild(el("li", { className: "hint" }, "None yet."));
-    entries.forEach(function (u) { list.appendChild(unratedRow(u, view)); });
-    refreshSpots();
+    entries.forEach(function (u) { list.appendChild(unratedRow(u, pos(u))); });
   }
 
-  // One row of On Rated+ now, with Edit, Move to the list and Remove.
-  function unratedRow(u, view) {
+  // One row of the Rated+ levels panel - beaten (and where it sits on Rated+) or
+  // not yet (and who's grinding it) - with Edit, Move to the list and Remove.
+  function unratedRow(u, pos) {
     var name = String(u.name).trim();
     var records = u.records || [];
     var full = records.filter(function (r) { return r.progress >= 100; });
-    var pos = view ? view.pos(u) : null;
+    var part = records.length - full.length;
+    var beaten = unratedBeaten(u);
+    var grinders = Array.from(new Set(GOALS.filter(function (g) { return Number(g.levelId) === u.levelId; })
+      .map(function (g) { return g.player; })));
     var bits = [];
-    if (pos !== null) bits.push("#" + pos + " in Rated+");
-    bits.push(records.length ? records.length + (records.length === 1 ? " clear" : " clears") : "no clears yet");
+    if (beaten) {
+      bits.push("Beaten");
+      if (pos !== null) bits.push("#" + pos + " in Rated+");
+      bits.push(full.length + (full.length === 1 ? " clear" : " clears"));
+    } else {
+      bits.push("Not beaten yet");
+      bits.push(grinders.length ? andList(grinders) + (grinders.length === 1 ? " is" : " are") + " grinding it" : "nobody's grinding it");
+    }
+    if (part) bits.push(part + (part === 1 ? " record" : " records") + " under 100%");
+    else if (!records.length) bits.push("no records yet");
     if (u.placeBelow !== undefined && u.placeBelow !== null) {
       var fits = typeof DL.unratedSlotOk !== "function" || DL.unratedSlotOk(u, u.placeBelow);
       bits.push(fits ? "hand-picked spot" : "hand-picked spot no longer fits - placed by its estimate");
     }
-    var page = el("a", { href: "../demonlist/demon.html?id=" + encodeURIComponent(u.levelId) + "&rating=plus", target: "_blank", rel: "noopener" }, name);
+    // until someone beats it, it's a Grind level of Rated+: its Grind page, when it has one
+    var href = !beaten && grinders.length
+      ? "../demonlist/goal.html?level=" + encodeURIComponent(u.levelId) + "&rating=plus"
+      : "../demonlist/demon.html?id=" + encodeURIComponent(u.levelId) + "&rating=plus";
+    var page = el("a", { href: href, target: "_blank", rel: "noopener" }, name);
     var edit = el("button", { type: "button", className: "button white hover small" }, "Edit");
     var move = el("button", { type: "button", className: "button white hover small" }, "Move to the list");
     var drop = el("button", { type: "button", className: "button red hover small" }, "Remove");
@@ -1221,7 +1436,7 @@
     return li;
   }
 
-  // The editor under an On Rated+ now row: estimate, tier, showcase and spot.
+  // The editor under a Rated+ levels row: estimate, tier, showcase and spot.
   // It sends set_unrated with only what changed.
   function unratedEditor(li, u) {
     var open = li.querySelector(".unrated-edit");

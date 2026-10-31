@@ -59,7 +59,11 @@ demon (DL.demonRating); a hand-picked spot can only move it past same-tier
 neighbours within SITE.unratedWindow rating points of the estimate, and one the
 list has moved away from is ignored by the site (this tool says so). Clears on
 them are add_record / remove_record with their level id: any progress counts, and
-add-records.py isn't run for them. Their changes are changelog notes only.
+add-records.py isn't run for them. Their changes are changelog notes only. One
+goes on Rated+ with its first clear or Grind goal: the mod page sends
+[add_unrated, add_record] or [add_unrated, set_grind] as one batch, applied in
+order. A clear, or a goal on a new Grind level, on a level that's unrated in game
+(0 stars) but isn't on Rated+ is refused (Engine.refuse_unrated_in_game).
 
 Every edit goes through the same tools Claude uses by hand (add-records.py,
 add-video.py, refresh-order.py, build-goal-levels.py), so ordering, the AREDL
@@ -157,11 +161,14 @@ UNRATED_HEADER = """"use strict";
 // -----------------------------------------------------------------------------
 // UNRATED LEVELS: the list's Rated+ view (SITE.ratedPlus; Nigel and
 // Dihmaster500, 2026-10-30). These levels aren't rated in game, but they count
-// as accomplishments in the Rated+ views of the list and the stats viewer
-// (static/js/views.js). Head mods add, edit and remove them on the mod page
-// (tools/apply-edit.py add_unrated / set_unrated / remove_unrated). Clears on
-// them go in like any other clear (add_record). The scheduled upkeep
-// (tools/refresh-order.py) never reads or writes this file.
+// in the Rated+ views of the list and the stats viewer (static/js/views.js):
+// one is on the Rated+ list once someone beats it, and until then it's a Grind
+// level of Rated+. A head mod puts one on with its first clear or Grind goal
+// (the mod page sends add_unrated in the same batch), and edits and removes
+// them in the mod page's Rated+ levels panel (tools/apply-edit.py add_unrated /
+// set_unrated / remove_unrated). Clears on them go in like any other clear
+// (add_record). The scheduled upkeep (tools/refresh-order.py) never reads or
+// writes this file.
 //
 // An entry is shaped like a data/demons.js demon, without position/aredlPosition:
 //   id == levelId   the Geometry Dash level id
@@ -513,13 +520,26 @@ def gd_servers(lid):
     return tool(REPO, "gdlevel").level(lid)
 
 
-def level_facts(lid):
-    """(name, difficulty) from gdladder / gdbrowser, or None if neither knows the level."""
-    gl = curl_json(f"https://gdladder.com/api/levels/{lid}")
-    gl = gl if isinstance(gl, dict) and gl.get("ID") else {}
+def gdbrowser_level(lid):
+    """gdbrowser's level JSON for lid: a dict, -1 (no such level) or None (no answer).
+    When gdbrowser doesn't answer, RobTop's servers or GDHistory stand in (gd_servers).
+    The tests stub curl and gd_servers."""
     gb = curl_json(f"https://gdbrowser.com/api/level/{lid}")
     if not isinstance(gb, dict) and gb != -1:  # gdbrowser didn't answer: RobTop's servers
         gb = gd_servers(lid)
+    return gb if isinstance(gb, dict) or gb == -1 else None
+
+
+ASK = object()  # level_facts: gdbrowser hasn't been asked yet
+
+
+def level_facts(lid, gb=ASK):
+    """(name, difficulty) from gdladder / gdbrowser, or None if neither knows the level.
+    gb: gdbrowser's answer (gdbrowser_level) when it has been asked already."""
+    gl = curl_json(f"https://gdladder.com/api/levels/{lid}")
+    gl = gl if isinstance(gl, dict) and gl.get("ID") else {}
+    if gb is ASK:
+        gb = gdbrowser_level(lid)
     gb = gb if isinstance(gb, dict) and gb.get("name") else {}
     meta = gl.get("Meta") or {}
     name = gb.get("name") or meta.get("Name")
@@ -646,7 +666,8 @@ def unrated_facts_from(lid, code, body):
     if isinstance(stars, bool) or not isinstance(stars, int):
         raise Refuse(f"couldn't tell whether {name} is rated - try again in a few minutes")
     if stars > 0:
-        raise Refuse(f"{name} is rated ({stars} stars) - add its clears in Add a clear instead")
+        # (the mod page sends add_unrated with a clear or a Grind goal: those go in as usual)
+        raise Refuse(f"{name} is rated ({stars} stars), so it doesn't go on Rated+ - Check it again and save it as usual")
     if str(gb.get("length") or "").lower().startswith("plat"):
         raise Refuse(f"{name} is a platformer level - the list doesn't take those")
     gd = {}
@@ -769,6 +790,8 @@ class Engine:
         self.subjects = []       # short phrases for the commit subject
         self.goals_touched = False
         self.new_goal_levels = set()
+        self.asked = {}          # level id -> gdbrowser's answer (in_game), asked once a run
+        self.off_rated_plus = set()  # unrated levels this run took off Rated+ (remove_unrated)
 
     def say(self, line):
         self.lines.append(line)
@@ -800,6 +823,34 @@ class Engine:
     def showcase_thumb(self, vid):
         """The best YouTube still of a showcase, the way add-records.py picks one."""
         return tool(self.root, "add-records").thumb(vid)
+
+    def in_game(self, lid):
+        """What gdbrowser (or its stand-in) says about level lid: gdbrowser_level's
+        dict, -1 or None, asked once a run."""
+        if lid not in self.asked:
+            self.asked[lid] = gdbrowser_level(lid)
+        return self.asked[lid]
+
+    def refuse_unrated_in_game(self, s, lid):
+        """Rated+: a level that's unrated in game goes on Rated+ (add_unrated, with a
+        head mod's GDDL estimate) before its first clear or Grind goal; the mod page
+        sends the two in one batch, add_unrated first. So a clear or a new Grind level
+        that isn't listed or on Rated+, and that gdbrowser (or its stand-in) gives 0
+        stars, is refused. When its stars can't be told it goes through (add-records.py
+        has its own checks). A list without Rated+ (Nigel's Demonlist) never asks."""
+        if not s["SITE"].get("ratedPlus") or lid in self.unrated(s) or any(d["levelId"] == lid for d in s["DEMONS"]):
+            return
+        gb = self.in_game(lid)
+        stars = gb.get("stars") if isinstance(gb, dict) else None
+        if isinstance(stars, bool) or not isinstance(stars, int) or stars != 0:
+            return
+        name = str(gb.get("name") or "").strip() or f"level {lid}"
+        if lid in self.off_rated_plus:  # the mod page's Move to the list
+            raise Refuse(f"{name} is still unrated in game, so it can't move to the list yet")
+        if gb.get("platformer") is True or str(gb.get("length") or "").lower().startswith("plat"):
+            raise Refuse(f"{name} is an unrated platformer level - the list doesn't take those, not even in Rated+")
+        raise Refuse(f"{name} is unrated: a head mod puts it on Rated+ first, with its GDDL estimate "
+                     "(check the level on the mod page)")
 
     @staticmethod
     def resolve(name, names):
@@ -894,6 +945,8 @@ class Engine:
             if not d and lid in unrated:  # any progress counts on an unrated level
                 extra.append(dict(o, player=who, new_player=joined))
                 continue
+            if not d:  # Rated+: one that's unrated in game goes on Rated+ first (add_unrated)
+                self.refuse_unrated_in_game(s, lid)
             if o["progress"] < 100 and not d:
                 raise Refuse(f"level {lid} isn't on the list, and only a 100% can put a level on it "
                              f"({who} has {o['progress']}%)")
@@ -1087,7 +1140,7 @@ class Engine:
         g = s["GOAL_LEVELS"].get(str(lid))
         if g and g.get("name") and g["name"] != f"Level {lid}":
             return g["name"]
-        facts = level_facts(lid)
+        facts = level_facts(lid, self.in_game(lid))
         if not facts:
             raise Refuse(f"level {lid} wasn't found on gdladder, gdbrowser, the Geometry Dash servers or GDHistory"
                          " (or they didn't answer) - check the id")
@@ -1097,6 +1150,8 @@ class Engine:
         s = load_state(self.root)
         who = self.member(s, o["player"])
         lid = o["level"]
+        if not any(g["levelId"] == lid for g in s["GOALS"]):  # new to the Grind: Rated+ first, if it's unrated
+            self.refuse_unrated_in_game(s, lid)
         name = self.level_name(s, lid)
         d = next((x for x in s["DEMONS"] if x["levelId"] == lid), None)
         if d and any(r["player"] == who and r["progress"] >= 100 for r in d["records"]):
@@ -1706,6 +1761,7 @@ class Engine:
             raise Refuse(f"level {o['level']} isn't an unrated level")
         s["UNRATED"].remove(u)
         write_unrated(self.root, s["UNRATED"])
+        self.off_rated_plus.add(u["levelId"])
         n = len(u.get("records") or [])
         clears = f"{n} clear{'s' if n != 1 else ''}"
         self.log(s["CHANGELOG"], [{"kind": "note", "text": f"Rated+: {u['name']} is off"
