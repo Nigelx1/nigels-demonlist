@@ -7,9 +7,18 @@
 //                     Grind run longer than SITE.grindInProgress; SITE.futureList)
 //           Future+ - plus every off-list level in anyone's Grind, at any
 //                     progress (SITE.futurePlus)
-//   Rating: Rated   - today's list: rated Extremes and Insanes
-//           Rated+  - plus the unrated levels the head mods count as
-//                     accomplishments (data/unrated.js, SITE.ratedPlus)
+//           The Future views are "what if everyone finishes" (Nigel,
+//           2026-10-30): every level in someone's In Progress (Future) or
+//           Grind (Future+) counts as beaten for them, with its full points
+//           (DL.projectedClears), in place of today's in-progress points.
+//   Rating: Rated   - today's list: rated Extremes and Insanes. No unrated
+//                     level is anywhere in these views.
+//           Rated+  - plus the unrated levels the head mods put on it
+//                     (data/unrated.js, SITE.ratedPlus) that someone has beaten
+//                     (DL.unratedBeaten). One nobody has beaten yet is a Grind
+//                     level of Rated+: it joins Future / Future+ like one (from
+//                     a Grind goal or a record), and in Current + Rated+ a run
+//                     on it scores in-progress points, though it isn't shown.
 // Every level goes where tools/refresh-order.py would put it (extremes above
 // insanes when the Main List is "extremes", then DL.demonRating, then AREDL
 // placement), and every level's points and every player's score are worked
@@ -46,7 +55,7 @@
     },
     rating: {
       rated: "Rated levels only",
-      plus: "Plus the unrated levels the head mods count",
+      plus: "Plus the unrated levels someone has beaten",
     },
   };
 
@@ -179,6 +188,37 @@
 
   // --- building a view ---------------------------------------------------------
 
+  // Does an extra row (an unrated level, beaten or not) sit in a hand-picked
+  // spot that's valid now? listed: today's list, in order.
+  function handPicked(row, listed) {
+    var lv = row.level;
+    return (row.kind === "unrated" || !!row.unrated) && lv.placeBelow != null && DL.unratedSlotOk(lv, lv.placeBelow, listed);
+  }
+
+  // Where an extra goes among rows (the index it takes): in a hand-picked spot
+  // (row.manual), right below its anchor, where only another extra in that same
+  // gap can come between them; otherwise above the first row it outranks.
+  function placeAt(rows, row) {
+    var k;
+    if (row.manual) {
+      var anchor = anchorOf(row.level.placeBelow);
+      var ix = anchor === 0 ? -1 : findIndex(rows, function (r) { return r.kind === "listed" && r.id === anchor; });
+      var iy = rows.length;
+      for (k = ix + 1; k < rows.length; k++) {
+        if (rows[k].kind === "listed") {
+          iy = k;
+          break;
+        }
+      }
+      for (k = ix + 1; k < iy; k++) {
+        if (compare(row, rows[k]) < 0) return k;
+      }
+      return iy;
+    }
+    var at = findIndex(rows, function (r) { return compare(row, r) < 0; });
+    return at < 0 ? rows.length : at;
+  }
+
   // Could the level be on the list at all? (tools/add-records.py's guard: an
   // allowed difficulty, a demon in game, never a platformer)
   function eligible(lv) {
@@ -188,6 +228,42 @@
     var gd = lv.gd || {};
     if (gd.inGameDifficulty && !/ Demon$/.test(gd.inGameDifficulty)) return false; // a 9-star "Insane" isn't a demon
     return !/^plat/i.test(gd.length || "");
+  }
+
+  // Is someone grinding this level (any goal in data/goals.js)?
+  function inGrind(id) {
+    return Array.isArray(window.GOALS) && window.GOALS.some(function (g) {
+      return Number(g.levelId) === id;
+    });
+  }
+
+  // Rated+ in Future / Future+: the unrated levels nobody has beaten yet that
+  // join like Grind levels - someone's longest run on it longer than
+  // SITE.grindInProgress, in the Grind or a record under 100% (Future), or
+  // anyone with a Grind goal or a record on it (Future+) - each with who has
+  // them (Grind goals first, then records). kind "grind" with unrated: true;
+  // placed like an unrated level (its estimate, or a valid hand-picked spot).
+  function openRows(levels, everyGoal) {
+    var min = window.SITE.grindInProgress;
+    var goals = Array.isArray(window.GOALS) ? window.GOALS : [];
+    var hasRun = typeof DL.grindInProgressRun === "function" ? DL.grindInProgressRun : function () { return null; };
+    return levels
+      .map(function (u) {
+        var players = [];
+        function add(name) {
+          if (players.indexOf(name) < 0) players.push(name);
+        }
+        goals.forEach(function (g) {
+          if (Number(g.levelId) === u.levelId && (everyGoal || hasRun(g))) add(g.player);
+        });
+        (u.records || []).forEach(function (rec) {
+          if (everyGoal || (typeof min === "number" && rec.progress > min)) add(rec.player);
+        });
+        return players.length
+          ? { kind: "grind", unrated: true, level: u, id: u.levelId, listed: false, was: null, players: players, manual: false }
+          : null;
+      })
+      .filter(Boolean);
   }
 
   // The off-list Grind levels that join: every Grind level (Future+) or the
@@ -232,8 +308,11 @@
   // scores more keeps its own points: nothing counts twice. A level from someone's
   // In Progress that the view doesn't show (in Current, one that isn't on the
   // list) still counts, valued on the view's curve as if it were listed. Unrated
-  // levels count only where they're shown (Rated+). view: a list view, or
-  // nothing for today's list. [] when the setting is off.
+  // levels count only in the Rated+ views: from their row where they're shown,
+  // and one nobody has beaten yet that isn't shown (Rated+ Current) from its
+  // estimate, the same way. Current views only: the Future views count those
+  // runs as clears instead (DL.projectedClears), so there it adds nothing.
+  // view: a list view, or nothing for today's list. [] when the setting is off.
   //   -> [{ player, id, level, run: [from, to], points, extra, shown }], where
   //      extra is what it adds to the player's score on top of their record
   DL.inProgressScores = function (view) {
@@ -241,6 +320,7 @@
     var share = cfg.inProgressPoints, min = cfg.grindInProgress;
     if (typeof share !== "number" || !(share > 0) || typeof min !== "number") return [];
     var v = view && !view.isDefault ? view : null;
+    if (v && v.time !== "current") return [];
     var shown = {}, top, levels, recordScore;
     if (v) {
       v.rows.forEach(function (r) {
@@ -291,10 +371,18 @@
         level = at.level;
         full = at.full;
       } else {
-        // not in this view: only an off-list level that could be on the list
-        if (DL.demonById(b.id) || DL.unratedById(b.id) || typeof DL.goalLevel !== "function") return;
-        level = DL.goalLevel(b.id);
-        if (!level || !eligible(level)) return;
+        var u = DL.unratedById(b.id);
+        if (u) {
+          // not in this view: an unrated level counts only in Rated+, and only
+          // while nobody has beaten it (one someone has is on the list there)
+          if (!v || v.rating !== "plus" || DL.unratedBeaten(u)) return;
+          level = u;
+        } else {
+          // not in this view: only an off-list level that could be on the list
+          if (DL.demonById(b.id) || typeof DL.goalLevel !== "function") return;
+          level = DL.goalLevel(b.id);
+          if (!level || !eligible(level)) return;
+        }
         full = s.topScore * Math.pow(s.base, DL.demonRating(level) - top);
       }
       var points = share * Math.min(full, s.topScore) * (b.run[1] - b.run[0]) / 100;
@@ -306,8 +394,83 @@
     return out;
   };
 
+  // Projected clears: the Future views are "what if everyone finishes" (Nigel,
+  // 2026-10-30). A level someone hasn't beaten counts for them as if they had,
+  // with its full points in the view (a 100% there), when
+  //   Future:  it's In Progress for them - a run longer than
+  //            SITE.grindInProgress, in their Grind (DL.grindInProgressRun) or
+  //            a record under 100%;
+  //   Future+: it's in their Grind at all (even a goal with no run yet), or
+  //            they have a record under 100% on it, at any %.
+  // Only the view's own rows count: Future's rows hold every In Progress level
+  // and Future+'s every Grind level that could be on the list, and an unrated
+  // level is one only in Rated+. The player's records on it score nothing on
+  // top (DL.aggregatePlayers): the clear replaces them. [] in the Current views.
+  //   -> [{ player, id, level, run: [from, to], points }], one per player and
+  //      level, in the order they come up (records in the view's record order,
+  //      then data/goals.js): level is the view's row level, points what a 100%
+  //      there scores, and run the one the stats viewer labels it with - the
+  //      run that makes it In Progress, their longest ("Congregation
+  //      (42–100%)"); in Future+, for a level that isn't, their best % from
+  //      the start, as on their Grind chip ("Tartarus (10%)"), else their
+  //      longest practice run, else [0, 0] for a goal with no run yet ("0%")
+  DL.projectedClears = function (view) {
+    var v = view && !view.isDefault ? view : null;
+    if (!v || (v.time !== "future" && v.time !== "plus")) return [];
+    var every = v.time === "plus", min = (window.SITE || {}).grindInProgress;
+    if (!every && typeof min !== "number") return [];
+
+    // each player's runs on each level - the longest that's In Progress
+    // (longer than SITE.grindInProgress: DL.grindInProgressRun's rule), the
+    // best from the start, the longest at all; the first one on a tie - and
+    // the levels they've beaten
+    var at = {}, order = [], beaten = {};
+    function runsOf(player, id) {
+      var k = player + "|" + id;
+      if (!at[k]) {
+        at[k] = { player: player, id: id, inProgress: null, fromStart: null, longest: null };
+        order.push(k);
+      }
+      return at[k];
+    }
+    function offer(b, run) {
+      var n = run[1] - run[0];
+      function longer(r) {
+        return !r || n > r[1] - r[0];
+      }
+      if (typeof min === "number" && n > min && longer(b.inProgress)) b.inProgress = run;
+      if (run[0] === 0 && longer(b.fromStart)) b.fromStart = run;
+      if (longer(b.longest)) b.longest = run;
+    }
+    v.recordLevels.forEach(function (lv) {
+      var id = levelIdOf(lv);
+      (lv.records || []).forEach(function (rec) {
+        if (rec.progress >= 100) beaten[rec.player + "|" + id] = true;
+        else offer(runsOf(rec.player, id), [0, rec.progress]);
+      });
+    });
+    (Array.isArray(window.GOALS) ? window.GOALS : []).forEach(function (g) {
+      var b = runsOf(g.player, Number(g.levelId));
+      if (g.best != null) offer(b, [0, g.best]);
+      (g.segments || []).forEach(function (s) {
+        offer(b, s);
+      });
+    });
+
+    var out = [];
+    order.forEach(function (k) {
+      var b = at[k], r = v.row(b.id);
+      var run = b.inProgress || (every ? b.fromStart || b.longest || [0, 0] : null);
+      if (beaten[k] || !r || !run) return;
+      out.push({ player: b.player, id: b.id, level: r.level, run: run, points: v.recordScore(r.level, 100) });
+    });
+    return out;
+  };
+
   // The parts every view shares, around its rows (already numbered and scored).
-  function finishView(time, rating, rows, top, recordLevels, recordScore) {
+  // recordLevels: the levels whose records score; creditLevels: the ones on the
+  // list for good, whose creators etc. get credit (recordLevels by default).
+  function finishView(time, rating, rows, top, recordLevels, recordScore, creditLevels) {
     var byId = {};
     rows.forEach(function (r) {
       byId[r.id] = r;
@@ -317,11 +480,14 @@
       rating: rating,
       isDefault: time === "current" && rating === "rated",
       rows: rows,
+      // joining from the Grind (and in Rated+ the unrated levels nobody has
+      // beaten yet: unrated: true), and Rated+'s unrated levels someone has beaten
       joining: rows.filter(function (r) { return r.kind === "grind"; }),
       unrated: rows.filter(function (r) { return r.kind === "unrated"; }),
       top: top,
       topNow: DL.topRating(),
       recordLevels: recordLevels,
+      creditLevels: creditLevels || recordLevels,
     };
     view.title = DL.viewTitle(view);
     view.row = function (x) {
@@ -352,22 +518,47 @@
       return floor + ((progress - req) / (100 - req || 1)) * (r.points - floor);
     };
     // the level's page in this view: a demon page (listed or unrated), or the
-    // Grind page of a level that joins from the Grind
+    // Grind page of a level that joins from the Grind. An unrated level nobody
+    // has beaten yet has its Grind page while someone has it in their Grind,
+    // else its demon page.
     view.url = function (x) {
       var r = view.row(x), id = r ? r.id : idOf(x);
-      var grind = r ? r.kind === "grind" : !(DL.demonById(id) || DL.unratedById(id));
+      var u = DL.unratedById(id);
+      var grind = u ? !DL.unratedBeaten(u) && inGrind(id) : r ? r.kind === "grind" : !DL.demonById(id);
       return DL.withView(
         (grind ? "goal.html?level=" : "demon.html?id=") + encodeURIComponent(id),
         { time: time, rating: rating }
       );
     };
-    // DL.formatDemonLink's markup with this view's tier and page
-    view.linkHtml = function (level) {
-      var tier = view.tier(level);
+    // Where a level would go in this view: { position, tier }. A row gives its
+    // own; a level the view doesn't show gets the tier it would be in and a
+    // position half a step above the row it would go in front of (#3.5 sits
+    // between #3 and #4), placed like an extra (DL.unratedSlots' rule for an
+    // unrated level). The stats viewer sorts with it.
+    view.spot = function (level) {
       var r = view.row(level);
-      var unrated = !!r && r.kind === "unrated";
+      if (r) return { position: r.position, tier: r.tier };
+      var cfg = window.SITE, id = levelIdOf(level), u = DL.unratedById(id);
+      var row = { kind: u && DL.unratedBeaten(u) ? "unrated" : "grind", unrated: !!u, level: u || level, id: id };
+      row.manual = handPicked(row, DL.sortedDemons());
+      var at = placeAt(rows, row), p = at + 1;
+      var mainSize = cfg.mainListSize;
+      if (mainSize === "extremes") {
+        mainSize = rows.filter(function (x) { return x.level.difficulty === "Extreme"; }).length +
+          (row.level.difficulty === "Extreme" ? 1 : 0);
+      }
+      return {
+        position: at + 0.5,
+        tier: p <= mainSize ? "main" : cfg.extendedListSize == null || p <= cfg.extendedListSize ? "extended" : "legacy",
+      };
+    };
+    // DL.formatDemonLink's markup with this view's tier (where it would be, for
+    // a level the view doesn't show) and page; an unrated level gets its mark
+    view.linkHtml = function (level) {
+      var tier = view.spot(level).tier;
+      var u = DL.unratedById(levelIdOf(level));
       var inner =
-        "<a" + (unrated ? ' class="unrated-link" title="Unrated - counts in Rated+"' : "") +
+        "<a" + (u ? ' class="unrated-link" title="' + DL.escapeAttr(DL.unratedTip(u)) + '"' : "") +
         ' href="' + view.url(level) + '">' + DL.escapeHtml(level.name) + "</a>";
       if (tier === "main") return "<b>" + inner + "</b>";
       if (tier === "extended") return "<span>" + inner + "</span>";
@@ -414,16 +605,19 @@
       onList[levelIdOf(d)] = onList[d.id] = true;
     });
     var unratedAll = DL.unratedLevels();
+    // Rated+'s unrated levels (one that's on the list now is just a listed demon)
+    var unratedOff = rating !== "plus" ? [] : unratedAll.filter(function (u) { return !onList[u.levelId]; });
 
     // 1. today's list is the skeleton: its rows never move relative to each other
     var rows = listed.map(function (d) {
       return { kind: "listed", level: d, id: levelIdOf(d), listed: true, was: d.position, players: [], manual: false };
     });
 
-    // 2. the extras: Rated+'s unrated levels, Future's / Future+'s Grind levels
-    // (an unrated level never joins from the Grind - in Rated+ it's already in)
-    var unratedRows = rating !== "plus" ? [] : unratedAll
-      .filter(function (u) { return !onList[u.levelId]; })
+    // 2. the extras: Rated+'s unrated levels someone has beaten; Future's /
+    // Future+'s Grind levels, and in Rated+ the unrated levels nobody has
+    // beaten yet, which join the same way (from a Grind goal or a record)
+    var unratedRows = unratedOff
+      .filter(function (u) { return DL.unratedBeaten(u); })
       .map(function (u) {
         return { kind: "unrated", level: u, id: u.levelId, listed: false, was: null, players: [], manual: false };
       });
@@ -434,14 +628,16 @@
     unratedAll.forEach(function (u) {
       skip[u.levelId] = true;
     });
-    var joining = time === "current" ? [] : grindRows(time === "plus", skip);
+    var joining = time === "current" ? [] : grindRows(time === "plus", skip).concat(
+      openRows(unratedOff.filter(function (u) { return !DL.unratedBeaten(u); }), time === "plus")
+    );
 
     // 3. each extra goes in above the first row it outranks; an unrated level
     // with a hand-picked spot that's valid now goes right below its anchor,
     // where only another extra in that same gap can come between them
-    var keyed = joining.slice(), manual = [];
-    unratedRows.forEach(function (r) {
-      if (r.level.placeBelow != null && DL.unratedSlotOk(r.level, r.level.placeBelow, listed)) {
+    var keyed = [], manual = [];
+    unratedRows.concat(joining).forEach(function (r) {
+      if (handPicked(r, listed)) {
         r.manual = true;
         manual.push(r);
       } else {
@@ -449,27 +645,10 @@
       }
     });
     keyed.sort(compare).forEach(function (row) {
-      var at = findIndex(rows, function (r) { return compare(row, r) < 0; });
-      rows.splice(at < 0 ? rows.length : at, 0, row);
+      rows.splice(placeAt(rows, row), 0, row);
     });
     manual.sort(compare).forEach(function (row) {
-      var anchor = anchorOf(row.level.placeBelow);
-      var ix = anchor === 0 ? -1 : findIndex(rows, function (r) { return r.kind === "listed" && r.id === anchor; });
-      var iy = rows.length;
-      for (var k = ix + 1; k < rows.length; k++) {
-        if (rows[k].kind === "listed") {
-          iy = k;
-          break;
-        }
-      }
-      var at = iy;
-      for (k = ix + 1; k < iy; k++) {
-        if (compare(row, rows[k]) < 0) {
-          at = k;
-          break;
-        }
-      }
-      rows.splice(at, 0, row);
+      rows.splice(placeAt(rows, row), 0, row);
     });
 
     // 4. DL.tierOf / DL.topRating / DL.scoreAt100, on this view's order
@@ -492,11 +671,15 @@
       r.pointsNow = r.listed ? DL.scoreAt100(r.level) : null;
     });
 
-    // 5. the records that count: the listed demons always, then (Rated+) the
-    // unrated levels, in data order - so a view without unrated clears sums
-    // every score in today's order
-    var recordLevels = window.DEMONS.concat(unratedRows.map(function (r) { return r.level; }));
-    var view = finishView(time, rating, rows, top, recordLevels, null);
+    // 5. the records that count: the listed demons always, then (Rated+) every
+    // unrated level, in data order - so a view without unrated clears sums
+    // every score in today's order. A clear counts in full; a run on one nobody
+    // has beaten yet counts like a Grind run (DL.inProgressScores in Current,
+    // DL.projectedClears in the Future views). Created / published / verified
+    // only from the levels on the list for good.
+    var recordLevels = window.DEMONS.concat(unratedOff);
+    var creditLevels = window.DEMONS.concat(unratedRows.map(function (r) { return r.level; }));
+    var view = finishView(time, rating, rows, top, recordLevels, null, creditLevels);
     view.players = DL.aggregatePlayers(view);
     var nations = null;
     view.nations = function () {
@@ -613,17 +796,30 @@
 
     var note = "";
     if (r.kind === "grind") {
+      // an unrated level nobody has beaten yet also joins from records: those
+      // players link to its demon page, where the records are
+      var goalOf = function (name) {
+        return (window.GOALS || []).some(function (g) { return g.player === name && Number(g.levelId) === r.id; });
+      };
+      var vw = { time: view.time, rating: view.rating };
       note =
-        '<span class="future-badge">New</span>' + (view.time === "plus" ? "In the Grind: " : "In progress: ") +
+        '<span class="future-badge">New</span>' +
+        (r.unrated ? '<span class="future-badge unrated-badge">Unrated</span>' : "") +
+        (view.time === "plus" && r.players.every(goalOf) ? "In the Grind: " : "In progress: ") +
         r.players
           .map(function (name) {
             return (
               '<a class="underdotted" href="' +
-              DL.withView("goal.html?level=" + encodeURIComponent(r.id), { time: view.time, rating: view.rating }) +
-              "#" + DL.goalAnchor(name) + '">' + DL.escapeHtml(name) + "</a>"
+              (goalOf(name) || !r.unrated
+                ? DL.withView("goal.html?level=" + encodeURIComponent(r.id), vw) + "#" + DL.goalAnchor(name)
+                : DL.withView("demon.html?id=" + encodeURIComponent(r.id), vw)) +
+              '">' + DL.escapeHtml(name) + "</a>"
             );
           })
-          .join(", ");
+          .join(", ") +
+        (r.unrated
+          ? " · not beaten yet, GDDL estimate " + lv.rating.toFixed(2) + (r.manual ? " · placed by the head mods" : "")
+          : "");
     } else if (r.kind === "unrated") {
       note =
         '<span class="future-badge unrated-badge">Unrated</span>GDDL estimate ' + lv.rating.toFixed(2) +
@@ -634,7 +830,7 @@
         Math.abs(r.position - r.was) + " (#" + r.was + " now)";
     }
 
-    var cls = r.kind === "grind" ? " future-joining" : r.kind === "unrated" ? " view-unrated" : "";
+    var cls = r.kind === "grind" ? " future-joining" + (r.unrated ? " view-unrated" : "") : r.kind === "unrated" ? " view-unrated" : "";
     return (
       '<section class="panel fade flex mobile-col js-scroll-anim' + cls + '" data-anim="fade" style="overflow:hidden">' +
         DL.demonThumbHtml(lv, "demon-panel-thumb") +
@@ -660,33 +856,43 @@
     var cfg = window.SITE, s = cfg.scoring;
     var intro = "";
 
+    // "<b>Name</b> at #n (estimate e)" for an unrated level
+    function unratedAt(r) {
+      return "<b>" + levelName(r) + "</b> at #" + r.position + " (estimate " + r.level.rating.toFixed(2) + ")";
+    }
     if (view.time !== "current") {
       var plus = view.time === "plus";
+      var grind = view.joining.filter(function (r) { return !r.unrated; });
+      var open = view.joining.filter(function (r) { return r.unrated; });
       if (!view.joining.length) {
         intro += plus
           ? "<p>Nobody has a level in their Grind that isn't on the list yet.</p>"
           : "<p>Nobody has a level In Progress that isn't on the list yet.</p>";
-      } else {
+      }
+      if (grind.length) {
         intro +=
-          "<p>" + (view.joining.length === 1 ? "One level" : view.joining.length + " levels") +
+          "<p>" + (grind.length === 1 ? "One level" : grind.length + " levels") +
           (plus ? " in someone's Grind" : " in someone's In Progress") + " would join the list: " +
-          listJoin(view.joining.map(function (r) { return "<b>" + levelName(r) + "</b> at #" + r.position; })) +
+          listJoin(grind.map(function (r) { return "<b>" + levelName(r) + "</b> at #" + r.position; })) +
           ".</p>";
+      }
+      if (open.length) {
+        intro +=
+          "<p>" + (open.length === 1 ? "One unrated level" : open.length + " unrated levels") +
+          " nobody has beaten yet would join" + (grind.length ? " too" : " the list") + ": " +
+          listJoin(open.map(unratedAt)) + ".</p>";
       }
     }
     if (view.rating === "plus") {
       if (!view.unrated.length) {
-        intro += "<p>No unrated levels yet: the head mods add them on the mod page.</p>";
+        intro += DL.unratedLevels().some(function (u) { return !DL.demonById(u.levelId); })
+          ? "<p>Nobody has beaten an unrated level yet.</p>"
+          : "<p>No unrated levels yet: the head mods add them on the mod page.</p>";
       } else {
         intro +=
-          "<p>" + (view.unrated.length === 1 ? "One unrated level counts" : view.unrated.length + " unrated levels count") +
-          " here: " +
-          listJoin(
-            view.unrated.map(function (r) {
-              return "<b>" + levelName(r) + "</b> at #" + r.position + " (estimate " + r.level.rating.toFixed(2) + ")";
-            })
-          ) +
-          ".</p>";
+          "<p>" + (view.unrated.length === 1 ? "One unrated level" : view.unrated.length + " unrated levels") +
+          " someone has beaten " + (view.unrated.length === 1 ? "counts" : "count") + " here: " +
+          listJoin(view.unrated.map(unratedAt)) + ".</p>";
       }
     }
 
@@ -701,6 +907,7 @@
     var ranking = sameRanking
       ? "The player ranking stays the same."
       : 'The player ranking changes: see it in the <a href="' + DL.withView("statsviewer.html") + '">stats viewer</a>.';
+    var rankingSaid = false;
     if (rescaled) {
       intro +=
         "<p><b>" + levelName(hardest) + "</b> is the hardest level in this view, so it's the one worth " +
@@ -710,20 +917,42 @@
           ? " (" + levelName(hardestNow) + ": " + hardestNow.pointsNow.toFixed(2) + " &rarr; " + hardestNow.points.toFixed(2) + ")"
           : "") +
         ". " + ranking + "</p>";
+      rankingSaid = true;
     } else if ((view.joining.length || view.unrated.length) && hardestNow) {
       intro +=
         "<p>None of them is harder than <b>" + levelName(hardestNow) +
         "</b>, so every level on today's list keeps its points." + (sameRanking ? "" : " " + ranking) + "</p>";
+      rankingSaid = !sameRanking;
     }
-    if (view.time !== "current") {
-      var share = cfg.inProgressPoints, min = cfg.grindInProgress;
-      intro += typeof share === "number" && share > 0 && typeof min === "number"
-        ? "<p>A Grind run longer than " + min + "% counts for " +
-          (share === 0.25 ? "a quarter" : share === 0.5 ? "half" : Math.round(share * 100) + "%") +
-          " of the level's points times the run, here and on today's list. The rest of the Grind counts once it's beaten.</p>"
-        : "<p>Nothing from the Grind counts until it's beaten.</p>";
+    var share = cfg.inProgressPoints, min = cfg.grindInProgress;
+    var runsCount = typeof share === "number" && share > 0 && typeof min === "number";
+    // the Future views: what people are working on counts as beaten
+    // (DL.projectedClears), in place of today's in-progress points
+    if (view.time !== "current" && (view.time === "plus" || typeof min === "number")) {
+      intro +=
+        "<p>In this view, every level in " + (view.time === "plus" ? "someone's Grind" : "someone's In Progress") +
+        " counts as beaten for them, with its full points (shown with the % they have now)." +
+        (rankingSaid || sameRanking ? "" : " " + ranking) + "</p>";
+      rankingSaid = true;
+    } else if (view.time !== "current") {
+      intro += "<p>Nothing from the Grind counts until it's beaten.</p>";
     }
-    if (view.rating === "plus") intro += "<p>Clears of unrated levels count only in the Rated+ views.</p>";
+    if (view.rating === "plus") {
+      intro +=
+        view.time === "future"
+          ? "<p>Unrated levels count only in the Rated+ views. One goes on the list once someone beats it, and until " +
+            "then it joins here when someone has it In Progress.</p>"
+          : view.time === "plus"
+          ? "<p>Unrated levels count only in the Rated+ views. One goes on the list once someone beats it, and until " +
+            "then it joins here when someone has it in their Grind or a record on it.</p>"
+          : runsCount
+          ? "<p>Unrated levels count only in the Rated+ views. One goes on the list once someone beats it, and until " +
+            "then a run on it longer than " + min + "% still counts.</p>"
+          : "<p>Unrated levels count only in the Rated+ views, and one goes on the list once someone beats it.</p>";
+    }
+    // (a run on an unrated level nobody has beaten can move the ranking in
+    // Current + Rated+ with nothing new on the list)
+    if (!rankingSaid && !sameRanking) intro += "<p>" + ranking + "</p>";
 
     var cutoff = cfg.extendedListSize || Infinity; // no Legacy tier -> every level gets a panel
     var rows = view.rows.filter(function (r) { return r.position <= cutoff; });

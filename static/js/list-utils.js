@@ -602,6 +602,22 @@ DL.unratedLevels = function () {
   });
 };
 
+// Has someone beaten this unrated level (a record at 100%)? Only then is it on
+// the Rated+ list. Until then it's a Grind level of Rated+: it joins the Future
+// views like one, and a run on it longer than SITE.grindInProgress scores like
+// one (static/js/views.js).
+DL.unratedBeaten = function (u) {
+  return !!u && (u.records || []).some(function (r) {
+    return !!r && r.progress >= 100;
+  });
+};
+
+// The tooltip on an unrated level's name wherever it's linked (the "U" mark,
+// .unrated-link in demonlist.css).
+DL.unratedTip = function (u) {
+  return DL.unratedBeaten(u) ? "Unrated - counts in Rated+" : "Unrated - on Rated+ once someone beats it";
+};
+
 // The unrated level with this level id, or null. A listed demon always wins.
 DL.unratedById = function (id) {
   id = Number(id);
@@ -754,12 +770,19 @@ DL.subdivisionFlagSpan = function (countryCode, subdivisionCode) {
 // its points (view.recordScore) and its order (view.pos) stand in for today's;
 // everything else is the same code. A float-sized score difference is a tie,
 // which keeps today's order. Each player also gets scoreNow / rankNow (today's).
-// No view, or the default one, runs today's code: same loops, same order, same
-// comparator, so today's ranking comes out bit for bit.
+// Created / published / verified come from view.creditLevels: an unrated level
+// nobody has beaten isn't on the list yet, so it isn't credited. No view, or
+// the default one, runs today's code: same loops, same order, same comparator,
+// so today's ranking comes out bit for bit.
 //
 // In-progress points (SITE.inProgressPoints, DL.inProgressScores in views.js)
-// come on top, in every view: a run over SITE.grindInProgress on a level the
-// player hasn't beaten. Each one is also listed in the player's inProgress.
+// come on top in the Current views: a run over SITE.grindInProgress on a level
+// the player hasn't beaten. Each one is also listed in the player's inProgress.
+//
+// The Future views count what each player is working on as beaten instead
+// (DL.projectedClears in views.js): each such level is in their completed,
+// marked { projected: true, run: [from, to] }, scores its full points in place
+// of their records on it (which leave progressed), and can be their hardest.
 DL.aggregatePlayers = function (view) {
   var v = view && !view.isDefault ? view : null;
   var byName = {};
@@ -772,7 +795,7 @@ DL.aggregatePlayers = function (view) {
         nationality: null,
         subdivision: null, // state; used by the map + Nations view, not shown as a flag next to the player
         score: 0,
-        completed: [], // records with progress === 100
+        completed: [], // records with progress === 100 (and a Future view's projected clears)
         progressed: [], // records with progress < 100
         inProgress: [], // DL.inProgressScores entries: runs over grindInProgress that score
         hardest: null,
@@ -784,6 +807,13 @@ DL.aggregatePlayers = function (view) {
     return entry;
   }
 
+  // a Future view's projected clears, by "player|levelId"
+  var projections = v && typeof DL.projectedClears === "function" ? DL.projectedClears(v) : [];
+  var projected = {};
+  projections.forEach(function (x) {
+    projected[x.player + "|" + x.id] = x;
+  });
+
   (v ? v.recordLevels : window.DEMONS).forEach(function (demon) {
     (demon.records || []).forEach(function (record) {
       var entry = ensure(record.player);
@@ -791,6 +821,12 @@ DL.aggregatePlayers = function (view) {
         entry.nationality = record.nationality;
         entry.subdivision = record.subdivision || null;
       }
+      // a run on a level that counts as beaten here: its clear (below) replaces it
+      if (
+        projections.length &&
+        record.progress < 100 &&
+        projected[record.player + "|" + (demon.levelId != null ? demon.levelId : demon.id)]
+      ) return;
 
       entry.score += v ? v.recordScore(demon, record.progress) : DL.recordScore(demon, record.progress);
 
@@ -807,8 +843,17 @@ DL.aggregatePlayers = function (view) {
     });
   });
 
+  // A projected clear counts like a 100% there: full points, and the run they
+  // have now for the stats viewer's label
+  projections.forEach(function (x) {
+    var entry = ensure(x.player);
+    entry.score += x.points;
+    entry.completed.push({ demon: x.level, progress: 100, projected: true, run: x.run });
+    if (!entry.hardest || v.pos(x.level) < v.pos(entry.hardest)) entry.hardest = x.level;
+  });
+
   // In-progress points: on top of what the player's record on that level (if
-  // any) already scored, so nothing counts twice. Needs views.js.
+  // any) already scored, so nothing counts twice. Current views only. Needs views.js.
   if (typeof DL.inProgressScores === "function") {
     DL.inProgressScores(v).forEach(function (x) {
       var entry = ensure(x.player);
@@ -828,7 +873,7 @@ DL.aggregatePlayers = function (view) {
 
   // Credit created/published/verified only to players who already have a
   // ranking entry (see comment above) - this never creates new entries.
-  (v ? v.recordLevels : window.DEMONS).forEach(function (demon) {
+  (v ? v.creditLevels || v.recordLevels : window.DEMONS).forEach(function (demon) {
     (demon.creators && demon.creators.length ? demon.creators : [demon.publisher]).forEach(function (name) {
       if (byName[name]) byName[name].created.push(demon);
     });
@@ -886,10 +931,20 @@ DL.playerByName = function (name) {
 // view (optional): the same roll-up for a list view, from its players' scores,
 // its levels and its order, ties kept in today's order, with scoreNow / rankNow
 // (today's) on each nation. No view, or the default one, runs today's code.
+// In a Future view, each level its players count as beaten (their projected
+// clears, DL.aggregatePlayers) that nobody from the country really has beaten
+// is in completed once too: { demon, players, progress: 100, projected: true,
+// run, runs }, run being the longest run among those players and runs each
+// one's { player, run }, in ranking order. It can be the hardest, and it
+// leaves progressed and unbeaten.
 DL.aggregateNations = function (view) {
   var v = view && !view.isDefault ? view : null;
   var players = v ? v.players || DL.aggregatePlayers(v) : DL.aggregatePlayers();
   var byCode = {};
+  var byName = {};
+  players.forEach(function (p) {
+    byName[p.name] = p;
+  });
 
   players.forEach(function (p) {
     if (!p.nationality) return;
@@ -955,7 +1010,7 @@ DL.aggregateNations = function (view) {
       });
     });
 
-    (v ? v.recordLevels : window.DEMONS).forEach(function (demon) {
+    (v ? v.creditLevels || v.recordLevels : window.DEMONS).forEach(function (demon) {
       var creators = (demon.creators && demon.creators.length ? demon.creators : [demon.publisher]).filter(function (n) {
         return isMember[n];
       });
@@ -965,15 +1020,40 @@ DL.aggregateNations = function (view) {
       if (isMember[verifier]) nation.verified.push({ demon: demon, players: [verifier] });
     });
 
-    nation.completed = Object.keys(beaten).map(function (id) {
-      return beaten[id];
-    });
+    // a Future view: the levels its players count as beaten, once each
+    var projected = {}, projectedIds = [];
+    if (v) {
+      nation.players.forEach(function (name) {
+        byName[name].completed.forEach(function (c) {
+          if (!c.projected || beaten[c.demon.id]) return;
+          var row = projected[c.demon.id];
+          if (!row) {
+            row = projected[c.demon.id] = { demon: c.demon, players: [], progress: 100, projected: true, run: c.run, runs: [] };
+            projectedIds.push(c.demon.id);
+          } else if (c.run[1] - c.run[0] > row.run[1] - row.run[0]) {
+            row.run = c.run;
+          }
+          row.players.push(name);
+          row.runs.push({ player: name, run: c.run });
+        });
+      });
+    }
+
+    nation.completed = Object.keys(beaten)
+      .map(function (id) {
+        return beaten[id];
+      })
+      .concat(
+        projectedIds.map(function (id) {
+          return projected[id];
+        })
+      );
     nation.progressed = Object.keys(progress)
       .map(function (id) {
         return progress[id];
       })
       .filter(function (row) {
-        return !beaten[row.demon.id];
+        return !beaten[row.demon.id] && !projected[row.demon.id];
       });
 
     var clearedIds = {};

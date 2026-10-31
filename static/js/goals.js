@@ -5,10 +5,16 @@
 // (and, for the video poster helper, static/js/demonlist.js). Classic script.
 //
 //  - DL.goalLevel(levelId)      -> level record: the listed demon if it's on the
-//                                  list, else the data/goal-levels.js entry.
+//                                  list, else the unrated level (data/unrated.js,
+//                                  Rated+), else the data/goal-levels.js entry.
 //  - DL.goalsForPlayer(name)    -> that player's goals (data/goals.js order).
 //  - DL.goalsForLevel(levelId)  -> every goal on one level, best-progress first.
-//  - DL.renderGrindChips(name)  -> HTML for the stats-viewer "The Grind" row.
+//  - DL.grindRun(goal)          -> the goal's longest run [from, to], or null.
+//  - DL.grindInProgressRun(goal) -> that run when it's In Progress, else null.
+//  - DL.grindLevelShown(levelId, view) -> whether the stats viewer shows goals
+//                                  on that level in a list view.
+//  - DL.runLabel(run)           -> "76%" / "42–100%" for a run [from, to].
+//  - DL.renderGrindChips(name, view) -> HTML for the stats-viewer "The Grind" row.
 //  - DL.renderGoalPage(root, levelId) -> the themed goal.html body.
 // -----------------------------------------------------------------------------
 
@@ -32,6 +38,10 @@
       // list data wins; goal-levels.js only adds the page theme + writeup
       return g ? Object.assign({}, listed, { palette: g.palette, writeup: g.writeup }) : listed;
     }
+    // an unrated level the head mods put on Rated+: its tier and GDDL estimate
+    // come from data/unrated.js, the same way
+    var u = DL.unratedById ? DL.unratedById(levelId) : null;
+    if (u) return g ? Object.assign({}, u, { palette: g.palette, writeup: g.writeup }) : u;
     return g || null;
   };
 
@@ -57,17 +67,47 @@
       });
   };
 
+  // The goal's longest run [from, to] - its best from 0, or a practice run
+  // like 42-100 (the first of the longest, on a tie) - or null when it has
+  // none yet.
+  DL.grindRun = function (goal) {
+    var runs = (goal.best != null ? [[0, goal.best]] : []).concat(goal.segments || []);
+    return runs.reduce(function (b, r) { return !b || r[1] - r[0] > b[1] - b[0] ? r : b; }, null);
+  };
+
   // SITE.grindInProgress (Aceabase - Poatan's compromise): the goal's longest
-  // run [from, to] - from 0, or a practice run like 42-100 - when it's LONGER
-  // than that %, else null. Such a goal shows in the stats viewer's In Progress
-  // row, and puts an off-list level in the Future view (static/js/views.js).
+  // run (DL.grindRun) when it's LONGER than that %, else null. Such a goal is
+  // in the player's In Progress: the stats viewer lists the level there, it
+  // scores in-progress points on today's list, and in the Future view
+  // (static/js/views.js) the level joins and counts as beaten for them.
   // Always null when the setting is missing.
   DL.grindInProgressRun = function (goal) {
     var min = window.SITE && window.SITE.grindInProgress;
     if (min == null) return null;
-    var runs = (goal.best != null ? [[0, goal.best]] : []).concat(goal.segments || []);
-    var run = runs.reduce(function (b, r) { return !b || r[1] - r[0] > b[1] - b[0] ? r : b; }, null);
+    var run = DL.grindRun(goal);
     return run && run[1] - run[0] > min ? run : null;
+  };
+
+  // Is the level unrated in game, from what data/goal-levels.js knows about it?
+  // (gdbrowser's "Unrated", or a star count of 0)
+  function unratedInGame(lv) {
+    var gd = (lv && lv.gd) || {};
+    return !!lv && (lv.stars === 0 || gd.stars === 0 || gd.inGameDifficulty === "Unrated");
+  }
+
+  // Whether the stats viewer shows Grind goals on this level in a list view
+  // (static/js/views.js; nothing = today's list). On a list with Rated+
+  // (SITE.ratedPlus), an unrated level shows only in the Rated+ views: one of
+  // data/unrated.js, or one that's unrated in game but isn't one of them (the
+  // mod page won't put a new one in anyone's Grind; it never joins a view).
+  // Every other goal shows, and without Rated+ every goal does.
+  DL.grindLevelShown = function (levelId, view) {
+    var cfg = window.SITE || {};
+    if (!cfg.ratedPlus) return true;
+    levelId = Number(levelId);
+    if (DL.demonById(levelId)) return true;
+    var unrated = (DL.unratedById && DL.unratedById(levelId)) || unratedInGame((window.GOAL_LEVELS || {})[String(levelId)]);
+    return !unrated || (!!view && view.rating === "plus");
   };
 
   // rough "how close" 0-100 for ordering / the chip label
@@ -98,13 +138,24 @@
     return longest[0] + "–" + longest[1] + "%";
   }
 
+  // One run [from, to] as the stats viewer labels it: "76%" from the start (a
+  // record under 100% is one too, and a goal with no run yet is [0, 0]: "0%"),
+  // "42–100%" for a practice run.
+  DL.runLabel = function (run) {
+    return run[0] > 0 ? run[0] + "–" + run[1] + "%" : run[1] + "%";
+  };
+
   DL.goalAnchor = function (name) {
     return "grind-" + encodeURIComponent(name).replace(/%/g, "");
   };
 
-  // "The Grind" chips for the stats-viewer player panel.
-  DL.renderGrindChips = function (name) {
-    var goals = DL.goalsForPlayer(name);
+  // "The Grind" chips for the stats-viewer player panel. view (optional,
+  // static/js/views.js): leave out the goals that view doesn't show
+  // (DL.grindLevelShown).
+  DL.renderGrindChips = function (name, view) {
+    var goals = DL.goalsForPlayer(name).filter(function (g) {
+      return DL.grindLevelShown(g.levelId, view);
+    });
     if (!goals.length) return "";
     return goals
       .map(function (g) {
@@ -116,11 +167,13 @@
             : g.segments && g.segments.length
             ? runsLabel(g.segments)
             : "not started";
+        // an unrated level (Rated+ only) is marked like its links
+        var u = DL.unratedById ? DL.unratedById(g.levelId) : null;
         return (
           '<a class="grind-chip" href="' +
           DL.withView("goal.html?level=" + encodeURIComponent(g.levelId) + "#" + DL.goalAnchor(name)) +
           '">' +
-          '<span class="grind-chip-name">' + label + "</span>" +
+          '<span class="grind-chip-name' + (u ? ' unrated-link" title="' + DL.escapeAttr(DL.unratedTip(u)) : "") + '">' + label + "</span>" +
           '<span class="grind-chip-pct">' + pct + "</span>" +
           "</a>"
         );
@@ -252,7 +305,7 @@
     var diffLabel = DL.difficultyLabel(lv.difficulty || "Extreme");
     var ratingBadge =
       typeof lv.rating === "number"
-        ? '<span class="goal-badge">GDDL ' + lv.rating.toFixed(2) + "</span>"
+        ? '<span class="goal-badge">GDDL ' + (unrated ? "estimate " : "") + lv.rating.toFixed(2) + "</span>"
         : "";
 
     var hero =
@@ -275,7 +328,8 @@
                   time: DL.currentView().time,
                   rating: "plus",
                 }) +
-                '">unrated, on Rated+ &#8594;</a>'
+                '">' + (DL.unratedBeaten(unrated) ? "unrated, on Rated+" : "unrated, on Rated+ once someone beats it") +
+                " &#8594;</a>"
               : "") +
           "</p>" +
         "</div>" +

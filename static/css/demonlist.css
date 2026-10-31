@@ -286,6 +286,11 @@ tr:nth-child(even) {
   opacity: 0.7;
 }
 
+/* an unrated level nobody has beaten yet, joining in a Future view */
+.future-joining.view-unrated {
+  border-left: 4px dashed #7b4bc4;
+}
+
 /* a view's extras in the Main / Extended dropdowns */
 .dropdown li.view-new-item {
   box-shadow: inset 3px 0 0 #4a9e2f;
@@ -293,6 +298,10 @@ tr:nth-child(even) {
 
 .dropdown li.view-unrated-item {
   box-shadow: inset 3px 0 0 #7b4bc4;
+}
+
+.dropdown li.view-new-item.view-unrated-item {
+  box-shadow: inset 3px 0 0 #4a9e2f, inset 6px 0 0 #7b4bc4;
 }
 
 /* --- overview / demon-page sidebar --------------------------------------- */

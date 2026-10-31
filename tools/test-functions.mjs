@@ -1003,7 +1003,8 @@ print(json.dumps([[m.unrated_slots(u, d["demons"], d["site"]), [a for a in ids i
 // A made-up list, so the checks don't move when the real Grind does: a quarter of
 // the level's points (capped at topScore) times the longest run over 50%, from the
 // Grind or a record; never on a beaten level or over a record that scores more; a
-// level off the list counts where it isn't shown, on that view's curve.
+// level off the list counts where it isn't shown, on that view's curve. The Current
+// views only: the Future views count those runs as clears (the next section).
 
 if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
   const sb = { window: {}, console };
@@ -1065,20 +1066,439 @@ if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
     JSON.stringify(Object.values(today).map((p) => [p.name, p.score])));
   check("in-progress: a record that scores more keeps its points", near(today.P4.score, DL.recordScore(W.DEMONS[2], 80)) && !today.P4.inProgress.length);
 
+  // (nobody has beaten 3001, so Current · Rated+ doesn't show it: the run counts on
+  // that view's curve from its estimate, like a hidden rated level)
   const plus = DL.listView("current", "plus", true);
   const pu = find(DL.inProgressScores(plus), "P1", 3001)[0];
-  check("in-progress: an unrated level counts in Rated+ only, from its own points", !find(ip, "P1", 3001).length
-    && pu && pu.shown && near(pu.points, 0.25 * plus.points(3001) * 0.9), JSON.stringify(pu));
-  const fut = DL.listView("future", "rated", true);
-  ip = DL.inProgressScores(fut);
-  check("in-progress: Future shows the off-list level, and every value follows its curve",
-    key(ip) === "P1@1002 P2@1001 P5@2001" && find(ip, "P5", 2001)[0].shown && fut.top === 35
-    && near(find(ip, "P5", 2001)[0].points, 95) && near(find(ip, "P2", 1001)[0].points, 0.25 * full(30, 35) * 0.65), key(ip));
-  check("in-progress: the view's ranking has them too", fut.players.some((p) => p.name === "P5" && near(p.score, 95)));
+  check("in-progress: an unrated level counts in Rated+ only - not beaten yet, hidden, from its estimate",
+    !find(ip, "P1", 3001).length && pu && !pu.shown && plus.pos(3001) === null
+    && near(pu.points, 0.25 * full(27, plus.top) * 0.9), JSON.stringify(pu));
+  // The Future views are "what if everyone finishes" (Nigel, 2026-10-30): no
+  // quarter points there - a level someone has In Progress (Future), or anything
+  // in their Grind or a record under 100% (Future+), counts as beaten for them,
+  // with its full points in that view, in place of what a record of theirs scores.
+  const fut = DL.listView("future", "rated", true), fplus = DL.listView("plus", "rated", true);
+  const futU = DL.listView("future", "plus", true);
+  const score = (v, name) => (v.players.find((p) => p.name === name) || { score: NaN }).score;
+  check("in-progress: Future views add no quarter points; the off-list level is a row, on its curve",
+    DL.inProgressScores(fut).length === 0 && DL.inProgressScores(fplus).length === 0 && DL.inProgressScores(futU).length === 0
+    && fut.top === 35 && fut.pos(2001) === 1 && near(fut.points(2001), 500) && near(fut.points(1001), full(30, 35)),
+    JSON.stringify(DL.inProgressScores(fut)));
+  check("in-progress: Future - an In Progress level scores its full points, in place of a record's",
+    near(score(fut, "P5"), fut.points(2001)) && near(score(fut, "P2"), fut.points(1001)) && near(score(fut, "P4"), fut.points(1003))
+    && near(score(fut, "P1"), fut.points(1001) + fut.points(1002)) && near(score(fut, "P3"), fut.points(1002)),
+    JSON.stringify(fut.players.map((p) => [p.name, p.score])));
+  check("in-progress: an unrated level nobody has beaten joins Rated+'s Future views only (P1's 90% run), never a Rated view",
+    futU.pos(3001) !== null && DL.listView("plus", "plus", true).pos(3001) !== null && plus.pos(3001) === null
+    && fut.pos(3001) === null && fplus.pos(3001) === null, JSON.stringify([futU.pos(3001), plus.pos(3001), fut.pos(3001)]));
+  check("in-progress: Future+ - every Grind level counts (a 40% too); Rated+ - the unrated one too",
+    near(score(fplus, "P5"), fplus.points(2001) + fplus.points(2002))
+    && near(score(futU, "P1"), futU.points(1001) + futU.points(1002) + futU.points(3001)) && near(score(fut, "P1"), score(fplus, "P1")),
+    JSON.stringify([fplus.players.map((p) => [p.name, p.score]), futU.players.map((p) => [p.name, p.score])]));
   W.SITE.inProgressPoints = null;
   check("in-progress: off - nothing, and today's scores without them",
     DL.inProgressScores(null).length === 0 && DL.aggregatePlayers().every((p) => !p.inProgress.length)
     && near(DL.aggregatePlayers().find((p) => p.name === "P2").score, 0));
+}
+
+// --- the Future views and Rated+'s unrated levels (DL.projectedClears, DL.unratedBeaten) -------
+// The Future views are "what if everyone finishes" (Nigel, 2026-10-30): a level
+// someone has In Progress (Future), or anything in their Grind or a record under
+// 100% (Future+), counts as beaten for them, with its full points in that view, in
+// place of what their records on it score, labeled with the run they have now
+// ("Slaughterhouse (76%)"). The Current views keep the quarter points. Rated+ puts
+// an unrated level (data/unrated.js) on its list once someone beats it; until then
+// it's a Grind level of Rated+ (it joins the Future views, its runs count), and the
+// Rated views have no unrated level at all. A made-up list with every case, in all
+// 6 views; the mod page's build (no goals.js); the real data as invariants; and
+// Nigel's examples while the Grind is as it was on 2026-10-30. On Nigel's
+// Demonlist the flags are off: they're turned on here, in the vm.
+
+if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
+  const VIEWS = [["current", "rated"], ["current", "plus"], ["future", "rated"], ["future", "plus"], ["plus", "rated"], ["plus", "plus"]];
+  const quiet = { log() {}, warn() {}, error: console.error };
+  const load = (W, files) => {
+    const sb = { window: W, console: quiet };
+    vm.createContext(sb);
+    for (const f of files) vm.runInContext(readFileSync(path.join(ROOT, f), "utf8"), sb, { filename: f });
+    return W;
+  };
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  const lvl = (id, difficulty, rating, position, records, extra) => Object.assign({
+    id, levelId: id, name: `L${id}`, difficulty, rating, position, publisher: "x", creators: ["x"], verifier: null,
+    requirementPercent: 100,
+    records: records.map(([player, progress, nationality]) => ({ player, progress, nationality: nationality || "US", subdivision: null })),
+    gd: { inGameDifficulty: difficulty + " Demon", length: "XL" },
+  }, extra || {});
+  const unr = (id, difficulty, rating, records) => Object.assign(lvl(id, difficulty, rating, undefined, records), {
+    name: `U${id}`, gd: { inGameDifficulty: "Unrated" }, added: "2026-10-30",
+  });
+  const world = () => {
+    const W = {};
+    W.SITE = {
+      name: "Test", mainListSize: "extremes", extendedListSize: null, allowedDifficulties: ["Extreme", "Insane"],
+      grindInProgress: 50, inProgressPoints: 0.25, futureList: true, futurePlus: true, ratedPlus: true, unratedWindow: 1,
+      scoring: { topScore: 500, base: 1.176, legacyScore: 2, requirementScoreFraction: 0.25 },
+      members: ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"].map((name) => ({ name, nationality: name === "P6" || name === "P7" ? "CA" : "US" })),
+    };
+    W.DEMONS = [
+      lvl(1001, "Extreme", 30, 1, [["P1", 100], ["P2", 60]]),
+      lvl(1002, "Extreme", 25, 2, [["P3", 100]]),
+      lvl(1003, "Insane", 18, 3, [["P4", 80]], { requirementPercent: 50 }),
+      lvl(1004, "Insane", 16, 4, [["P6", 30, "CA"]]),
+    ];
+    W.GOAL_LEVELS = {
+      2001: { name: "Hard Off", difficulty: "Extreme", rating: 35, gd: { inGameDifficulty: "Extreme Demon", length: "XL" } },
+      2002: { name: "Short Run", difficulty: "Extreme", rating: 28, gd: { inGameDifficulty: "Extreme Demon", length: "XL" } },
+      2003: { name: "Plat", difficulty: "Extreme", rating: 26, gd: { inGameDifficulty: "Extreme Demon", length: "Plat." } },
+      2004: { name: "Unrated In Game", difficulty: "Extreme", rating: 20, gd: { inGameDifficulty: "Unrated", length: "XL" } },
+      3002: { name: "U3002 theme", palette: { accent: "#123456" }, writeup: { text: "w" } },
+    };
+    W.GOALS = [
+      { player: "P2", levelId: 1001, best: 55, segments: [[30, 95]] }, // longest 30-95, over her 60% record
+      { player: "P1", levelId: 1002, best: 90, segments: [] },          // listed, not beaten
+      { player: "P3", levelId: 1002, best: 70, segments: [] },          // beaten already: nothing
+      { player: "P5", levelId: 2001, best: 76, segments: [] },          // off the list, harder than #1
+      { player: "P5", levelId: 2002, best: 40, segments: [[10, 55]] },  // 45 at most: Future+ only, labeled 40% (from the start)
+      { player: "P3", levelId: 2002, best: null, segments: [[60, 80], [20, 45]] }, // practice runs only: 20-45%
+      { player: "P6", levelId: 2003, best: 80, segments: [] },          // a platformer: never a row
+      { player: "P7", levelId: 2004, best: 60, segments: [] },          // unrated in game, not on Rated+: never a row
+      { player: "P1", levelId: 3002, best: 90, segments: [] },          // unrated, not beaten, a run over 50%
+      { player: "P8", levelId: 3004, best: null, segments: [] },        // unrated, not beaten, no run yet
+      { player: "P2", levelId: 3001, best: 70, segments: [] },          // unrated, beaten by P1
+    ];
+    W.UNRATED = [
+      unr(3001, "Extreme", 27, [["P1", 100], ["P4", 52]]),               // beaten
+      unr(3002, "Extreme", 31, []),                                       // not beaten: a Grind run over 50%
+      unr(3003, "Insane", 17, [["P6", 76, "CA"], ["P7", 20, "CA"]]),      // not beaten: partial records
+      unr(3004, "Insane", 15.5, []),                                      // not beaten: a goal with no run
+      unr(3005, "Insane", 15, []),                                        // not beaten: nothing
+    ];
+    return load(W, ["static/js/list-utils.js", "static/js/goals.js", "static/js/views.js"]);
+  };
+
+  {
+    const W = world(), DL = W.DL, S = W.SITE.scoring;
+    const curve = (rating, top) => S.topScore * Math.pow(S.base, rating - top);
+    const ids = (rows) => rows.map((r) => r.id);
+    const proj = (v) => DL.projectedClears(v).map((x) => `${x.player}@${x.id}:${DL.runLabel(x.run)}`).sort();
+
+    check("future views: DL.unratedBeaten", DL.unratedBeaten(W.UNRATED[0]) && !DL.unratedBeaten(W.UNRATED[1])
+      && !DL.unratedBeaten(W.UNRATED[2]) && !DL.unratedBeaten(null));
+    check("future views: DL.runLabel", DL.runLabel([0, 76]) === "76%" && DL.runLabel([42, 100]) === "42–100%" && DL.runLabel([0, 0]) === "0%");
+    check("future views: DL.grindRun is the longest run, the first on a tie, null with none",
+      eq(DL.grindRun({ best: 10, segments: [[3, 13], [5, 26], [79, 100]] }), [5, 26]) && DL.grindRun({ best: null, segments: [] }) === null
+      && eq(DL.grindRun({ best: 39, segments: [[11, 53], [42, 100]] }), [42, 100]));
+    const g3002 = DL.goalLevel(3002), g1001 = DL.goalLevel(1001), g2001 = DL.goalLevel(2001);
+    check("future views: DL.goalLevel - listed first, then the unrated entry (tier, estimate) with goal-levels.js' palette, then goal-levels.js",
+      g1001 === W.DEMONS[0] && g3002.rating === 31 && g3002.difficulty === "Extreme" && g3002.name === "U3002"
+      && g3002.palette.accent === "#123456" && g3002.writeup.text === "w" && g2001 === W.GOAL_LEVELS[2001]
+      && DL.goalLevel(3001) === W.UNRATED[0] && DL.goalLevel(9999) === null);
+
+    const V = {};
+    for (const [t, r] of VIEWS) V[t + "|" + r] = DL.listView(t, r, true);
+    const want = {
+      "current|rated": [1001, 1002, 1003, 1004],
+      "current|plus": [1001, 3001, 1002, 1003, 1004],
+      "future|rated": [2001, 1001, 1002, 1003, 1004],
+      "future|plus": [2001, 3002, 1001, 3001, 1002, 1003, 3003, 1004],
+      "plus|rated": [2001, 1001, 2002, 1002, 1003, 1004],
+      "plus|plus": [2001, 3002, 1001, 2002, 3001, 1002, 1003, 3003, 1004, 3004],
+    };
+    const unrIds = new Set(W.UNRATED.map((u) => u.levelId));
+    for (const [t, r] of VIEWS) {
+      const v = V[t + "|" + r], what = `future views (fixture) ${t} + ${r}:`;
+      check(`${what} the rows`, eq(ids(v.rows), want[t + "|" + r]), JSON.stringify(ids(v.rows)));
+      check(`${what} positions 1..n`, v.rows.every((row, i) => row.position === i + 1));
+      check(`${what} the listed demons keep today's order`, eq(v.rows.filter((x) => x.kind === "listed").map((x) => x.id), [1001, 1002, 1003, 1004]));
+      const tr = v.rows.map((x) => DL.tierRank(x.level));
+      check(`${what} extremes above insanes, main = the extremes`, tr.every((x, i) => !i || tr[i - 1] <= x)
+        && v.rows.every((x) => (x.tier === "main") === (x.level.difficulty === "Extreme")));
+      const top = Math.max(...v.rows.map((x) => DL.demonRating(x.level)));
+      check(`${what} the hardest row is worth topScore, every row on the view's curve`,
+        v.rows.every((x) => near(x.points, curve(DL.demonRating(x.level), top))) && v.rows.some((x) => x.points === S.topScore));
+      // unrated levels: nowhere in Rated; in Rated+ a beaten one is an "unrated" row, the rest Grind-like (unrated: true)
+      if (r === "rated") {
+        check(`${what} no unrated level anywhere`, v.rows.every((x) => !unrIds.has(x.id)) && v.unrated.length === 0
+          && !v.recordLevels.some((lv) => unrIds.has(lv.levelId)));
+      } else {
+        check(`${what} the beaten unrated level is an unrated row`, eq(ids(v.unrated), [3001]) && v.row(3001).kind === "unrated");
+        check(`${what} a not-beaten unrated row is kind grind + unrated`, v.rows.filter((x) => unrIds.has(x.id) && x.id !== 3001)
+          .every((x) => x.kind === "grind" && x.unrated === true && v.joining.includes(x)));
+        check(`${what} every unrated level's records score (recordLevels)`, W.UNRATED.every((u) => v.recordLevels.includes(u)));
+        check(`${what} only the beaten one is credited`, v.creditLevels.includes(W.UNRATED[0]) && !v.creditLevels.includes(W.UNRATED[1]));
+      }
+      check(`${what} 2003 (a platformer) and 2004 (unrated in game, not on Rated+) are never rows`, !v.row(2003) && !v.row(2004));
+    }
+
+    // the projected clears, with their labels
+    check("future views: the Current views project nothing", proj(V["current|rated"]).length === 0 && proj(V["current|plus"]).length === 0);
+    check("future views: Future + Rated - the In Progress levels", eq(proj(V["future|rated"]),
+      ["P1@1002:90%", "P2@1001:30–95%", "P4@1003:80%", "P5@2001:76%"]), JSON.stringify(proj(V["future|rated"])));
+    check("future views: Future + Rated+ - and the unrated ones, beaten or not", eq(proj(V["future|plus"]),
+      ["P1@1002:90%", "P1@3002:90%", "P2@1001:30–95%", "P2@3001:70%", "P4@1003:80%", "P4@3001:52%", "P5@2001:76%", "P6@3003:76%"]),
+      JSON.stringify(proj(V["future|plus"])));
+    check("future views: Future+ + Rated - every Grind level and record under 100%", eq(proj(V["plus|rated"]),
+      ["P1@1002:90%", "P2@1001:30–95%", "P3@2002:20–45%", "P4@1003:80%", "P5@2001:76%", "P5@2002:40%", "P6@1004:30%"]),
+      JSON.stringify(proj(V["plus|rated"])));
+    check("future views: Future+ + Rated+ - a goal with no run yet is 0%", eq(proj(V["plus|plus"]),
+      ["P1@1002:90%", "P1@3002:90%", "P2@1001:30–95%", "P2@3001:70%", "P3@2002:20–45%", "P4@1003:80%", "P4@3001:52%", "P5@2001:76%",
+        "P5@2002:40%", "P6@1004:30%", "P6@3003:76%", "P7@3003:20%", "P8@3004:0%"]), JSON.stringify(proj(V["plus|plus"])));
+    check("future views: an In Progress level has the same label in Future and Future+", DL.projectedClears(V["future|plus"]).every((x) =>
+      DL.projectedClears(V["plus|plus"]).some((y) => y.player === x.player && y.id === x.id && eq(y.run, x.run))));
+    check("future views: DL.inProgressScores adds nothing in the Future views", ["future|rated", "future|plus", "plus|rated", "plus|plus"]
+      .every((k) => DL.inProgressScores(V[k]).length === 0 && V[k].players.every((p) => p.inProgress.length === 0)));
+
+    // every player's score from scratch: real clears + the records a projected clear doesn't
+    // replace + projected clears at full points (Future), or + in-progress extras (Current)
+    for (const [t, r] of VIEWS) {
+      const v = V[t + "|" + r], what = `future views (fixture) ${t} + ${r}:`;
+      const pj = DL.projectedClears(v), byKey = {};
+      pj.forEach((x) => { byKey[x.player + "|" + x.id] = x; });
+      const sums = {};
+      v.recordLevels.forEach((lv) => (lv.records || []).forEach((rec) => {
+        if (rec.progress < 100 && byKey[rec.player + "|" + lv.levelId]) return;
+        sums[rec.player] = (sums[rec.player] || 0) + v.recordScore(lv, rec.progress);
+      }));
+      pj.forEach((x) => { sums[x.player] = (sums[x.player] || 0) + v.row(x.id).points; });
+      DL.inProgressScores(v).forEach((x) => { sums[x.player] = (sums[x.player] || 0) + x.extra; });
+      check(`${what} every score = clears + projected clears (full points) + in-progress extras`,
+        v.players.every((p) => near(p.score, sums[p.name] || 0)), JSON.stringify(v.players.map((p) => [p.name, p.score, sums[p.name]])));
+      check(`${what} ranked by score`, v.players.every((p, i) => p.rank === i + 1 && (!i || v.players[i - 1].score >= p.score - 1e-9)));
+      check(`${what} projected clears are in completed, marked, with the run - never in progressed`, pj.every((x) => {
+        const p = v.players.find((q) => q.name === x.player);
+        const c = p && p.completed.find((y) => y.demon.id === x.id);
+        return c && c.projected === true && eq(c.run, x.run) && c.progress === 100 && !p.progressed.some((y) => y.demon.id === x.id);
+      }));
+      check(`${what} the real clears aren't marked`, v.players.every((p) => p.completed.filter((c) => !c.projected)
+        .every((c) => (c.demon.records || []).some((rec) => rec.player === p.name && rec.progress >= 100))));
+      check(`${what} the hardest is the top row among completed, real or projected`, v.players.every((p) => {
+        if (!p.completed.length) return p.hardest === null;
+        return p.hardest === p.completed.reduce((b, c) => (!b || v.pos(c.demon) < v.pos(b) ? c.demon : b), null);
+      }));
+      check(`${what} today's score and rank beside it (Current + Rated's)`, v.isDefault || v.players.every((p) => {
+        const today = DL.aggregatePlayers().find((q) => q.name === p.name);
+        return today ? p.scoreNow === today.score && p.rankNow === today.rank : p.scoreNow === 0 && p.rankNow === null;
+      }));
+    }
+
+    // the worked numbers
+    const fr = V["future|rated"], fu = V["future|plus"], ff = V["plus|plus"], cp = V["current|plus"];
+    const P = (v, name) => v.players.find((p) => p.name === name);
+    check("future views: Future - P5's 76% on Hard Off (the hardest) counts as a clear: topScore", near(P(fr, "P5").score, S.topScore)
+      && (P(fr, "P5").hardest || {}).levelId === 2001 && P(fr, "P5").completed.length === 1, JSON.stringify(P(fr, "P5").score));
+    check("future views: Future - P2's 60% record on L1001 is replaced, not added to", near(P(fr, "P2").score, fr.row(1001).points));
+    check("future views: Future - P4's 80% (which scored on its own) is replaced by the full points", near(P(fr, "P4").score, fr.row(1003).points)
+      && !P(fr, "P4").progressed.length);
+    check("future views: Future - P6's 30% isn't In Progress: it stays there, scoring what it scores", P(fr, "P6").progressed.length === 1
+      && P(fr, "P6").completed.length === 0 && near(P(fr, "P6").score, 0));
+    check("future views: Future - P1: a clear + a projected clear; the hardest is the real L1001",
+      near(P(fr, "P1").score, fr.row(1001).points + fr.row(1002).points) && (P(fr, "P1").hardest || {}).levelId === 1001);
+    check("future views: Future+ + Rated+ - P8's goal with no run counts (0%)", near(P(ff, "P8").score, ff.row(3004).points)
+      && (P(ff, "P8").completed[0] || {}).projected === true && eq((P(ff, "P8").completed[0] || {}).run, [0, 0]));
+    check("future views: Future+ + Rated+ - P7's 20% record on U3003 counts in full", near(P(ff, "P7").score, ff.row(3003).points));
+    check("future views: Future + Rated+ - P7's 20% isn't In Progress: it stays there", P(fu, "P7").progressed.length === 1
+      && P(fu, "P7").progressed[0].demon.levelId === 3003 && P(fu, "P7").completed.length === 0);
+
+    // Rated+ in the Current views: in-progress points
+    const ipc = DL.inProgressScores(cp), ipr = DL.inProgressScores(null);
+    const key = (xs) => xs.map((x) => x.player + "@" + x.id).sort().join(" ");
+    // (P4's 80% on L1003 already scores more than a quarter would: nothing on top)
+    check("rated+: Current + Rated - no unrated level counts", key(ipr) === "P1@1002 P2@1001 P5@2001", key(ipr));
+    check("rated+: Current + Rated+ - runs on unrated levels count, beaten or not", key(ipc) ===
+      "P1@1002 P1@3002 P2@1001 P2@3001 P4@3001 P5@2001 P6@3003", key(ipc));
+    const u3002 = ipc.find((x) => x.id === 3002), u3003 = ipc.find((x) => x.id === 3003), u3001 = ipc.find((x) => x.player === "P4" && x.id === 3001);
+    check("rated+: Current + Rated+ - one nobody has beaten isn't shown: from its estimate, capped at topScore",
+      !!u3002 && !u3002.shown && near(u3002.points, 0.25 * S.topScore * 0.9) && !!u3003 && !u3003.shown && near(u3003.points, 0.25 * curve(17, cp.top) * 0.76),
+      JSON.stringify([u3002, u3003]));
+    check("rated+: Current + Rated+ - a beaten one (a row) counts from its row", !!u3001 && u3001.shown && near(u3001.points, 0.25 * cp.row(3001).points * 0.52));
+    check("rated+: Current + Rated+ - the ones nobody has beaten aren't rows", [3002, 3003, 3004, 3005].every((id) => cp.row(id) === null));
+
+    // links
+    const U = (id) => W.UNRATED.find((u) => u.levelId === id);
+    check("rated+: links - beaten -> its demon page; not beaten, with Grind goals -> its Grind page; else its demon page",
+      /^demon\.html\?id=3001&/.test(cp.url(U(3001))) && /^goal\.html\?level=3002&/.test(cp.url(U(3002)))
+      && /^demon\.html\?id=3003&/.test(cp.url(U(3003))) && /^goal\.html\?level=3004&/.test(ff.url(U(3004)))
+      && /^demon\.html\?id=3005&/.test(ff.url(U(3005))), JSON.stringify([cp.url(U(3001)), cp.url(U(3002)), cp.url(U(3003)), ff.url(U(3004)), ff.url(U(3005))]));
+    check("rated+: links carry the view", /time=plus/.test(ff.url(U(3004))) && /rating=plus/.test(ff.url(U(3004))));
+
+    // the stats viewer's Grind rows and chips (DL.grindLevelShown)
+    const dv = V["current|rated"];
+    check("rated+: Grind goals on an unrated level show in the Rated+ views only", !DL.grindLevelShown(3002, dv)
+      && !DL.grindLevelShown(3002, V["plus|rated"]) && !DL.grindLevelShown(3002, null) && DL.grindLevelShown(3002, cp) && DL.grindLevelShown(3002, ff));
+    check("rated+: ...and on a level that's unrated in game but not on Rated+", [dv, fr, null].every((v) => !DL.grindLevelShown(2004, v))
+      && [cp, ff].every((v) => DL.grindLevelShown(2004, v)));
+    check("rated+: every other goal shows everywhere", [dv, cp, fr, ff, null].every((v) => DL.grindLevelShown(1001, v) && DL.grindLevelShown(2001, v)));
+    W.SITE.ratedPlus = false;
+    check("rated+: without Rated+ every goal shows (Nigel's Demonlist)", [3002, 2004, 1001].every((id) => DL.grindLevelShown(id, null)));
+    W.SITE.ratedPlus = true;
+
+    // nations: their players' projected clears, once each
+    for (const [t, r] of VIEWS) {
+      const v = V[t + "|" + r], what = `future views (fixture) ${t} + ${r}: nations -`;
+      const ns = v.nations();
+      check(`${what} each scores its players`, ns.every((n) => near(n.score, n.players.reduce((s, name) => s + v.players.find((p) => p.name === name).score, 0))));
+      for (const n of ns) {
+        const members = n.players.map((name) => v.players.find((p) => p.name === name));
+        const realIds = new Set(n.completed.filter((c) => !c.projected).map((c) => c.demon.id));
+        const pjIds = new Set();
+        members.forEach((p) => p.completed.forEach((c) => { if (c.projected && !realIds.has(c.demon.id)) pjIds.add(c.demon.id); }));
+        const rows = n.completed.filter((c) => c.projected);
+        check(`${what} ${n.code}: each projected level once, unless a member beat it`, eq(rows.map((c) => c.demon.id).sort(), [...pjIds].sort())
+          && rows.length === new Set(rows.map((c) => c.demon.id)).size, JSON.stringify(rows.map((c) => c.demon.id)));
+        check(`${what} ${n.code}: labeled with the longest run among them, and who has which`, rows.every((c) => {
+          const runs = members.flatMap((p) => p.completed.filter((y) => y.projected && y.demon.id === c.demon.id).map((y) => ({ player: p.name, run: y.run })));
+          const longest = Math.max(...runs.map((x) => x.run[1] - x.run[0]));
+          return eq(c.runs, runs) && c.run[1] - c.run[0] === longest && eq(c.players, runs.map((x) => x.player));
+        }));
+        check(`${what} ${n.code}: they leave In Progress and Unbeaten`, n.progressed.every((x) => !pjIds.has(x.demon.id) && !realIds.has(x.demon.id))
+          && n.unbeaten.every((d) => !pjIds.has(d.id)));
+        const hardest = n.completed.concat(n.verified).reduce((b, c) => (!b || v.pos(c.demon) < v.pos(b) ? c.demon : b), null);
+        check(`${what} ${n.code}: the hardest follows`, n.hardest === hardest);
+        if (t === "current") check(`${what} ${n.code}: nothing projected in the Current views`, rows.length === 0);
+      }
+    }
+    const us = ff.nations().find((n) => n.code === "US"), ca = ff.nations().find((n) => n.code === "CA");
+    const c3001 = (us || { completed: [] }).completed.filter((c) => c.demon.id === 3001);
+    check("future views: nations - a level a member really beat stays a real clear (US, U3001: P1's 100%)", c3001.length === 1 && !c3001[0].projected
+      && eq(c3001[0].players, ["P1"]));
+    const c3003 = (ca || { completed: [] }).completed.find((c) => c.demon.id === 3003);
+    check("future views: nations - CA's U3003: P6's 76% beats P7's 20%, and the title says who has which", c3003 && c3003.projected
+      && eq(c3003.run, [0, 76]) && eq(c3003.runs.map((x) => x.player + ":" + DL.runLabel(x.run)).sort(), ["P6:76%", "P7:20%"]));
+
+    // the default view is today's list, bit for bit
+    check("future views: Current + Rated's players are today's (===)", eq(dv.players.map((p) => [p.name, p.score, p.rank]),
+      DL.aggregatePlayers().map((p) => [p.name, p.score, p.rank])));
+    check("future views: Current + Rated - nothing projected, no marks", dv.players.every((p) => p.completed.every((c) => !c.projected)));
+
+    // the list page's words (DL.renderListPage; the default view is demonlist.js' overview)
+    DL.escapeHtml = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    for (const [t, r] of VIEWS.slice(1)) {
+      const v = V[t + "|" + r], main = { innerHTML: "" };
+      DL.renderListPage(main, v);
+      const html = main.innerHTML, what = `future views (fixture) ${t} + ${r}: the list page -`;
+      if (t === "future") {
+        check(`${what} says In Progress counts as beaten`, html.includes("In this view, every level in someone's In Progress counts as beaten for them, with its full points (shown with the % they have now)."));
+      } else if (t === "plus") {
+        check(`${what} says the Grind counts as beaten`, html.includes("In this view, every level in someone's Grind counts as beaten for them, with its full points (shown with the % they have now)."));
+      }
+      if (t !== "current") check(`${what} no quarter-points sentence`, !/a quarter/.test(html), html);
+      const same = v.players.every((p) => p.rank === p.rankNow);
+      check(`${what} the ranking line is true`, same ? !html.includes("ranking changes") : html.includes("The player ranking changes"));
+      if (r === "plus") check(`${what} says Rated+ adds the unrated levels someone has beaten`, html.includes("someone has beaten"));
+    }
+  }
+
+  // the mod page: list-utils.js and views.js, no static/js/goals.js
+  {
+    const base = world(), W = {};
+    ["SITE", "DEMONS", "GOAL_LEVELS", "GOALS", "UNRATED"].forEach((k) => { W[k] = JSON.parse(JSON.stringify(base[k])); });
+    load(W, ["static/js/list-utils.js", "static/js/views.js"]);
+    let ok = false, why = "";
+    try {
+      const v = W.DL.listView("current", "plus", true), u1 = W.UNRATED[0], u2 = W.UNRATED[1];
+      ok = v.pos(u1) === 2 && v.pos(u2) === null && W.DL.unratedBeaten(u1) && !W.DL.unratedBeaten(u2)
+        && v.players.length > 0 && W.DL.projectedClears(v).length === 0;
+      why = JSON.stringify([v.pos(u1), v.pos(u2)]);
+    } catch (e) {
+      why = String(e && e.stack);
+    }
+    check("future views: the mod page's Current + Rated+ builds without goals.js; a beaten unrated level has its spot", ok, why);
+  }
+
+  // the real data, the flags on: the same rules, as invariants
+  {
+    const W = {};
+    load(W, ["data/config.js", "data/demons.js", "data/goals.js", "data/goal-levels.js"]);
+    if (existsSync(path.join(ROOT, "data", "unrated.js"))) load(W, ["data/unrated.js"]);
+    load(W, ["static/js/list-utils.js", "static/js/goals.js", "static/js/views.js"]);
+    const DL = W.DL, SITE = W.SITE;
+    SITE.futureList = SITE.futurePlus = SITE.ratedPlus = true;
+    if (typeof SITE.grindInProgress !== "number") SITE.grindInProgress = 50;
+    const hasClear = (lv, name) => (lv.records || []).some((rec) => rec.player === name && rec.progress >= 100);
+    for (const [t, r] of VIEWS) {
+      const v = DL.listView(t, r, true), what = `future views (real) ${t} + ${r}:`;
+      const pj = DL.projectedClears(v);
+      check(`${what} projections only in the Future views, each on a row the player hasn't beaten`, t === "current" ? pj.length === 0
+        : pj.every((x) => v.row(x.id) && !hasClear(v.row(x.id).level, x.player)));
+      if (t === "future") {
+        const missed = (W.GOALS || []).filter((g) => {
+          const row = v.row(Number(g.levelId));
+          return DL.grindInProgressRun(g) && row && !hasClear(row.level, g.player)
+            && !pj.some((x) => x.player === g.player && x.id === Number(g.levelId));
+        });
+        check(`${what} every In Progress Grind goal on a row they haven't beaten is projected`, !missed.length, JSON.stringify(missed));
+      }
+      if (t === "plus") {
+        const missed = (W.GOALS || []).filter((g) => {
+          const row = v.row(Number(g.levelId));
+          return row && !hasClear(row.level, g.player) && !pj.some((x) => x.player === g.player && x.id === Number(g.levelId));
+        });
+        check(`${what} every Grind goal on a row they haven't beaten is projected`, !missed.length, JSON.stringify(missed));
+      }
+      const byKey = {}, sums = {};
+      pj.forEach((x) => { byKey[x.player + "|" + x.id] = x; });
+      v.recordLevels.forEach((lv) => (lv.records || []).forEach((rec) => {
+        if (rec.progress < 100 && byKey[rec.player + "|" + lv.levelId]) return;
+        sums[rec.player] = (sums[rec.player] || 0) + v.recordScore(lv, rec.progress);
+      }));
+      pj.forEach((x) => { sums[x.player] = (sums[x.player] || 0) + v.row(x.id).points; });
+      DL.inProgressScores(v).forEach((x) => { sums[x.player] = (sums[x.player] || 0) + x.extra; });
+      check(`${what} every score = clears + projected clears + in-progress extras`, v.players.every((p) => near(p.score, sums[p.name] || 0)));
+      check(`${what} positions 1..n, the listed demons in today's order`, v.rows.every((x, i) => x.position === i + 1)
+        && eq(v.rows.filter((x) => x.kind === "listed").map((x) => x.id), DL.sortedDemons().map((d) => d.levelId)));
+    }
+    const dv = DL.listView("current", "rated", true);
+    check("future views (real): Current + Rated is today's ranking (===), nothing projected", eq(dv.players.map((p) => [p.name, p.score, p.rank]),
+      DL.aggregatePlayers().map((p) => [p.name, p.score, p.rank])) && dv.players.every((p) => p.completed.every((c) => !c.projected)));
+
+    // Nigel's examples, while the Grind is as it was on 2026-10-30 (Aceabase only):
+    // Dihmaster500's Slaughterhouse - off the list, harder than the #1, 76% from the
+    // start in his Grind - counts for him in Future as beaten, worth topScore there;
+    // Nigel's Congregation (on the list) by its 42-100 run; Dihmaster500's Tartarus,
+    // 10% at best from the start, in Future+.
+    const goal = (player, id) => (W.GOALS || []).find((g) => g.player === player && Number(g.levelId) === id);
+    const SH = 27690100, CONG = 68668045, TART = 59075347, dih = "Dihmaster500";
+    const gSH = goal(dih, SH), gCong = goal("Nigel", CONG), gTart = goal(dih, TART);
+    const shLevel = DL.goalLevel(SH), cong = DL.demonById(CONG);
+    const asOf = !!(gSH && gCong && gTart && shLevel && cong) && SITE.inProgressPoints > 0
+      && gSH.best === 76 && eq(DL.grindInProgressRun(gSH), [0, 76])
+      && !DL.demonById(SH) && !DL.unratedById(SH) && DL.demonRating(shLevel) > DL.topRating()
+      && eq(DL.grindInProgressRun(gCong), [42, 100]) && !hasClear(cong, "Nigel")
+      && gTart.best === 10 && !DL.grindInProgressRun(gTart) && !DL.demonById(TART);
+    if (!asOf) console.log("(skipping Nigel's Future examples - this isn't Aceabase's Grind as of 2026-10-30)");
+    else {
+      const today = DL.listView("current", "rated", true), fut = DL.listView("future", "rated", true), fplus = DL.listView("plus", "rated", true);
+      const P = (v, name) => v.players.find((p) => p.name === name);
+      const p = P(fut, dih), t = P(today, dih);
+      const c = p.completed.find((x) => x.demon.id === SH);
+      const mine = DL.projectedClears(fut).filter((x) => x.player === dih);
+      check("future views (real): Future - Slaughterhouse joins at #1, worth topScore", fut.pos(SH) === 1 && fut.points(SH) === SITE.scoring.topScore,
+        JSON.stringify([fut.pos(SH), fut.points(SH)]));
+      check("future views (real): Future - Dihmaster500's Slaughterhouse counts as beaten, with its full points, labeled (76%)",
+        c && c.projected === true && eq(c.run, [0, 76]) && DL.runLabel(c.run) === "76%"
+        && mine.some((x) => x.id === SH && x.points === SITE.scoring.topScore), JSON.stringify(c && c.run));
+      let sum = 0;
+      fut.recordLevels.forEach((lv) => (lv.records || []).forEach((rec) => {
+        if (rec.player === dih && !(rec.progress < 100 && mine.some((x) => x.id === lv.levelId))) sum += fut.recordScore(lv, rec.progress);
+      }));
+      mine.forEach((x) => { sum += x.points; });
+      check("future views (real): Future - his score has its full points, in place of the quarter points", near(p.score, sum)
+        && !p.inProgress.length, JSON.stringify([p.score, sum]));
+      check("future views (real): Future - Demons beaten and Hardest include it, In Progress doesn't",
+        p.completed.length === t.completed.length + mine.length && (p.hardest || {}).levelId === SH
+        && !p.progressed.some((x) => x.demon.levelId === SH), JSON.stringify([p.completed.length, t.completed.length, mine.length]));
+      check("future views (real): Current + Rated is unchanged - Slaughterhouse in his In Progress for a quarter of topScore x 76%",
+        today.isDefault && !t.completed.some((x) => x.projected || x.demon.levelId === SH) && (t.hardest || {}).levelId !== SH
+        && t.inProgress.some((x) => x.id === SH && near(x.points, SITE.inProgressPoints * SITE.scoring.topScore * 0.76))
+        && eq(today.players.map((x) => [x.name, x.score, x.rank]), DL.aggregatePlayers().map((x) => [x.name, x.score, x.rank])));
+      const nig = P(fut, "Nigel").completed.find((x) => x.demon.id === CONG);
+      const tart = P(fplus, dih).completed.find((x) => x.demon.id === TART);
+      check("future views (real): the labels - Congregation (42–100%) in Future, Tartarus (10%) in Future+",
+        nig && nig.projected && DL.runLabel(nig.run) === "42–100%" && tart && tart.projected && DL.runLabel(tart.run) === "10%"
+        && !P(fut, dih).completed.some((x) => x.demon.id === TART), JSON.stringify([nig && nig.run, tart && tart.run]));
+    }
+  }
 }
 
 // --- Rated+ in the engine, offline: tools/apply-edit.py on a copy of the site ----------------

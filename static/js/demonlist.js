@@ -74,7 +74,8 @@
   // overview page and the demon detail page. `currentDemon` (optional) gets
   // the `.active` class in whichever dropdown it belongs to. `view` (optional,
   // static/js/views.js): list that view's levels instead, in its order - an
-  // unrated level or one joining from the Grind gets a marker on its item.
+  // unrated level or one joining from the Grind gets a marker on its item (an
+  // unrated level nobody has beaten yet, both).
   DL.renderListNav = function (root, currentDemon, view) {
     var V = otherView(view);
     var all = DL.sortedDemons();
@@ -91,7 +92,10 @@
     // one view row's item: the same markup as a demon's below
     function rowItem(r, numbered) {
       var lv = r.level;
-      var extra = r.kind === "grind" ? " view-new-item" : r.kind === "unrated" ? " view-unrated-item" : "";
+      var extra =
+        r.kind === "grind" ? " view-new-item" + (r.unrated ? " view-unrated-item" : "")
+        : r.kind === "unrated" ? " view-unrated-item"
+        : "";
       var active = currentDemon && r.id === currentId ? " active" : "";
       var display = numbered ? "#" + r.position + " - " + DL.escapeHtml(lv.name) : DL.escapeHtml(lv.name);
       return (
@@ -257,7 +261,7 @@
             ) +
             statRow(
               "Completions logged",
-              V.recordLevels.reduce(function (n, d) { return n + (d.records || []).length; }, 0)
+              (V.creditLevels || V.recordLevels).reduce(function (n, d) { return n + (d.records || []).length; }, 0)
             ) +
             statRow("Players ranked", V.players.length) +
             statRow("Hardest level", '<a href="' + V.url(first) + '">' + DL.escapeHtml(first.name) + "</a>") +
@@ -372,21 +376,36 @@
     var opts = DL.viewOptions();
     if (V) {
       var rules = "";
+      // the Future views count what people are working on as beaten
+      // (DL.projectedClears in views.js)
       if (V.time === "future") {
         rules +=
           "<p>Future adds every level in someone's In Progress." +
           (cfg.grindInProgress != null
-            ? " In Progress means a Grind run longer than " + cfg.grindInProgress +
-              "% (from the start, or a practice run like 42&ndash;100)."
+            ? " In Progress means a run longer than " + cfg.grindInProgress +
+              "% (from the start, or a practice run like 42&ndash;100), in their Grind or a record."
             : "") +
-          "</p>";
+          " Every level in someone's In Progress counts as beaten for them, with its full points.</p>";
       } else if (V.time === "plus") {
-        rules += "<p>Future+ adds every level in anyone's Grind, whatever their progress.</p>";
+        rules +=
+          "<p>Future+ adds every level in anyone's Grind, whatever their progress. Every level in someone's Grind, " +
+          "and every record under 100%, counts as beaten for them, with its full points.</p>";
       }
       if (V.rating === "plus") {
+        var over = typeof cfg.grindInProgress === "number" ? cfg.grindInProgress + "%" : null;
+        var runsCount = !!over && typeof cfg.inProgressPoints === "number" && cfg.inProgressPoints > 0;
         rules +=
-          "<p>Rated+ adds the unrated levels the head mods count as accomplishments. Each one goes where its GD " +
-          "Demon Ladder estimate puts it (or a spot a head mod picked close to it), and its clears count for points here.</p>";
+          "<p>Rated+ adds the unrated levels the head mods picked, each once someone beats it. It goes where its GD " +
+          "Demon Ladder estimate puts it (or a spot a head mod picked close to it), and its clears count for points here." +
+          (V.time === "future" && over
+            ? " One nobody has beaten yet joins here too once someone has a run on it longer than " + over +
+              " (in their Grind, or a record)."
+            : V.time === "plus"
+            ? " One nobody has beaten yet joins here too once someone has it in their Grind or a record on it."
+            : runsCount
+            ? " A run longer than " + over + " on one nobody has beaten yet still counts."
+            : "") +
+          "</p>";
       }
       html += sidebarPanel(
         "view-rules",
@@ -406,7 +425,7 @@
       }
       if (opts.ratings.indexOf("plus") >= 0) {
         others.push(
-          others.length ? "Rated+ the unrated levels the head mods count" : "Rated+ adds the unrated levels the head mods count"
+          others.length ? "Rated+ the unrated levels someone has beaten" : "Rated+ adds the unrated levels someone has beaten"
         );
       }
       html += sidebarPanel(
@@ -662,8 +681,9 @@
 
   // `view` (optional, static/js/views.js): the demon's neighbors, position,
   // list and points in that view. An unrated level (data/unrated.js) comes
-  // with a Rated+ view and gets a note on what it is; it has no Position
-  // History (that's for listed demons).
+  // with a Rated+ view and gets a note on what it is - one nobody has beaten
+  // yet isn't on Rated+ until someone does, but its page still lists its
+  // records; it has no Position History (that's for listed demons).
   DL.renderDemonDetail = function (root, demon, view) {
     var V = otherView(view);
     var listed = !!DL.demonById(demon.id);
@@ -673,7 +693,8 @@
       var at = row ? V.rows.indexOf(row) : -1;
       prev = at > 0 ? V.rows[at - 1].level : null;
       next = at >= 0 && at < V.rows.length - 1 ? V.rows[at + 1].level : null;
-      tier = V.tier(demon);
+      // (an unrated level nobody has beaten isn't in every view: where it would be)
+      tier = row ? row.tier : V.spot(demon).tier;
     } else {
       var all = DL.sortedDemons();
       var idx = all.findIndex(function (d) { return d.id === demon.id; });
@@ -708,11 +729,18 @@
           ? ', placed by hand right below <a href="' + pageUrl(below) + '">' + DL.escapeHtml(below.name) + "</a>"
           : "";
       }
+      var as = "as an " + DL.escapeHtml(demon.difficulty) + " at the head mods' GD Demon Ladder estimate of " +
+        demon.rating.toFixed(2) + spot;
+      var cfg = window.SITE || {};
       unratedNote =
         '<div class="underlined pad"><p class="unrated-note"><span class="future-badge unrated-badge">Unrated</span> ' +
-        "Not rated in game yet. It counts as an accomplishment in the Rated+ views, as an " +
-        DL.escapeHtml(demon.difficulty) + " at the head mods' GD Demon Ladder estimate of " + demon.rating.toFixed(2) +
-        spot + ".</p></div>";
+        (DL.unratedBeaten(demon)
+          ? "Not rated in game yet. It counts as an accomplishment in the Rated+ views, " + as + "."
+          : "Not rated in game yet, and nobody has beaten it. It goes on the Rated+ list once someone does, " + as + "." +
+            (typeof cfg.inProgressPoints === "number" && cfg.inProgressPoints > 0 && typeof cfg.grindInProgress === "number"
+              ? " Until then, a run on it longer than " + cfg.grindInProgress + "% counts in the Rated+ views."
+              : "")) +
+        "</p></div>";
     }
 
     // Hosted: embed the player directly, exactly like pointercrate

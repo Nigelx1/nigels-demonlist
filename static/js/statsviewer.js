@@ -18,20 +18,36 @@
 //
 // A list view (static/js/views.js, the option bar on the page) other than
 // Current + Rated ranks everyone by that view's levels and points instead;
-// with Current + Rated every line below runs today's code.
+// with Current + Rated every ranking line below runs today's code. The Future
+// views count what people are working on as beaten (DL.projectedClears): those
+// levels are in the Beaten row (and can be the hardest), labeled with the run
+// they have now - "Slaughterhouse (76%)" - and not in In Progress. The goals
+// and runs on an unrated level (Rated+) show only in the Rated+ views.
 // -----------------------------------------------------------------------------
 
 (function (DL) {
   // the list view on show (DL.initStatsViewer's `view`), or null for today's list
   var V = null;
+  // the view object itself, today's list included (null where there are no views)
+  var VIEW = null;
+  // a level the view doesn't show (a record on an unrated level nobody has
+  // beaten, in Current + Rated+) sorts and is styled where it would go
   function posOf(d) {
-    return V ? V.pos(d) : d.position;
+    if (!V) return d.position;
+    var p = V.pos(d);
+    return p !== null ? p : V.spot(d).position;
   }
   function tierOf(d) {
-    return V ? V.tier(d) : DL.tierOf(d.position);
+    if (!V) return DL.tierOf(d.position);
+    var t = V.tier(d);
+    return t !== null ? t : V.spot(d).tier;
   }
   function linkOf(d) {
     return V ? V.linkHtml(d) : DL.formatDemonLink(d);
+  }
+  // does the view on show have Grind goals on this level? (DL.grindLevelShown)
+  function grindShown(levelId) {
+    return !DL.grindLevelShown || DL.grindLevelShown(levelId, VIEW);
   }
 
   function el(id) {
@@ -76,9 +92,10 @@
   // SITE.grindInProgress (Aceabase - Poatan's compromise for The Grind keeping
   // tiny runs): a goal in data/goals.js where the player has a run LONGER than
   // that % - from 0, or a practice run like 42-100 - also shows in their
-  // "In Progress" row. Display only, never points. Off when the setting is
-  // missing. Returns [{ goal, run: [from, to] }] with the player's longest run
-  // (the rule itself is DL.grindInProgressRun in static/js/goals.js).
+  // "In Progress" row (in a Future view the level counts as beaten instead, and
+  // is in their Beaten row). Off when the setting is missing. Returns
+  // [{ goal, run: [from, to] }] with the player's longest run (the rule itself
+  // is DL.grindInProgressRun in static/js/goals.js).
   function grindProgress(name) {
     if (!DL.goalsForPlayer || !DL.grindInProgressRun) return [];
     return DL.goalsForPlayer(name)
@@ -101,32 +118,43 @@
     var above = (window.DEMONS || []).filter(function (d) { return DL.demonRating(d) > rating; }).length;
     return DL.tierOf(above + 1);
   }
-  // the level's Grind page (at one player's card), styled like any demon link:
-  // bold = Main List, plain = Extended, faded = Legacy. A level that's in the
-  // list view on show takes its tier there.
-  function grindLink(levelId, playerName) {
-    var lv = DL.goalLevel(levelId);
-    var a =
-      '<a href="' +
-      DL.withView("goal.html?level=" + encodeURIComponent(levelId) + (playerName ? "#" + DL.goalAnchor(playerName) : "")) +
-      '">' + DL.escapeHtml(lv ? lv.name : "Level " + levelId) + "</a>";
-    var listed = DL.demonById(levelId);
-    var inView = V && V.row(levelId);
-    var tier = inView ? inView.tier : listed ? DL.tierOf(listed.position) : wouldBeTier(lv);
+  // a link styled like any demon link: bold = Main List, plain = Extended,
+  // faded = Legacy
+  function tierWrap(tier, a) {
     if (tier === "main") return "<b>" + a + "</b>";
     if (tier === "extended") return "<span>" + a + "</span>";
     if (tier === "legacy") return '<i style="opacity:.5">' + a + "</i>";
     return a;
   }
-  // grind rows for everyone in `names`, skipping levels in `skip` (already beaten
-  // / already a real progress record); several players on one level -> one
-  // entry. Just the level name, no run (the Grind page has the runs).
+  // an unrated level's link carries its mark (.unrated-link) and tooltip
+  function unratedAttrs(levelId) {
+    var u = DL.unratedById ? DL.unratedById(levelId) : null;
+    return u ? ' class="unrated-link" title="' + DL.escapeAttr(DL.unratedTip(u)) + '"' : "";
+  }
+  // the level's Grind page (at one player's card), styled like any demon link.
+  // A level that's in the list view on show takes its tier there.
+  function grindLink(levelId, playerName) {
+    var lv = DL.goalLevel(levelId);
+    var a =
+      "<a" + unratedAttrs(levelId) + ' href="' +
+      DL.withView("goal.html?level=" + encodeURIComponent(levelId) + (playerName ? "#" + DL.goalAnchor(playerName) : "")) +
+      '">' + DL.escapeHtml(lv ? lv.name : "Level " + levelId) + "</a>";
+    var listed = DL.demonById(levelId);
+    var inView = V && V.row(levelId);
+    var tier = inView ? inView.tier : listed ? DL.tierOf(listed.position) : wouldBeTier(lv);
+    return tierWrap(tier, a);
+  }
+  // grind rows for everyone in `names`, skipping levels in `skip` (already
+  // beaten, or counted as beaten in a Future view / already a real progress
+  // record) and the ones the view doesn't show (an unrated level outside
+  // Rated+); several players on one level -> one entry. Just the level name,
+  // no run (the Grind page has the runs).
   function grindProgressRows(names, skip) {
     var rows = {}, order = [];
     names.forEach(function (name) {
       grindProgress(name).forEach(function (x) {
         var id = x.goal.levelId;
-        if (skip[id]) return;
+        if (skip[id] || !grindShown(id)) return;
         if (!rows[id]) {
           rows[id] = { levelId: id, players: [] };
           order.push(id);
@@ -146,9 +174,30 @@
     return ids;
   }
 
+  // --- projected clears in the Beaten row (Nigel, 2026-10-30) ------------------
+  // A Future view counts what people are working on as beaten
+  // (DL.projectedClears): a completed entry marked projected. Wherever it's
+  // listed - the Beaten row, Hardest demon - the run they have now follows the
+  // name, "Slaughterhouse (76%)" or "Congregation (42–100%)" (DL.runLabel), and
+  // a nation's says who has which run on hover.
+
+  // " (76%)" after a projected clear's link, else ""
+  function runNote(c) {
+    return c && c.projected ? " (" + DL.runLabel(c.run) + ")" : "";
+  }
+  // the completed entry (a player's or a nation's) for this level
+  function completedFor(list, level) {
+    return list.filter(function (c) { return c.demon.id === level.id; })[0] || null;
+  }
+  // One entry of the Beaten row: its level and its html.
+  function clearItem(level, html) {
+    return { name: level.name, pos: posOf(level), tier: tierOf(level), html: html };
+  }
+
   // `view` (optional, static/js/views.js): rank by that list view.
   DL.initStatsViewer = function (root, initialPlayerName, initialNation, view) {
-    V = view && typeof view === "object" && !view.isDefault ? view : null;
+    VIEW = view && typeof view === "object" ? view : null;
+    V = VIEW && !VIEW.isDefault ? VIEW : null;
     var players = V ? V.players : DL.aggregatePlayers();
     var nations = V ? V.nations() : DL.aggregateNations();
 
@@ -445,20 +494,31 @@
 
     // --- individual (player) panel --------------------------------------
 
-    function renderPlayerBeaten(p) {
-      var demons = p.completed.map(function (c) { return c.demon; });
+    // The Beaten row (or the Main / Extended / Legacy rows, by position) from
+    // clearItem entries: real and projected clears in one order.
+    function renderBeaten(items) {
+      function join(list) {
+        return list.length ? list.map(function (x) { return x.html; }).join(" - ") : "None";
+      }
       if (sortMode === "Alphabetical") {
         show("beaten-row");
         hide("tiered-beaten-row");
-        el("beaten").innerHTML = demonLinks(sortedList(demons, false));
+        el("beaten").innerHTML = join(items.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }));
       } else {
         hide("beaten-row");
         show("tiered-beaten-row");
         ["main", "extended", "legacy"].forEach(function (tier) {
-          var subset = demons.filter(function (d) { return tierOf(d) === tier; });
-          el(tier + "-beaten").innerHTML = demonLinks(sortedList(subset, true));
+          el(tier + "-beaten").innerHTML = join(
+            items.filter(function (x) { return x.tier === tier; }).sort(function (a, b) { return a.pos - b.pos; })
+          );
         });
       }
+    }
+
+    function renderPlayerBeaten(p) {
+      renderBeaten(
+        p.completed.map(function (c) { return clearItem(c.demon, linkOf(c.demon) + runNote(c)); })
+      );
     }
 
     // a list view's rank / score, with today's beside it when they differ
@@ -494,20 +554,21 @@
       el("rank").innerText = rankText(p);
       el("score").innerText = scoreText(p);
       el("stats").innerText = p.completed.length;
-      el("hardest").innerHTML = p.hardest ? linkOf(p.hardest) : "None";
+      el("hardest").innerHTML = p.hardest ? linkOf(p.hardest) + runNote(completedFor(p.completed, p.hardest)) : "None";
 
       renderPlayerBeaten(p);
 
       el("created").innerHTML = demonLinks(sortedList(p.created, sortMode === "Position"));
       el("published").innerHTML = demonLinks(sortedList(p.published, sortMode === "Position"));
       el("verified").innerHTML = demonLinks(sortedList(p.verified, sortMode === "Position"));
+      // (a level counted as beaten in a Future view is in completed, not here)
       var progressed = p.progressed
         .map(function (r) { return linkOf(r.demon) + " (" + r.progress + "%)"; })
         .concat(grindProgressRows([p.name], demonIds(p.progressed.concat(p.completed))));
       el("progress").innerHTML = progressed.length ? progressed.join(" - ") : "None";
 
       // "The Grind" - levels this player is trying to beat (data/goals.js)
-      var grindHtml = DL.renderGrindChips ? DL.renderGrindChips(p.name) : "";
+      var grindHtml = DL.renderGrindChips ? DL.renderGrindChips(p.name, VIEW) : "";
       if (grindHtml) {
         show("grind-row");
         el("grind").innerHTML = grindHtml;
@@ -518,27 +579,17 @@
 
     // --- nation panel --------------------------------------------------
 
+    // A nation's clears; a projected one (a Future view) is there once, with the
+    // best run among its players and a tooltip saying who has which run.
+    function nationClearHtml(r) {
+      if (!r.projected) return demonLinkWithPlayers(r.demon, r.players);
+      var who = r.runs.map(function (x) { return x.player + ": " + DL.runLabel(x.run); }).join(", ");
+      return '<span title="' + DL.escapeAttr(who) + '">' + linkOf(r.demon) + "</span>" + runNote(r);
+    }
     function renderNationBeaten(n) {
-      var byId = {};
-      n.completed.forEach(function (r) { byId[r.demon.id] = r.players; });
-      var demons = n.completed.map(function (r) { return r.demon; });
-
-      if (sortMode === "Alphabetical") {
-        show("beaten-row");
-        hide("tiered-beaten-row");
-        el("beaten").innerHTML = demons.length
-          ? sortedList(demons, false).map(function (d) { return demonLinkWithPlayers(d, byId[d.id]); }).join(" - ")
-          : "None";
-      } else {
-        hide("beaten-row");
-        show("tiered-beaten-row");
-        ["main", "extended", "legacy"].forEach(function (tier) {
-          var subset = demons.filter(function (d) { return tierOf(d) === tier; });
-          el(tier + "-beaten").innerHTML = subset.length
-            ? sortedList(subset, true).map(function (d) { return demonLinkWithPlayers(d, byId[d.id]); }).join(" - ")
-            : "None";
-        });
-      }
+      renderBeaten(
+        n.completed.map(function (r) { return clearItem(r.demon, nationClearHtml(r)); })
+      );
     }
 
     function selectNation(code, push) {
@@ -564,7 +615,7 @@
       el("score").innerText = scoreText(n);
       el("players").innerText = n.players.length;
       el("stats").innerText = n.completed.length;
-      el("hardest").innerHTML = n.hardest ? linkOf(n.hardest) : "None";
+      el("hardest").innerHTML = n.hardest ? linkOf(n.hardest) + runNote(completedFor(n.completed, n.hardest)) : "None";
 
       // subdivision leaderboard (e.g. Illinois vs Indiana)
       if (el("subdivisions")) {
@@ -587,6 +638,7 @@
       el("created").innerHTML = creditRows(n.created, sortMode === "Position");
       el("published").innerHTML = creditRows(n.published, sortMode === "Position");
       el("verified").innerHTML = creditRows(n.verified, sortMode === "Position");
+      // (a level counted as beaten in a Future view is in completed, not here)
       var nationProgressed = sortedList(
         n.progressed.map(function (r) { return r.demon; }),
         sortMode === "Position"
