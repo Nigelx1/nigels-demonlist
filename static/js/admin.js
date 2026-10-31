@@ -459,7 +459,8 @@
   }
 
   // What the look-up found, in a panel's level box (and, on a list with Rated+,
-  // the panel's Rated+ box). Returns the level's Rated+ case (ratedPlusCase).
+  // the panel's Rated+ box). Returns the level's Rated+ case (ratedPlusCase, as
+  // the Rated+ box sees it: also "added" or "grind").
   function showLevel(box, id, res, forClear, rated) {
     if (res.status !== 200) {
       var failed = rated ? rated.found(id, null, res.status) : "";
@@ -472,17 +473,20 @@
     if (lv.platformer) facts.push("platformer");
     // an unrated level (Rated+) takes any progress: none of the list's refusals apply
     var unrated = lv.onList !== true ? unratedByLevel(lv.id) : null;
-    // Rated+: "unrated" = unrated in game and on neither list yet (ratedPlusCase).
+    // Rated+: "unrated" = unrated in game and on neither list yet (ratedPlusCase);
+    // "grind" = the same, already in someone's Grind (ratedPlusBox's caseOf).
     // (An unrated level can show a face from players' votes, like "Hard".)
     var rp = rated ? rated.found(id, lv, 200) : "";
-    if (rp === "unrated" && lv.difficulty !== "Unrated") facts.push("unrated in game");
+    var offPlus = rp === "unrated" || rp === "grind";
+    if (offPlus && lv.difficulty !== "Unrated") facts.push("unrated in game");
     var where = unrated ? "Unrated, " + ratedPlusState(unrated) + (forClear ? ": any progress counts." : ".")
       : rp === "added" ? "Unrated, just put on Rated+" + (forClear ? ": any progress counts." : ".")
       : lv.onList === true ? "On the list at #" + lv.position + "."
-      : rp === "unrated" ? "Not on the list or Rated+ yet."
+      : offPlus ? "Not on the list or Rated+ yet."
       : lv.onList === false ? "Not on the list yet." : "";
     var warn = [];
     if (rp === "unrated" && !isHead()) warn.push(ONLY_HEAD);
+    else if (rp === "grind" && !isHead()) warn.push(ONLY_HEAD_GRIND); // (the goal still saves)
     else if (forClear && !unrated && rp !== "unrated" && rp !== "added") {
       // Only a list that limits difficulties (SITE.allowedDifficulties) refuses the rest.
       var allowed = SITE.allowedDifficulties;
@@ -1169,8 +1173,14 @@
   // A mod is told only a head mod can. When the look-up can't tell whether it's
   // rated, head mods get an "It's unrated" box to tick for the same fields. The
   // server checks it all again (tools/apply-edit.py refuse_unrated_in_game).
+  // A level already in someone's Grind takes more goals as it is (the server
+  // doesn't ask), so there Grind's box is an offer, not a must: after a Check, a
+  // head mod can give the estimate to put it on Rated+ with the goal, or leave it
+  // empty to save just the goal. (Such a level was in the Grind before Rated+, or
+  // stayed there when the Rated+ levels panel took it off Rated+.)
 
   var ONLY_HEAD = "It's unrated: only a head mod can put it on Rated+ (with a GDDL estimate).";
+  var ONLY_HEAD_GRIND = "Its Grind goals count nowhere until a head mod puts it on Rated+.";
 
   // What a look-up's answer for level id means for Rated+: "unrated" (0 stars, on
   // neither list), "platformer" (the same, but the list never takes those), "maybe"
@@ -1191,7 +1201,8 @@
 
   // One panel's box ("clear" or "grind"), right under its level field; null on a
   // list without Rated+. forGrind: a level already in someone's Grind needs none
-  // (the server takes more goals on it as it is).
+  // (the server takes more goals on it as it is), so there the estimate is
+  // optional and Save never looks the level up for it.
   function ratedPlusBox(prefix, level, info, forGrind) {
     if (!SITE.ratedPlus) return null;
     var found = {}; // level id -> [its look-up's answer or null, HTTP status]
@@ -1213,12 +1224,17 @@
     var fold = el("details", { className: "field", id: prefix + "-unrated-spot" }, summary,
       el("p", { className: "hint" }, "Where the estimate puts it, or a spot close by when the AREDL order makes it a close call. Its points come from the estimate either way."),
       spots);
+    var news = el("p", { className: "hint" }, "Saving puts it on Rated+ with this " + (forGrind ? "goal" : "clear") +
+      ". Your GDDL estimate places and scores it. It shows on the Rated+ list once someone beats it.");
+    // Grind, on a level already in someone's Grind: said instead, and the estimate is optional
+    var already = forGrind ? el("p", { className: "hint", id: prefix + "-unrated-already" }, "It's in someone's Grind already but isn't on Rated+, " +
+      "so it counts nowhere yet. Give its GDDL estimate to put it on Rated+, or leave it empty to save just the goal.") : null;
+    var optional = forGrind ? el("span", null, " ", el("i", null, "(optional)")) : null;
     var body = el("div", { id: prefix + "-unrated-body" },
       el("p", null, el("b", null, "Unrated - it counts in Rated+ only.")),
-      el("p", { className: "hint" }, "Saving puts it on Rated+ with this " + (forGrind ? "goal" : "clear") +
-        ". Your GDDL estimate places and scores it. It shows on the Rated+ list once someone beats it."),
+      news, already,
       el("div", { className: "two" },
-        el("label", { className: "field" }, el("span", null, "GDDL estimate"), est),
+        el("label", { className: "field" }, el("span", null, "GDDL estimate", optional), est),
         el("label", { className: "field" }, el("span", null, "Counts as"), tier)),
       el("label", { className: "field" }, el("span", null, "Showcase ", el("i", null, "(optional)")), link),
       fold);
@@ -1267,18 +1283,28 @@
     }
 
     // the Rated+ case of level id, from its last look-up ("" before there is one);
-    // "added" for one this page just put on Rated+
+    // "added" for one this page just put on Rated+. In Grind, a level already in
+    // someone's Grind is "grind" when it's unrated in game (the box offers Rated+),
+    // else "" (no "It's unrated" tick box there).
     function caseOf(id) {
       if (addedToPlus[id]) return "added";
-      if (!found[id] || (forGrind && inGrind(id))) return "";
-      return ratedPlusCase(id, found[id][0], found[id][1]);
+      if (!found[id]) return "";
+      var c = ratedPlusCase(id, found[id][0], found[id][1]);
+      if (forGrind && inGrind(id)) return c === "unrated" ? "grind" : "";
+      return c;
+    }
+
+    // Is anything in the fields that only goes with add_unrated? (A number field
+    // reads "" when it can't make sense of what was typed: that counts too.)
+    function given() {
+      return est.value.trim() !== "" || !!(est.validity && est.validity.badInput) || link.value.trim() !== "";
     }
 
     // Open the box for level id when it needs it (head mods only), else close it.
     // Its fields stay as typed while it's the same level.
     function draw(id) {
       var c = isHead() ? caseOf(id) : "";
-      if (c !== "unrated" && c !== "maybe") return close();
+      if (c !== "unrated" && c !== "maybe" && c !== "grind") return close();
       if (typedFor !== id) {
         clearFields();
         typedFor = id;
@@ -1286,6 +1312,11 @@
       shownFor = id;
       maybe.hidden = c !== "maybe";
       body.hidden = c === "maybe" && !tick.checked;
+      news.hidden = c === "grind";
+      if (already) {
+        already.hidden = c !== "grind";
+        optional.hidden = c !== "grind";
+      }
       box.hidden = false;
       drawSpots();
     }
@@ -1304,18 +1335,26 @@
       },
       // Save, for a level that's neither listed nor on Rated+: "ask" (look it up
       // first), "add" (send add_unrated first), "mod" (only a head mod can put it
-      // on Rated+), or "" (save as usual; the server checks).
+      // on Rated+), or "" (save as usual; the server checks). A level already in
+      // someone's Grind is never looked up for it, and gets add_unrated only when
+      // a head mod filled in the box after a Check: with the estimate left empty
+      // just the goal goes, and a showcase without an estimate is refused.
       need: function (id) {
-        if (addedToPlus[id] || (forGrind && inGrind(id))) return "";
-        if (!found[id]) return "ask";
+        if (addedToPlus[id]) return "";
+        if (!found[id]) return forGrind && inGrind(id) ? "" : "ask";
         draw(id);
         var c = caseOf(id);
         if (c === "unrated") return isHead() ? "add" : "mod";
+        if (c === "grind") return isHead() && given() ? "add" : "";
         return c === "maybe" && shownFor === id && tick.checked ? "add" : "";
       },
       // the box's add_unrated for level id; a Problem when it isn't filled in right
       op: function (id) {
-        if (!est.value.trim()) throw new Problem("It's unrated: give its GDDL estimate (in the box under the level) to put it on Rated+.");
+        var grind = caseOf(id) === "grind"; // (the estimate is optional there: given() said something's in the box)
+        if (!est.value.trim() && !(grind && est.validity && est.validity.badInput)) {
+          throw new Problem(grind ? "Give its GDDL estimate to put it on Rated+, or empty the showcase to save just the goal."
+            : "It's unrated: give its GDDL estimate (in the box under the level) to put it on Rated+.");
+        }
         var e = parseEstimate(est.value);
         var op = { op: "add_unrated", level: id, rating: e, difficulty: TIERS.indexOf(tier.value) >= 0 ? tier.value : tierFor(e) };
         var spot = pickedSpot(spots);
@@ -1378,8 +1417,8 @@
     var full = records.filter(function (r) { return r.progress >= 100; });
     var part = records.length - full.length;
     var beaten = unratedBeaten(u);
-    var grinders = Array.from(new Set(GOALS.filter(function (g) { return Number(g.levelId) === u.levelId; })
-      .map(function (g) { return g.player; })));
+    var goals = GOALS.filter(function (g) { return Number(g.levelId) === u.levelId; });
+    var grinders = Array.from(new Set(goals.map(function (g) { return g.player; })));
     var bits = [];
     if (beaten) {
       bits.push("Beaten");
@@ -1430,7 +1469,14 @@
     });
     drop.addEventListener("click", function () {
       var n = records.length;
-      if (!armed(drop, n ? "Tap again: its " + n + (n === 1 ? " clear goes" : " clears go") + " too" : "Tap again to remove it")) return;
+      if (!armed(drop, n ? "Tap again: its " + n + (n === 1 ? " clear goes" : " clears go") + " too" : "Tap again to remove it")) {
+        // remove_unrated leaves the Grind as it is
+        if (goals.length) {
+          say(box, "warn", goals.length === 1 ? "Its Grind goal stays, but counts nowhere while it's unrated in game."
+            : "Its " + goals.length + " Grind goals stay, but count nowhere while it's unrated in game.");
+        }
+        return;
+      }
       save([{ op: "remove_unrated", level: u.levelId }], "Unrated: " + name + " off Rated+", drop, box);
     });
     return li;

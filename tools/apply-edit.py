@@ -60,7 +60,7 @@ neighbours within SITE.unratedWindow rating points of the estimate, and one the
 list has moved away from is ignored by the site (this tool says so). Clears on
 them are add_record / remove_record with their level id: any progress counts, and
 add-records.py isn't run for them. Their changes are changelog notes only. One
-goes on Rated+ with its first clear or Grind goal: the mod page sends
+goes on Rated+ with a clear or Grind goal: the mod page sends
 [add_unrated, add_record] or [add_unrated, set_grind] as one batch, applied in
 order. A clear, or a goal on a new Grind level, on a level that's unrated in game
 (0 stars) but isn't on Rated+ is refused (Engine.refuse_unrated_in_game).
@@ -163,7 +163,7 @@ UNRATED_HEADER = """"use strict";
 // Dihmaster500, 2026-10-30). These levels aren't rated in game, but they count
 // in the Rated+ views of the list and the stats viewer (static/js/views.js):
 // one is on the Rated+ list once someone beats it, and until then it's a Grind
-// level of Rated+. A head mod puts one on with its first clear or Grind goal
+// level of Rated+. A head mod puts one on with a clear or Grind goal
 // (the mod page sends add_unrated in the same batch), and edits and removes
 // them in the mod page's Rated+ levels panel (tools/apply-edit.py add_unrated /
 // set_unrated / remove_unrated). Clears on them go in like any other clear
