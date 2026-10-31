@@ -151,10 +151,12 @@
 
   // "The Grind" chips for the stats-viewer player panel. view (optional,
   // static/js/views.js): leave out the goals that view doesn't show
-  // (DL.grindLevelShown).
-  DL.renderGrindChips = function (name, view) {
+  // (DL.grindLevelShown). beaten (optional, {levelId: true}): levels the view
+  // counts as beaten for them - a Future view's projected clears, which the
+  // Beaten row lists instead - left out too.
+  DL.renderGrindChips = function (name, view, beaten) {
     var goals = DL.goalsForPlayer(name).filter(function (g) {
-      return DL.grindLevelShown(g.levelId, view);
+      return DL.grindLevelShown(g.levelId, view) && !(beaten && beaten[Number(g.levelId)]);
     });
     if (!goals.length) return "";
     return goals

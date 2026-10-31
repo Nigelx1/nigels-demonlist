@@ -567,8 +567,12 @@
         .concat(grindProgressRows([p.name], demonIds(p.progressed.concat(p.completed))));
       el("progress").innerHTML = progressed.length ? progressed.join(" - ") : "None";
 
-      // "The Grind" - levels this player is trying to beat (data/goals.js)
-      var grindHtml = DL.renderGrindChips ? DL.renderGrindChips(p.name, VIEW) : "";
+      // "The Grind" - levels this player is trying to beat (data/goals.js); in a
+      // Future view, not the ones it counts as beaten for them (Nigel, 2026-10-30:
+      // they're in Beaten, like they're off In Progress)
+      var grindHtml = DL.renderGrindChips
+        ? DL.renderGrindChips(p.name, VIEW, demonIds(p.completed.filter(function (c) { return c.projected; })))
+        : "";
       if (grindHtml) {
         show("grind-row");
         el("grind").innerHTML = grindHtml;
