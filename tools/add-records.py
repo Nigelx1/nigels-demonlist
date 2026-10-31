@@ -35,6 +35,12 @@ gdladder rating (2 dp), and a rating tie goes to whichever level the AREDL
 places higher. If that re-sorts demons already on the list, the moves are
 logged too so every demon's position history stays exact. Anything outside
 `allowedDifficulties` is refused; platformers are always refused.
+(The value is DL.demonRating's: a demon the AREDL places goes by its placement
+through config.js aredlFit. Demons a head mod swapped - Insane swaps, a
+swapGroup in data/demons.js - sort by the values their places in the group hand
+them, from the list as it was before this run (tools/swaps.py), so they keep
+their order: a tie keeps the stored order, never going by a swapped demon's own
+AREDL placement. A new demon is never in a group.)
 Needs python3, curl and node on PATH.
 """
 import importlib.util, io, json, os, re, subprocess, sys, time, urllib.request
@@ -110,6 +116,14 @@ def gd_servers(lid):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.level(lid)
+
+
+def load_swaps():
+    """tools/swaps.py, the Insane swaps rule (loaded by its path, like tools/gdlevel.py)."""
+    spec = importlib.util.spec_from_file_location("swaps", os.path.join(SITE, "tools", "swaps.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def fetch_level(lid, allowed):
@@ -262,12 +276,20 @@ def main():
     fm = re.search(r"aredlFit:\s*\{\s*a:\s*([-\d.]+),\s*b:\s*([-\d.]+),\s*exponent:\s*([-\d.]+)", cfg)
     fit = tuple(float(x) for x in fm.groups()) if fm else None
 
-    def value(d):
+    def value(d):  # a demon's own value (DL.baseRating, on the AREDL as it is now)
         pos = aredl.get(d["levelId"])
         return fit[0] + fit[1] * pos ** fit[2] if fit and pos else rating_of(d)
 
+    # Insane swaps: a swapped demon sorts by what its place in its group hands it
+    # (tools/swaps.py), worked out once the ratings are final, below - from the
+    # list before either sort, so a group keeps its order; anyone else (a new
+    # demon too) by its own value. A swapped demon's own AREDL placement never
+    # breaks a tie (held): the stable sort keeps the stored order instead.
+    placed, held = {}, set()
+
     def key(d):  # tier, then value (2 dp), then AREDL placement; sort is stable for full ties
-        return (tier(d), -round(value(d), 2), aredl.get(d["levelId"], 10 ** 9))
+        return (tier(d), -round(placed.get(d["levelId"], value(d)), 2),
+                10 ** 9 if d["levelId"] in held else aredl.get(d["levelId"], 10 ** 9))
 
     # --refresh-ratings: re-pull every listed demon's gdladder rating, one request at a time
     old_rating, drifted = {}, []
@@ -293,6 +315,9 @@ def main():
                 d["rating"] = round(r, 2)
             time.sleep(0.5)
         print(f"ratings refreshed: {len(drifted)} of {len(demons)} drifted")
+    swaps = load_swaps()
+    placed.update(swaps.effective_values(demons, value))
+    held.update(swaps.members(demons))
 
     def rated(x):  # "Sonic Wave 29.84 → 29.85" if it drifted this run, else "Sonic Wave Rebirth 29.84"
         if x["levelId"] in old_rating:

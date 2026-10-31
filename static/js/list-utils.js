@@ -48,14 +48,17 @@ DL.tierOf = function (position) {
 // -----------------------------------------------------------------------------
 // Per-demon Position History (pointercrate's demon-page table). Derived purely
 // from window.CHANGELOG (data/changelog.js) so there's a single source of
-// truth: log an add / move / remove there and every affected demon's history
-// updates itself, including "X was added above" style rows for demons that
-// didn't move themselves but got shifted.
+// truth: log an add / move / remove / swap there and every affected demon's
+// history updates itself, including "X was added above" style rows for demons
+// that didn't move themselves but got shifted.
 //
 // Contract: every position change must be logged in data/changelog.js as an
-// `add` (with `at`), `move` (with `from` + `to`) or `remove` (with `from`)
-// item. The initial ordering is reconstructed by undoing every logged event
-// from the current list, so an unlogged reorder would desync it.
+// `add` (with `at`), `move` (with `from` + `to`), `remove` (with `from`) or
+// `swap` item. A swap (an Insane swap, tools/apply-edit.py swap_insanes)
+// exchanges two demons: `demon` goes from `from` to `to` and `with` the other
+// way, and nobody else moves. The initial ordering is reconstructed by undoing
+// every logged event from the current list, so an unlogged reorder would
+// desync it. tools/refresh-order.py replay_check is the same replay.
 //
 // Returns [{ date, position, delta, reason }] oldest-first; `delta` is the
 // signed change from the previous row (0 on the first row).
@@ -74,6 +77,9 @@ DL.positionHistoryFor = function (demon) {
         events.push({ date: entry.date, kind: "move", id: it.demonId, name: it.demon, from: it.from, to: it.to, text: it.text });
       } else if (it.kind === "remove" && it.from != null) {
         events.push({ date: entry.date, kind: "remove", id: it.demonId, name: it.demon, from: it.from, text: it.text });
+      } else if (it.kind === "swap" && it.demonId != null && it.withId != null) {
+        events.push({ date: entry.date, kind: "swap", id: it.demonId, name: it.demon, from: it.from, to: it.to,
+          withId: it.withId, withName: it.with, by: it.by });
       }
     });
   });
@@ -87,6 +93,14 @@ DL.positionHistoryFor = function (demon) {
     for (var i = 0; i < order.length; i++) if (order[i].id === id) return i;
     return -1;
   }
+  // a swap, either way round: the two trade places (when both are there)
+  function exchange(ev) {
+    var a = indexOfId(ev.id), b = indexOfId(ev.withId);
+    if (a === -1 || b === -1) return;
+    var t = order[a];
+    order[a] = order[b];
+    order[b] = t;
+  }
   events.slice().reverse().forEach(function (ev) {
     var i;
     if (ev.kind === "add") {
@@ -97,6 +111,8 @@ DL.positionHistoryFor = function (demon) {
       if (i !== -1) order.splice(Math.min(ev.from - 1, order.length - 1), 0, order.splice(i, 1)[0]);
     } else if (ev.kind === "remove") {
       order.splice(Math.min(ev.from - 1, order.length), 0, { id: ev.id, name: ev.name });
+    } else if (ev.kind === "swap") {
+      exchange(ev); // puts the two back: the demon at `from`, the other at `to`
     }
   });
 
@@ -123,6 +139,8 @@ DL.positionHistoryFor = function (demon) {
     } else if (ev.kind === "remove") {
       var ri = indexOfId(ev.id);
       if (ri !== -1) order.splice(ri, 1);
+    } else if (ev.kind === "swap") {
+      exchange(ev);
     }
 
     var after = posOf(demon.id);
@@ -139,6 +157,9 @@ DL.positionHistoryFor = function (demon) {
     var reason;
     if (ev.kind === "move" && ev.id === demon.id) {
       reason = ev.text || "Moved";
+    } else if (ev.kind === "swap") {
+      // only the two ever move in a swap, so this demon is one of them
+      reason = "Swapped with " + (ev.id === demon.id ? ev.withName : ev.name) + (ev.by ? " by " + ev.by : "");
     } else if (ev.kind === "add") {
       reason = who + " was added above";
     } else if (ev.kind === "remove") {
@@ -242,16 +263,60 @@ DL.RATING_BY_DIFFICULTY = {
   Official: 3,
 };
 
-// The number a demon is ordered and scored by. An extreme on the AREDL follows
-// its AREDL placement, turned into a GD Demon Ladder-style rating by a curve
-// fit to the whole AREDL (SITE.aredlFit - tools/refresh-order.py fits it and
-// keeps each demon's aredlPosition); everything else uses its own GDDL rating.
-DL.demonRating = function (demon) {
+// A demon's own value: a demon the AREDL places (every extreme, and the odd
+// insane like in canon) follows its AREDL placement, turned into a GD Demon
+// Ladder-style rating by a curve fit to the whole AREDL (SITE.aredlFit -
+// tools/refresh-order.py fits it and keeps each demon's aredlPosition);
+// everything else uses its own GDDL rating (an unrated level's: the head mods'
+// estimate), else a typical rating for its tier.
+DL.baseRating = function (demon) {
   var fit = window.SITE && window.SITE.aredlFit;
   if (fit && typeof demon.aredlPosition === "number")
     return fit.a + fit.b * Math.pow(demon.aredlPosition, fit.exponent);
   if (typeof demon.rating === "number") return demon.rating;
   return DL.RATING_BY_DIFFICULTY[demon.difficulty] || 3;
+};
+
+// The number a demon is ordered and scored by: its own value (DL.baseRating),
+// unless it's in an Insane swap (SITE.insaneSwaps, Nigel and Dihmaster500,
+// 2026-10-31). Demons a head mod swapped share a `swapGroup` in
+// data/demons.js; a group's own values go out to its members in their stored
+// order, highest first, so each swapped demon takes the other's place and
+// points, and keeps them when the AREDL or GD Demon Ladder moves. The members
+// are found in window.DEMONS by level id - callers pass copies too (e.g.
+// DL.goalLevel's) - and a group with one member left does nothing. This reads
+// the data, not the flag: the flag only gates new swaps and the UI.
+// tools/swaps.py is the same rule for the tools - change both together.
+DL.demonRating = function (demon) {
+  var swap = DL.swapGroupOf(demon);
+  if (!swap) return DL.baseRating(demon);
+  var values = swap.members.map(DL.baseRating).sort(function (a, b) {
+    return b - a;
+  });
+  return values[swap.at];
+};
+
+// A demon's Insane swap group: {members, at} - the demons on the list
+// (window.DEMONS) that share its swapGroup, top of the list first, and where it
+// is among them, found by level id. null when no swap holds its place (no
+// swapGroup, a group with one member left, or a level that isn't on the list).
+// Inside a swap the sort keys skip a member's own AREDL placement as a
+// tie-break (views.js sortKey, like tools/swaps.py members): a tie must keep
+// the head mods' order, not put a member the AREDL places above them.
+DL.swapGroupOf = function (demon) {
+  var group = demon.swapGroup;
+  if (typeof group !== "number") return null;
+  var members = (window.DEMONS || []).filter(function (d) {
+    return d.swapGroup === group;
+  }).sort(function (a, b) {
+    return a.position - b.position;
+  });
+  var id = Number(demon.levelId != null ? demon.levelId : demon.id);
+  if (members.length < 2) return null;
+  for (var i = 0; i < members.length; i++) {
+    if (members[i].levelId === id) return { members: members, at: i };
+  }
+  return null;
 };
 
 // Highest rating on the list - anchors the top of the scoring curve.

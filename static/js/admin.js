@@ -363,13 +363,14 @@
 
   // Follow one save in its own form's message box until GitHub has applied it
   // or refused it. The form keeps what was typed until then, so a refused edit
-  // can be fixed and sent again instead of typed from scratch.
-  function watch(id, box, done, tries) {
+  // can be fixed and sent again instead of typed from scratch. done() runs
+  // once it's applied, failed() (optional) once it's refused.
+  function watch(id, box, done, tries, failed) {
     setTimeout(function () {
       api("/api/status?requestId=" + id).then(function (res) {
         var run = res.status === 200 && res.data ? res.data.run : null;
         if (!run || run.status !== "completed") {
-          if (tries < 75) watch(id, box, done, tries + 1); // about 10 minutes
+          if (tries < 75) watch(id, box, done, tries + 1, failed); // about 10 minutes
           return;
         }
         if (run.conclusion === "success") {
@@ -377,14 +378,17 @@
           if (done) done();
         } else {
           say(box, "err", "Not saved: " + (typeof run.reason === "string" && run.reason ? run.reason : "see Recent edits below for what happened."));
+          if (failed) failed();
         }
       });
     }, 8000);
   }
 
   // Send one batch of ops. what = a short description for Recent edits.
-  // done() runs after a good save (to reset the form).
-  function save(ops, what, button, box, done) {
+  // done() runs after a good save (to reset the form), failed() (optional)
+  // when the server refuses one it was sent. The promise gives true once the
+  // edit is sent (and being checked), false when it wasn't.
+  function save(ops, what, button, box, done, failed) {
     button.disabled = true;
     say(box, "info", "Saving...");
     return api("/api/edit", {
@@ -397,15 +401,16 @@
         say(box, "info", "Sent - checking it now (about a minute). ");
         box.appendChild(el("a", { href: "#panel-edits" }, "Follow it in Recent edits"));
         track(res.data.requestId, what);
-        watch(res.data.requestId, box, done, 0);
-        return;
+        watch(res.data.requestId, box, done, 0, failed);
+        return true;
       }
       if (res.status === 401) {
         say(box, "err", "You've been logged out. ");
         box.appendChild(el("a", { href: "/api/login" }, "Log in again"));
-        return;
+        return false;
       }
       say(box, "err", errorText(res));
+      return false;
     });
   }
 
@@ -1055,6 +1060,216 @@
     });
     $("showcase-save").addEventListener("click", function () {
       save([{ op: "refresh_showcases" }], "Check Nigel's channel for showcases", $("showcase-save"), $("showcase-msg"));
+    });
+  }
+
+  // --- 5a. Swap insanes (head mods) ---------------------------------------------
+  //
+  // Insane swaps (Nigel and Dihmaster500, 2026-10-31; SITE.insaneSwaps): a head
+  // mod with 100% clears on two Insane Demons on the list can swap them. Each
+  // takes the other's place and points, and they keep that order through every
+  // re-sort: demons swapped together share a swapGroup in data/demons.js, and
+  // DL.demonRating hands their own values (DL.baseRating) out in their stored
+  // order. The edit names the one that goes up (the lower one), so sending it
+  // twice changes nothing, and swapping the same two again undoes it. The
+  // preview comes from the deployed list: the two trade places and points, the
+  // list's values stay the same, so only players who have beaten just one of
+  // them gain or lose. The server checks it all again (tools/apply-edit.py
+  // swap_insanes). Only on a list with SITE.insaneSwaps, and only for head mods.
+
+  function setupSwaps() {
+    var panel = $("panel-swaps");
+    if (!panel || !SITE.insaneSwaps || !isHead()) return;
+    panel.hidden = false;
+    var jump = document.querySelector('a[href="#panel-swaps"]');
+    if (jump) jump.hidden = false;
+
+    var a = $("swap-a");
+    var b = $("swap-b");
+    var preview = $("swap-preview");
+    var go = $("swap-save");
+    var msg = $("swap-msg");
+    // a demon's own value, before any swap (an older list-utils.js: the same)
+    var own = typeof DL.baseRating === "function" ? DL.baseRating : DL.demonRating;
+    function nameOf(d) {
+      return String(d.name).trim();
+    }
+    function sameValue(x, y) {
+      return Math.round(x * 100) === Math.round(y * 100);
+    }
+
+    // "Swapped right now": each group of demons swapped together, top one
+    // first, every one with its own rating and the value it's placed at
+    var list = clear($("swap-groups"));
+    var groups = {};
+    var order = [];
+    DL.sortedDemons().forEach(function (d) {
+      if (typeof d.swapGroup !== "number") return;
+      if (!groups[d.swapGroup]) {
+        groups[d.swapGroup] = [];
+        order.push(d.swapGroup);
+      }
+      groups[d.swapGroup].push(d);
+    });
+    order = order.filter(function (g) { return groups[g].length >= 2; });
+    if (!order.length) list.appendChild(el("li", { className: "hint" }, "Nothing is swapped right now."));
+    order.forEach(function (g) {
+      var text = el("div", { className: "goal-text" });
+      groups[g].forEach(function (d) {
+        var page = el("a", { href: "../demonlist/demon.html?id=" + encodeURIComponent(d.levelId), target: "_blank", rel: "noopener" }, nameOf(d));
+        text.appendChild(el("div", null, el("b", null, "#" + d.position + " ", page), " ",
+          el("span", { className: "muted" }, "own rating " + own(d).toFixed(2) + " · placed at " + DL.demonRating(d).toFixed(2))));
+      });
+      list.appendChild(el("li", null, text));
+    });
+
+    // the head mod's 100% clears on Insane Demons on the list, in list order
+    var who = resolvePlayer(me.name);
+    var mine = [];
+    (who ? recordsOf(who) : []).forEach(function (x) {
+      if (!x.unrated && x.demon.difficulty === "Insane" && x.record.progress >= 100 && mine.indexOf(x.demon) < 0) {
+        mine.push(x.demon);
+      }
+    });
+    if (mine.length < 2) {
+      $("swap-form").hidden = true;
+      $("swap-none").textContent = "You need 100% clears on two Insane Demons on the list to swap them.";
+      $("swap-none").hidden = false;
+      return;
+    }
+    [a, b].forEach(function (select) {
+      select.appendChild(el("option", { value: "" }, "Pick one"));
+      mine.forEach(function (d) {
+        select.appendChild(el("option", { value: String(d.levelId) },
+          "#" + d.position + " " + nameOf(d) + " - " + DL.scoreAt100(d).toFixed(2) + " points"));
+      });
+    });
+
+    // The two picked, the one going up (the lower one on the list) first:
+    // {up, down}, or null while one is missing. Throws a Problem when the two
+    // can't be swapped.
+    function pair() {
+      var x = demonByLevel(Number(a.value));
+      var y = demonByLevel(Number(b.value));
+      if (!x || !y) return null;
+      if (x === y) throw new Problem("Pick two different levels.");
+      var p = x.position > y.position ? { up: x, down: y } : { up: y, down: x };
+      var v = DL.demonRating(p.up);
+      if (sameValue(v, DL.demonRating(p.down))) {
+        throw new Problem(nameOf(p.up) + " and " + nameOf(p.down) + " are tied at " + v.toFixed(2) + " - swapping them changes nothing.");
+      }
+      return p;
+    }
+
+    // a changed pick takes back a first tap on the button
+    function disarm() {
+      if (go.dataset.armed !== "1") return;
+      clearTimeout(Number(go.dataset.timer));
+      go.dataset.armed = "";
+      go.textContent = go.dataset.label;
+    }
+
+    // What the swap does, worked out from the deployed list: the two trade
+    // places and points, everyone else stays put.
+    function update() {
+      disarm();
+      hush(msg);
+      clear(preview);
+      go.disabled = true;
+      var p;
+      try {
+        p = pair();
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        preview.appendChild(el("p", null, e.message));
+        preview.hidden = false;
+        return;
+      }
+      if (!p) {
+        preview.hidden = true;
+        return;
+      }
+      var up = p.up, down = p.down;
+      var was = DL.scoreAt100(up), now = DL.scoreAt100(down);
+      preview.appendChild(el("p", null, el("b", null, nameOf(up)),
+        " goes up: #" + up.position + " → #" + down.position + ", " + was.toFixed(2) + " → " + now.toFixed(2) + " points."));
+      preview.appendChild(el("p", null, el("b", null, nameOf(down)),
+        " goes down: #" + down.position + " → #" + up.position + ", " + now.toFixed(2) + " → " + was.toFixed(2) + " points."));
+      if (sameValue(DL.demonRating(down), own(up)) && sameValue(DL.demonRating(up), own(down))) {
+        preview.appendChild(el("p", null, "That puts both back at their own ratings: it undoes their swap."));
+      }
+      preview.appendChild(el("p", null, "Your score stays the same - you've beaten both."));
+
+      // everyone else who has beaten just one of them gains or loses the difference
+      function beaten(d) {
+        return (d.records || []).filter(function (r) { return r.progress >= 100; }).map(function (r) { return r.player; });
+      }
+      var onUp = beaten(up), onDown = beaten(down);
+      var changes = [];
+      onUp.forEach(function (n) {
+        if (onDown.indexOf(n) < 0) changes.push({ player: n, delta: now - was, level: up });
+      });
+      onDown.forEach(function (n) {
+        if (onUp.indexOf(n) < 0) changes.push({ player: n, delta: was - now, level: down });
+      });
+      if (!changes.length) {
+        preview.appendChild(el("p", null, "Nobody else has beaten just one of them, so nobody else's score changes."));
+      } else {
+        preview.appendChild(el("p", null, "Everyone who has beaten just one of them:"));
+        var players = el("ul", { className: "swap-players" });
+        changes.forEach(function (c) {
+          players.appendChild(el("li", null, el("b", null, c.player), " ",
+            el("span", { className: c.delta > 0 ? "gain" : "loss" }, (c.delta > 0 ? "+" : "-") + Math.abs(c.delta).toFixed(2)),
+            " points (only " + nameOf(c.level) + ")"));
+        });
+        preview.appendChild(players);
+      }
+      if (typeof SITE.inProgressPoints === "number" && SITE.inProgressPoints > 0 && typeof SITE.grindInProgress === "number") {
+        preview.appendChild(el("p", { className: "hint" },
+          "In-progress points for runs over " + SITE.grindInProgress + "% on either one change with its points too."));
+      }
+      preview.hidden = false;
+      go.disabled = false;
+    }
+    a.addEventListener("change", update);
+    b.addEventListener("change", update);
+
+    // Once a swap is sent, the list on this page is out of date until it's
+    // reloaded after the swap goes live: another swap picked here would be
+    // previewed from the old places and points, and the same two again would
+    // change nothing instead of undoing it. So the panel locks as soon as a
+    // swap is sent and stays locked once it's done; one that wasn't sent, or
+    // that the server refused, unlocks it (the list didn't change).
+    function lock(on) {
+      a.disabled = on;
+      b.disabled = on;
+      go.disabled = on;
+    }
+
+    go.addEventListener("click", function () {
+      var p;
+      try {
+        p = pair();
+        if (!p) throw new Problem("Pick the two Insane Demons to swap.");
+      } catch (e) {
+        if (!(e instanceof Problem)) throw e;
+        say(msg, "err", e.message);
+        return;
+      }
+      if (!armed(go, "Tap again to swap them")) return;
+      lock(true);
+      save([{ op: "swap_insanes", up: p.up.levelId, down: p.down.levelId }],
+        "Swap: " + nameOf(p.up) + " above " + nameOf(p.down), go, msg, function () {
+          a.value = "";
+          b.value = "";
+          clear(preview);
+          preview.hidden = true;
+          say(msg, "ok", "Done - it'll show on the site in about a minute. Reload this page after that to swap again or undo it.");
+        }, function () {
+          lock(false);
+        }).then(function (sent) {
+          lock(sent); // (save() turns the button back on once the server has it)
+        });
     });
   }
 
@@ -1845,9 +2060,9 @@
   }
 
   // Head mod or mod (functions/editors.json). Head mods add members, remove clears,
-  // re-sort the list and look after the unrated levels; mods do the rest. The
-  // server and the GitHub job refuse those edits from a mod anyway: hiding them
-  // here just keeps the page honest.
+  // re-sort the list, swap insanes they've beaten and look after the unrated
+  // levels; mods do the rest. The server and the GitHub job refuse those edits
+  // from a mod anyway: hiding them here just keeps the page honest.
   function isHead() {
     return !!(me && me.role === "head");
   }
@@ -1864,8 +2079,9 @@
     who.appendChild(el("b", null, me.name));
     who.appendChild(document.createTextNode(isHead() ? " (head mod)" : " (mod)"));
     if (!isHead()) {
-      // (panel-unrated: a list without Rated+ has no such panel)
-      ["panel-members", "panel-order", "panel-unrated"].forEach(function (id) {
+      // (panel-unrated, panel-swaps: a list without Rated+ or insane swaps has
+      // no such panel)
+      ["panel-members", "panel-order", "panel-unrated", "panel-swaps"].forEach(function (id) {
         if ($(id)) $(id).hidden = true;
         var link = document.querySelector('a[href="#' + id + '"]');
         if (link) link.hidden = true;
@@ -1885,6 +2101,7 @@
     setupMembers();
     setupVideos();
     setupOrder();
+    setupSwaps();
     setupUnrated();
     if (isOwner()) {
       $("panel-mods").hidden = false;

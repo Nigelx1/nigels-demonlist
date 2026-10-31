@@ -16,6 +16,11 @@ data/config.js (aredlFit) and each demon's aredlPosition.
 Every run re-pulls the AREDL (refitting the curve) and every listed demon's
 GDDL rating, re-sorts, renumbers, and logs each position change in
 data/changelog.js as a move with its reason, so Position History follows it.
+Insane swaps (SITE.insaneSwaps): demons a head mod swapped (a swapGroup in
+data/demons.js) sort by the values their places in the group hand them, worked
+out from the order before the sort with this run's new values (tools/swaps.py),
+so a swap survives: the two keep their order and trade the new values (a tie
+goes by position, never by a swapped demon's own AREDL placement).
 It also brings the Grind levels' AREDL placements (data/goal-levels.js) up to
 date: the Future and Future+ views (static/js/views.js) place them on the same fit.
 It never reads or writes data/unrated.js: unrated levels keep the estimate, tier
@@ -29,7 +34,7 @@ and spot the head mods gave them.
 
 This file is the same on both sites (Nigel's Demonlist and Aceabase).
 """
-import io, json, os, re, subprocess, sys, time
+import importlib.util, io, json, os, re, subprocess, sys, time
 from datetime import date as _date
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -100,13 +105,30 @@ def fit_curve(levels):
 
 
 def value(d, fit):
-    """The number the list is sorted and scored by (mirrors DL.demonRating)."""
+    """A demon's own value (mirrors DL.baseRating). What the list is sorted and
+    scored by is this, or for a swapped demon its group's (placed_values)."""
     pos = d.get("aredlPosition")
     if fit and isinstance(pos, int):
         return fit["a"] + fit["b"] * pos ** fit["exponent"]
     if isinstance(d.get("rating"), (int, float)):
         return d["rating"]
     return FALLBACK.get(d.get("difficulty"), 3)
+
+
+def load_swaps():
+    """tools/swaps.py, the Insane swaps rule (loaded by its path, like tools/gdlevel.py)."""
+    spec = importlib.util.spec_from_file_location("swaps", os.path.join(ROOT, "tools", "swaps.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def placed_values(demons, fit, swaps):
+    """{id: the value a demon is sorted and scored by} (mirrors DL.demonRating): its
+    own value, or for a swapped demon the one its place in its group hands it, from
+    demons' order as it stands."""
+    placed = swaps.effective_values(demons, lambda d: value(d, fit))
+    return {d["id"]: placed.get(d["levelId"], value(d, fit)) for d in demons}
 
 
 def with_aredl(entry, pos):
@@ -124,13 +146,21 @@ def with_aredl(entry, pos):
 def replay_check(demons, log):
     """Mirror of DL.positionHistoryFor's reconstruction: undo every logged change
     from today's order, replay forward, and insist every move/add/remove starts
-    where it says it does. Returns a list of problems."""
+    where it says it does, and every swap finds its two demons where it says they
+    were (demon at `from`, `with` at `to`; replaying it, they trade places).
+    Returns a list of problems."""
     order = [d["id"] for d in sorted(demons, key=lambda d: d["position"])]
     events = []
     for entry in reversed(log):
         for it in reversed(entry.get("items") or []):
-            if it.get("kind") in ("add", "move", "remove"):
+            if it.get("kind") in ("add", "move", "remove") or (
+                    it.get("kind") == "swap" and it.get("demonId") is not None and it.get("withId") is not None):
                 events.append(it)
+
+    def exchange(ev):  # a swap, either way round: the two trade places (when both are there)
+        if ev["demonId"] in order and ev["withId"] in order:
+            i, j = order.index(ev["demonId"]), order.index(ev["withId"])
+            order[i], order[j] = order[j], order[i]
     for ev in reversed(events):
         k, i = ev["kind"], order.index(ev["demonId"]) if ev.get("demonId") in order else -1
         if k == "add" and i != -1:
@@ -139,6 +169,8 @@ def replay_check(demons, log):
             order.insert(min(ev["from"] - 1, len(order) - 1), order.pop(i))
         elif k == "remove":
             order.insert(min(ev["from"] - 1, len(order)), ev.get("demonId"))
+        elif k == "swap":
+            exchange(ev)  # puts the two back: the demon at `from`, the other at `to`
     problems = []
     for ev in events:
         k, did = ev["kind"], ev.get("demonId")
@@ -150,6 +182,15 @@ def replay_check(demons, log):
             if order.index(did) + 1 != ev["from"]:
                 problems.append(f"move of {ev.get('demon')} says from {ev['from']} but it was at {order.index(did) + 1}")
             order.insert(max(0, min(ev["to"] - 1, len(order) - 1)), order.pop(order.index(did)))
+        elif k == "swap":
+            if did not in order or ev["withId"] not in order:
+                continue
+            if order.index(did) + 1 != ev.get("from"):
+                problems.append(f"swap of {ev.get('demon')} says from {ev.get('from')} but it was at {order.index(did) + 1}")
+            if order.index(ev["withId"]) + 1 != ev.get("to"):
+                problems.append(f"swap of {ev.get('demon')} says {ev.get('with')} was at {ev.get('to')} "
+                                f"but it was at {order.index(ev['withId']) + 1}")
+            exchange(ev)
         elif k == "remove" and did in order:
             order.remove(did)
     final = [d["id"] for d in sorted(demons, key=lambda d: d["position"])]
@@ -191,7 +232,8 @@ def main():
     dhead, demons, dtail = split_array(read("demons.js"), "DEMONS")
     demons.sort(key=lambda d: d["position"])
     log = load_var("changelog.js", "CHANGELOG")
-    old_val = {d["id"]: value(d, old_fit(cfg)) for d in demons}
+    swaps = load_swaps()
+    old_val = placed_values(demons, old_fit(cfg), swaps)
     old_pos = {d["id"]: d.get("aredlPosition") for d in demons}
 
     drift = []
@@ -209,9 +251,13 @@ def main():
         time.sleep(0.35)
 
     rank = {"Extreme": 0, "Insane": 1}
+    # Insane swaps: worked out from the order as it stands, with this run's values, so
+    # the members of a swap group keep their order and trade the new values; a member's
+    # own AREDL placement never breaks a tie (tools/swaps.py), its position does
+    placed, swapped, held = placed_values(demons, fit, swaps), swaps.groups(demons), swaps.members(demons)
     def key(d):
-        return ((rank.get(d.get("difficulty"), 2) if extremes_first else 0),
-                -round(value(d, fit), 2), d.get("aredlPosition") or 10 ** 9, d["position"])
+        return ((rank.get(d.get("difficulty"), 2) if extremes_first else 0), -round(placed[d["id"]], 2),
+                10 ** 9 if d["levelId"] in held else d.get("aredlPosition") or 10 ** 9, d["position"])
     target = sorted(demons, key=key)
 
     order = list(demons)
@@ -228,9 +274,15 @@ def main():
         else:
             changed = {x["id"]: (o, n) for x, o, n in drift}
             who = d if d["id"] in changed else passed if passed["id"] in changed else None
+            # a swapped demon's value moves with what its group's other members drift to
+            mate = next(((x, m) for x in (d, passed) for m in swapped.get(swaps.group_id(x), [])
+                         if m is not x and m["id"] in changed), None)
             if who:
                 o, n = changed[who["id"]]
                 why = f"GD Demon Ladder rating refresh - {who['name']} {o} → {n}"
+            elif mate:
+                o, n = changed[mate[1]["id"]]
+                why = f"GD Demon Ladder rating refresh - {mate[1]['name']} {o} → {n} (swapped with {mate[0]['name']})"
             else:
                 why = "Re-sorted with the list"
         moves.append({"kind": "move", "demon": d["name"], "demonId": d["id"], "from": j + 1, "to": i + 1, "text": why})
@@ -265,7 +317,7 @@ def main():
     for line in goal_moves:
         print(line)
     for d in demons:
-        before, after = old_val[d["id"]], value(d, fit)
+        before, after = old_val[d["id"]], placed[d["id"]]
         if had_fit and abs(after - before) > 0.005:
             print(f"  value {d['name']}: {before:.2f} -> {after:.2f}")
     if dry:

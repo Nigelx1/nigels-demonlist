@@ -49,6 +49,7 @@ html[data-theme="cabin"] {
   --cab-lilac: #b592f2;  /* Rated+ / unrated (the site's purple) */
   --cab-ember: #ec6f5f;  /* removed / danger */
   --cab-sky: #8fbcea;    /* info */
+  --cab-tide: #6fd6c6;   /* swapped (the changelog's teal) */
 
   --cab-radius: 16px;
   --cab-radius-sm: 10px;
@@ -840,6 +841,13 @@ html[data-theme="cabin"] .future-badge.unrated-badge {
   border-color: rgba(181, 146, 242, 0.5);
 }
 
+/* Insane swaps: the demon page's "Swapped" mark, in the changelog's teal */
+html[data-theme="cabin"] .future-badge.swap-badge {
+  background: rgba(111, 214, 198, 0.15);
+  color: var(--cab-tide);
+  border-color: rgba(111, 214, 198, 0.5);
+}
+
 html[data-theme="cabin"] #view-intro p,
 html[data-theme="cabin"] #view-rules p {
   color: var(--cab-cream);
@@ -915,6 +923,17 @@ html[data-theme="cabin"] #level-info span {
 
 html[data-theme="cabin"] #level-info span a.link {
   color: var(--cab-honey);
+}
+
+/* the note on a demon a head mod swapped (under the byline, like the unrated
+   note): cream text, the partner's name in honey */
+html[data-theme="cabin"] .swap-note {
+  color: var(--cab-cream);
+}
+
+html[data-theme="cabin"] .swap-note a {
+  color: var(--cab-honey);
+  font-weight: 700;
 }
 
 /* tables: a raised header row with honey text over soft navy stripes,
@@ -999,8 +1018,8 @@ html[data-theme="cabin"] .changelog-item {
   border-bottom-color: var(--cab-line-soft);
 }
 
-/* the kinds as soft pills: grey-blue note, green added, honey moved, red
-   removed */
+/* the kinds as soft pills: grey-blue note, green added, honey moved, teal
+   swapped, red removed */
 html[data-theme="cabin"] .changelog-badge {
   background: rgba(143, 160, 196, 0.14);
   color: #c3cde3;
@@ -1019,6 +1038,12 @@ html[data-theme="cabin"] .changelog-move .changelog-badge {
   background: var(--cab-honey-tint);
   color: var(--cab-honey);
   border-color: rgba(242, 182, 94, 0.5);
+}
+
+html[data-theme="cabin"] .changelog-swap .changelog-badge {
+  background: rgba(111, 214, 198, 0.15);
+  color: var(--cab-tide);
+  border-color: rgba(111, 214, 198, 0.5);
 }
 
 html[data-theme="cabin"] .changelog-remove .changelog-badge {
@@ -1512,6 +1537,15 @@ html[data-theme="cabin"] #admin-page .choices label:has(input:focus-visible) {
 
 html[data-theme="cabin"] #admin-page .goal-list li {
   border-top-color: var(--cab-line-soft);
+}
+
+/* Swap insanes: who gains (moss) and who loses (ember) in the preview */
+html[data-theme="cabin"] #admin-page .swap-players .gain {
+  color: var(--cab-moss);
+}
+
+html[data-theme="cabin"] #admin-page .swap-players .loss {
+  color: #f38a7c;
 }
 
 html[data-theme="cabin"] #admin-page .roster li,

@@ -250,6 +250,23 @@ const CASES = [
     { op: "add_unrated", level: 99999999, rating: 15, difficulty: "Insane", placeBelow: 0 },
     { op: "set_grind", player: "Nigel", level: 99999999, best: 40, segments: [[50, 100]] },
   ], "ok"],
+  // Insane swaps (head mods): up goes above down - two level ids, in the forms `level`
+  // takes, but never called "level" (that would make them RobTop look-ups)
+  ["swap: valid batch", [
+    { down: "https://gdbrowser.com/level/82824219", op: "swap_insanes", up: " 75078198 " },
+    { op: "swap_insanes", up: "https://www.gdladder.com/level/4706930/", down: 56568010 },
+  ], "ok"],
+  ["swap: the same level twice", [{ op: "swap_insanes", up: "https://gdladder.com/level/75078198", down: 75078198 }],
+    "edit 1 (swap_insanes): up and down are the same level - pick two different ones"],
+  ["swap: no down", [{ op: "swap_insanes", up: 75078198 }], "edit 1 (swap_insanes): missing down"],
+  ["swap: neither", [{ op: "swap_insanes" }], "edit 1 (swap_insanes): missing down, up"],
+  ["swap: up isn't a level", [{ op: "swap_insanes", up: "https://example.com/level/5", down: 1 }],
+    { js: `up "https://example.com/level/5" isn't a level id`, py: "up 'https://example.com/level/5' isn't a level id" }],
+  ["swap: up 1.5", [{ op: "swap_insanes", up: 1.5, down: 1 }], "edit 1 (swap_insanes): up 1.5 isn't a level id"],
+  ["swap: down 0", [{ op: "swap_insanes", up: 1, down: 0 }], "edit 1 (swap_insanes): down 0 isn't a real level id"],
+  ["swap: down 2^31", [{ op: "swap_insanes", up: 1, down: 2147483648 }], "edit 1 (swap_insanes): down 2147483648 isn't a real level id"],
+  ["swap: a level field too", [{ op: "swap_insanes", up: 1, down: 2, level: 3 }], "unknown field"],
+  ["swap: up on another edit", [{ op: "remove_unrated", level: 5, up: 6 }], "unknown field"],
 ];
 
 {
@@ -280,6 +297,11 @@ const CASES = [
   ]), JSON.stringify(un));
   const noise = js[CASES.findIndex(([label]) => label === "unrated: rating 31.1 (float noise)")].ok;
   check("contract: an estimate is rounded to 2 decimals", noise && noise[0].rating === 31.1, JSON.stringify(noise));
+  const sw = js[CASES.findIndex(([label]) => label === "swap: valid batch")].ok;
+  check("contract: swap ops normalised - level ids as numbers, fields in order (op, up, down)", sw && eq(sw, [
+    { op: "swap_insanes", up: 75078198, down: 82824219 },
+    { op: "swap_insanes", up: 4706930, down: 56568010 },
+  ]), JSON.stringify(sw));
 
   // the same cases through apply-edit.py's validate()
   const PY = `
@@ -602,6 +624,48 @@ print(json.dumps(out))
   else check("unrated (py): a mod is refused all three, a head mod isn't",
     gotU.length === 6 && [0, 2, 4].every((i) => /only head mods can/.test(gotU[i])) && [1, 3, 5].every((i) => gotU[i] === "ok"),
     ru2.stdout + ru2.stderr);
+
+  // Insane swaps: head mods only (the runner also checks they've beaten both). Both
+  // levels are on the list already, so nothing is looked up: no RobTop, no gd.
+  const swapOp = { op: "swap_insanes", up: "https://gdladder.com/level/75078198", down: "82824219" };
+  const swSent204 = ["POST", GH_DISPATCH, () => new Response(null, { status: 204 })];
+  stubFetch([robtopRoute(() => RT.solar), swSent204]);
+  const swMod = await api.edit.onRequestPost(ctx(editReq({ ops: [swapOp] }, { cookie: aceCookie })));
+  const swModErr = (await swMod.json()).error, sentBySwapMod = calls.length;
+  check("swaps: a mod can't swap insanes - 403, nothing sent", swMod.status === 403
+    && swModErr === "edit 1 (swap_insanes): only head mods can swap insanes" && sentBySwapMod === 0, swModErr);
+  stubFetch([robtopRoute(() => RT.solar), swSent204]);
+  const swHead = await api.edit.onRequestPost(ctx(editReq({ ops: [swapOp] })));
+  const swSent = dispatched();
+  check("swaps: a head mod's swap goes out as numbers, with who sent it, and nothing is looked up", swHead.status === 200 && swSent
+    && eq(swSent.client_payload.ops, [{ op: "swap_insanes", up: 75078198, down: 82824219 }]) && swSent.client_payload.editor === "Nigel"
+    && swSent.client_payload.role === "head" && !("gd" in swSent.client_payload) && calls.length === 1, JSON.stringify(swSent && swSent.client_payload));
+  stubFetch([swSent204]);
+  const swSame = await api.edit.onRequestPost(ctx(editReq({ ops: [{ op: "swap_insanes", up: 75078198, down: "https://gdbrowser.com/75078198" }] })));
+  const swSameErr = (await swSame.json()).error;
+  check("swaps: the same level twice - 400, nothing sent", swSame.status === 400
+    && swSameErr === "edit 1 (swap_insanes): up and down are the same level - pick two different ones" && calls.length === 0, swSameErr);
+  const PYSWAPROLE = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("apply_edit", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+out = []
+for extra in ({"role": "mod"}, {}, {"role": "head"}):
+    try:
+        out.append(m.validate(dict({"requestId": "0" * 16, "editor": "Dihmaster500",
+                                    "ops": [{"op": "swap_insanes", "up": "75078198", "down": 82824219}]}, **extra))["ops"])
+    except m.Refuse as e:
+        out.append(str(e))
+print(json.dumps(out))
+`;
+  const swPy = spawnSync("python", ["-c", PYSWAPROLE, path.join(ROOT, "tools", "apply-edit.py")], { encoding: "utf8" });
+  let swGot = [];
+  try { swGot = JSON.parse(swPy.stdout); } catch { /* reported below */ }
+  if (swPy.status !== 0 && !swGot.length) console.log("(python not available - skipping the swap role check in apply-edit.py)");
+  else check("swaps (py): a mod is refused, no role counts as a mod, a head mod's goes through as numbers",
+    swGot.length === 3 && swGot[0] === "edit 1 (swap_insanes): only head mods can swap insanes" && swGot[1] === swGot[0]
+    && eq(swGot[2], [{ op: "swap_insanes", up: 75078198, down: 82824219 }]), swPy.stdout + swPy.stderr);
 }
 // --- the mod team: Nigel's account only (contract.js OWNER_ID) ------------------------------
 {
@@ -775,7 +839,8 @@ print(json.dumps(out + [m.OWNER_ID]))
     { op: "undo", requestId: "0123456789abcdef" }, { op: "add_member", name: "Newbie", nationality: "US" },
     { op: "rename_member", name: "ace", newName: "acee" }]],
   [ownerCookie, [{ op: "refresh_showcases" }, { op: "set_member_country", name: "ace", nationality: "CA" }, { op: "remove_member", name: "ace" },
-    { op: "set_mod", discordId: "777777777777777777", name: "Newmod", role: "mod" }, { op: "remove_mod", discordId: "444444444444444444" }]]];
+    { op: "set_mod", discordId: "777777777777777777", name: "Newmod", role: "mod" }, { op: "remove_mod", discordId: "444444444444444444" },
+    { op: "swap_insanes", up: 75078198, down: 82824219 }]]];
   for (const [who, batch] of others) {
     stubFetch([robtopRoute(() => RT.solar), sent204]);
     r = await api.edit.onRequestPost(ctx(editReq({ ops: batch }, { cookie: who })));
@@ -1984,6 +2049,312 @@ if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
   }
 }
 
+// --- Insane swaps: DL.demonRating, Position History and tools/swaps.py ----------------------------
+// A head mod who has beaten two Insane Demons on the list can swap them (SITE.insaneSwaps;
+// Nigel and Dihmaster500, 2026-10-31). Demons swapped together share a swapGroup in
+// data/demons.js, and DL.demonRating hands the group's own values (DL.baseRating) out in
+// their stored order, highest first; tools/swaps.py is the same rule for the tools. A
+// made-up list for the exact numbers and Position History; then the real data as it is
+// (Nigel's Demonlist has no swaps, and no flag) and with swaps made up on it, where
+// apply-edit.py, refresh-order.py and tools/swaps.py must give DL.demonRating's values
+// and views.js and apply-edit.py the same unrated spots. The rule reads the data, not
+// the flag, so nothing here turns the flag on.
+
+{
+  const quiet = { log() {}, warn() {}, error: console.error };
+  const world = (W, files) => {
+    const sb = { window: W, console: quiet };
+    vm.createContext(sb);
+    for (const f of files) vm.runInContext(readFileSync(path.join(ROOT, f), "utf8"), sb, { filename: f });
+    return W;
+  };
+  const near = (a, b) => typeof a === "number" && typeof b === "number" && Math.abs(a - b) < 1e-9;
+  const pyRun = (script, input) => {
+    const r = spawnSync("python", ["-c", script, ROOT], { input: JSON.stringify(input), encoding: "utf8",
+      env: { ...process.env, PYTHONUTF8: "1" }, maxBuffer: 64 << 20 });
+    try { return JSON.parse(r.stdout); } catch { return { failed: (r.stdout + r.stderr).slice(-600), missing: !!r.error || /not found|not recognized/i.test(r.stderr || "") }; }
+  };
+  // a made-up list - own values 30, 25 (Extremes) | 21, 20, 19, 18, 17, 16 (Insanes); L4's 20
+  // is its AREDL placement (#400 on this fit), not its GDDL rating of 50
+  const madeUp = () => {
+    const lv = (id, difficulty, rating, extra) => Object.assign({ id, levelId: id, position: id, name: `L${id}`, difficulty, rating,
+      requirementPercent: 100, records: [], aredlPosition: null }, extra || {});
+    return world({
+      SITE: { name: "Test", mainListSize: "extremes", extendedListSize: null, allowedDifficulties: ["Extreme", "Insane"],
+        listCreated: "2026-10-01", aredlFit: { a: 40, b: -1, exponent: 0.5 },
+        scoring: { topScore: 500, base: 1.176, legacyScore: 2, requirementScoreFraction: 0.25 } },
+      DEMONS: [lv(1, "Extreme", 30), lv(2, "Extreme", 25), lv(3, "Insane", 21), lv(4, "Insane", 50, { aredlPosition: 400 }),
+        lv(5, "Insane", 19), lv(6, "Insane", 18), lv(7, "Insane", 17), lv(8, "Insane", 16)],
+      CHANGELOG: [],
+    }, ["static/js/list-utils.js"]);
+  };
+  // a swap as the runner leaves it: {levelId: its position now} for the demons it
+  // touched, all of them in group gid (default: the smallest of their ids)
+  const swapped = (W, spots, gid) => {
+    const ids = Object.keys(spots).map(Number);
+    W.DEMONS.forEach((d) => {
+      if (ids.includes(d.levelId)) {
+        d.position = spots[d.levelId];
+        d.swapGroup = gid || Math.min(...ids);
+      }
+    });
+    W.DEMONS.sort((a, b) => a.position - b.position);
+    W.DL._topRating = null;
+    return W;
+  };
+  const values = (W) => W.DL.sortedDemons().map((d) => W.DL.demonRating(d));
+  const one = (W, id) => W.DEMONS.find((d) => d.levelId === id);
+  const valueOf = (W, id) => W.DL.demonRating(one(W, id));
+
+  const W0 = madeUp(), own = values(W0), top = W0.DL.topRating();
+  check("swaps (DL): no swapGroup - DL.demonRating is DL.baseRating (an AREDL placement's value, not the GDDL rating)",
+    W0.DEMONS.every((d) => W0.DL.demonRating(d) === W0.DL.baseRating(d)) && eq(own, [30, 25, 21, 20, 19, 18, 17, 16]), JSON.stringify(own));
+  // L7 up over L5 (#7 <-> #5); L6, between them, stays
+  let W = swapped(madeUp(), { 7: 5, 5: 7 });
+  check("swaps (DL): a pair - each takes the other's value, nobody else's changes", valueOf(W, 7) === 19 && valueOf(W, 5) === 17
+    && valueOf(W, 6) === 18 && W.DL.baseRating(one(W, 7)) === 17 && eq(values(W), own), JSON.stringify(values(W)));
+  const pts = (X, id) => X.DL.scoreAt100(one(X, id));
+  check("swaps (DL): ...they trade points, and topRating stays", W.DL.topRating() === top && pts(W, 7) === pts(W0, 5) && pts(W, 5) === pts(W0, 7)
+    && pts(W, 6) === pts(W0, 6), JSON.stringify([pts(W, 7), pts(W0, 5)]));
+  W = swapped(madeUp(), { 6: 4, 4: 6 });
+  check("swaps (DL): a member the AREDL places hands over its AREDL value (20), not its GDDL rating (50)",
+    valueOf(W, 6) === 20 && valueOf(W, 4) === 18 && eq(values(W), own), JSON.stringify(values(W)));
+  // chained and merged: L3, L5 and L7 in one group, stored L7, L3, L5; L4 and L6 a group of their own
+  W = swapped(swapped(madeUp(), { 7: 3, 3: 5, 5: 7 }), { 6: 4, 4: 6 });
+  check("swaps (DL): a group of three hands 21, 19, 17 out in its stored order; another group keeps to itself",
+    valueOf(W, 7) === 21 && valueOf(W, 3) === 19 && valueOf(W, 5) === 17 && valueOf(W, 6) === 20 && valueOf(W, 4) === 18
+    && eq(values(W), own) && W.DL.topRating() === top, JSON.stringify(values(W)));
+  const l7 = one(W, 7);
+  check("swaps (DL): copies are found by level id - a copy, a JSON copy, just the fields, an id and no levelId",
+    W.DL.demonRating(Object.assign({}, l7)) === 21 && W.DL.demonRating(JSON.parse(JSON.stringify(l7))) === 21
+    && W.DL.demonRating({ levelId: 7, swapGroup: 3, difficulty: "Insane", rating: 17 }) === 21
+    && W.DL.demonRating({ id: 7, swapGroup: 3, difficulty: "Insane", rating: 17 }) === 21);
+  check("swaps (DL): a level that isn't on the list keeps its own value, whatever group it names",
+    W.DL.demonRating({ levelId: 99, id: 99, swapGroup: 3, difficulty: "Insane", rating: 22 }) === 22);
+  // DL.swapGroupOf: the swap that holds a demon's place (views.js's sort key then skips its
+  // own AREDL placement as a tie-break, like tools/swaps.py members)
+  const g7 = W.DL.swapGroupOf(Object.assign({}, l7)), g5 = W.DL.swapGroupOf(one(W, 5));
+  check("swaps (DL): DL.swapGroupOf - the group top first and where the demon is in it, a copy found by level id; null outside a swap",
+    !!g7 && eq(g7.members.map((d) => d.levelId), [7, 3, 5]) && g7.at === 0 && !!g5 && g5.at === 2
+    && W.DL.swapGroupOf(one(W, 1)) === null && W.DL.swapGroupOf({ levelId: 99, swapGroup: 3 }) === null,
+    JSON.stringify([g7 && g7.members.map((d) => d.levelId), g7 && g7.at, g5 && g5.at]));
+  // the partner left the list (a group of one), and swapGroups that aren't numbers
+  W = madeUp();
+  one(W, 5).swapGroup = 5;
+  one(W, 6).swapGroup = "6";
+  one(W, 7).swapGroup = "6";
+  one(W, 8).swapGroup = null;
+  check("swaps (DL): a group with one member left on the list does nothing, nor does a swapGroup that isn't a number",
+    valueOf(W, 5) === 19 && valueOf(W, 6) === 18 && valueOf(W, 7) === 17 && valueOf(W, 8) === 16 && eq(values(W), own));
+  check("swaps (DL): ...and DL.swapGroupOf finds no swap there", [5, 6, 7, 8].every((id) => W.DL.swapGroupOf(one(W, id)) === null));
+
+  // Position History: L7 up over L5 on 10-31, then L6 up over L7 on 11-01 (which merges
+  // the three into one group); a row for the two demons of each swap, nobody else
+  W = swapped(swapped(madeUp(), { 7: 5, 5: 7 }), { 6: 5, 7: 6, 5: 7 }, 5);
+  W.CHANGELOG = [
+    { date: "2026-11-01", items: [{ kind: "swap", demon: "L6", demonId: 6, from: 6, to: 5, with: "L7", withId: 7, by: "Head" }] },
+    { date: "2026-10-31", items: [{ kind: "swap", demon: "L7", demonId: 7, from: 7, to: 5, with: "L5", withId: 5, by: "Head" }] },
+  ];
+  const hist = (id) => W.DL.positionHistoryFor(one(W, id)).map((r) => [r.date, r.position, r.delta, r.reason]);
+  check("swaps (DL): the merged group of three hands 19, 18, 17 out in its stored order (L6, L7, L5)",
+    valueOf(W, 6) === 19 && valueOf(W, 7) === 18 && valueOf(W, 5) === 17 && eq(values(W), own), JSON.stringify(values(W)));
+  check("swaps (DL): Position History - each swap is a row for its two demons, saying who swapped them",
+    eq(hist(7), [["2026-10-01", 7, 0, "Added to list"], ["2026-10-31", 5, -2, "Swapped with L5 by Head"], ["2026-11-01", 6, 1, "Swapped with L6 by Head"]])
+    && eq(hist(5), [["2026-10-01", 5, 0, "Added to list"], ["2026-10-31", 7, 2, "Swapped with L7 by Head"]])
+    && eq(hist(6), [["2026-10-01", 6, 0, "Added to list"], ["2026-11-01", 5, -1, "Swapped with L7 by Head"]]), JSON.stringify([hist(7), hist(5), hist(6)]));
+  check("swaps (DL): ...and no row for anyone else (L8 included, below them)", [1, 2, 3, 4, 8].every((id) => eq(hist(id), [["2026-10-01", id, 0, "Added to list"]])));
+  const noBy = JSON.parse(JSON.stringify(W.CHANGELOG));
+  delete noBy[0].items[0].by;
+  W.CHANGELOG = noBy;
+  check("swaps (DL): ...without a `by` the reason is just \"Swapped with L7\"", hist(6)[1][3] === "Swapped with L7", JSON.stringify(hist(6)));
+  const madeLog = [
+    { date: "2026-11-01", items: [{ kind: "swap", demon: "L6", demonId: 6, from: 6, to: 5, with: "L7", withId: 7, by: "Head" }] },
+    { date: "2026-10-31", items: [{ kind: "swap", demon: "L7", demonId: 7, from: 7, to: 5, with: "L5", withId: 5, by: "Head" }] },
+  ];
+  const wrong = (k, v) => madeLog.map((e, i) => (i ? e : { date: e.date, items: [Object.assign({}, e.items[0], { [k]: v })] }));
+  const PYREPLAY = String.raw`
+import importlib.util, json, os, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("refresh_order", os.path.join(sys.argv[1], "tools", "refresh-order.py"))
+ro = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ro)
+print(json.dumps([ro.replay_check(c["demons"], c["log"]) for c in json.load(sys.stdin)]))
+`;
+  const replayCases = [{ demons: W.DEMONS, log: madeLog }, { demons: W.DEMONS, log: wrong("from", 7) }, { demons: W.DEMONS, log: wrong("to", 4) }];
+
+  // the real data: whatever it has swapped already keeps the same values per position, and a
+  // demon in no swap keeps its own value (today: no swapGroup on either list)
+  const real = () => world({}, ["data/config.js", "data/demons.js", "data/changelog.js", "static/js/list-utils.js"]);
+  const R = real(), RL = R.DL.sortedDemons(), rtop = R.DL.topRating();
+  const inGroup = (X, d) => typeof d.swapGroup === "number" && X.DEMONS.filter((x) => x.swapGroup === d.swapGroup).length >= 2;
+  const sorted = (xs) => xs.slice().sort((a, b) => a - b);
+  check("swaps (DL, real data): a demon in no swap keeps its own value; the list's values are its own values",
+    RL.every((d) => inGroup(R, d) || R.DL.demonRating(d) === R.DL.baseRating(d))
+    && eq(sorted(values(R)), sorted(RL.map((d) => R.DL.baseRating(d)))));
+  // made-up swaps on it (a seeded shuffle): 6 lists, each with one or two groups of 2-4 Insanes
+  // not swapped already, their positions rotated among themselves - every member moves
+  let seed = 20261031;
+  const rand = (n) => (seed = (seed * 16807) % 2147483647) % n;
+  const freeIns = RL.filter((d) => d.difficulty === "Insane" && !inGroup(R, d)).map((d) => d.levelId);
+  const fixtures = [];
+  for (let k = 0; k < 6 && freeIns.length >= 2; k++) {
+    const demons = JSON.parse(JSON.stringify(R.DEMONS)), pool = freeIns.slice();
+    for (let g = 0; g < 1 + (k % 2) && pool.length >= 2; g++) {
+      const ids = [];
+      for (let n = Math.min(pool.length, 2 + rand(3)); n > 0; n--) ids.push(pool.splice(rand(pool.length), 1)[0]);
+      const ds = ids.map((id) => demons.find((d) => d.levelId === id)), spots = ds.map((d) => d.position);
+      ds.forEach((d, i) => {
+        d.position = spots[(i + 1) % spots.length];
+        d.swapGroup = Math.min(...ids);
+      });
+    }
+    fixtures.push(demons.sort((a, b) => a.position - b.position));
+  }
+  if (!fixtures.length) console.log("(skipping the made-up swaps on the real data - it has fewer than 2 Insanes)");
+  const asReal = (demons) => {
+    const X = real();
+    X.DEMONS = demons;
+    X.DL._topRating = X.DL._extremeCount = null;
+    return X;
+  };
+  const off = fixtures.map((f, i) => {
+    const X = asReal(f);
+    return eq(values(X), values(R)) && X.DL.topRating() === rtop ? null : i;
+  }).filter((x) => x !== null);
+  check(`swaps (DL, real data): ${fixtures.length} lists with made-up swaps keep every position's value and topRating`, !off.length, JSON.stringify(off));
+  // Position History on the real data with one more swap logged: the lowest of the first three
+  // free Insanes goes up over the highest; rows that day for the two only
+  if (freeIns.length >= 2) {
+    const X = real();
+    const xs = X.DL.sortedDemons().filter((d) => freeIns.includes(d.levelId));
+    const hi = xs[0], lo = xs[Math.min(2, xs.length - 1)], p = hi.position, q = lo.position;
+    hi.position = q;
+    lo.position = p;
+    hi.swapGroup = lo.swapGroup = Math.min(hi.levelId, lo.levelId);
+    X.DEMONS.sort((a, b) => a.position - b.position);
+    X.CHANGELOG = [{ date: "2099-01-01", items: [{ kind: "swap", demon: lo.name, demonId: lo.levelId, from: q, to: p, with: hi.name,
+      withId: hi.levelId, by: "Tester" }] }].concat(X.CHANGELOG);
+    const rows = X.DEMONS.map((d) => [d, X.DL.positionHistoryFor(d)]);
+    const that = rows.filter(([, h]) => h.some((r) => r.date === "2099-01-01")).map(([d]) => d.levelId);
+    const lh = X.DL.positionHistoryFor(lo), hh = X.DL.positionHistoryFor(hi);
+    check(`swaps (DL, real data): one more swap (${lo.name.trim()} up over ${hi.name.trim()}) - every history still ends where its demon is`,
+      rows.every(([d, h]) => h.length && h[h.length - 1].position === d.position));
+    check("swaps (DL, real data): ...that day has rows for those two only, each the other's move", eq(sorted(that), sorted([hi.levelId, lo.levelId]))
+      && eq(lh[lh.length - 1], { date: "2099-01-01", position: p, reason: `Swapped with ${hi.name} by Tester`, delta: p - q })
+      && eq(hh[hh.length - 1], { date: "2099-01-01", position: q, reason: `Swapped with ${lo.name} by Tester`, delta: q - p }),
+    JSON.stringify([that, lh.slice(-1), hh.slice(-1)]));
+    replayCases.push({ demons: X.DEMONS, log: X.CHANGELOG });
+  }
+  const rp = pyRun(PYREPLAY, replayCases);
+  if (rp.failed) {
+    if (rp.missing) console.log("(python not available - skipping the swap replay checks)");
+    else check("swaps (py): the replay harness ran", false, rp.failed);
+  } else {
+    check("swaps (py): refresh-order.py replay_check replays swap items (made up, and one more on the real data)",
+      eq(rp[0], []) && (rp.length < 4 || eq(rp[3], [])), JSON.stringify(rp));
+    check("swaps (py): ...and catches a swap item that says the wrong places", eq(rp[1], ["swap of L6 says from 7 but it was at 6"])
+      && eq(rp[2], ["swap of L6 says L7 was at 4 but it was at 5"]), JSON.stringify(rp.slice(1, 3)));
+  }
+
+  // the tools' copies of the rule: apply-edit.py rating_value, refresh-order.py placed_values
+  // and tools/swaps.py effective_values give DL.demonRating's value for every demon - the
+  // made-up lists, the real data, and the real data with made-up swaps
+  const PYVALUES = String.raw`
+import importlib.util, json, os, sys
+sys.dont_write_bytecode = True
+def tool(name, file):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(sys.argv[1], "tools", file))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+ae, ro, sw = tool("apply_edit", "apply-edit.py"), tool("refresh_order", "refresh-order.py"), tool("swaps", "swaps.py")
+out = []
+for c in json.load(sys.stdin):
+    site, demons = c["site"], c["demons"]
+    placed = ro.placed_values(demons, site.get("aredlFit"), sw)
+    eff = sw.effective_values(demons, lambda d: ae.base_value(d, site))
+    out.append({"apply-edit": {str(d["levelId"]): ae.rating_value(d, site, demons) for d in demons},
+                "refresh-order": {str(d["levelId"]): placed[d["id"]] for d in demons},
+                "swaps": {str(k): v for k, v in eff.items()},
+                "members": sorted(sw.members(demons))})
+print(json.dumps(out))
+`;
+  const lists = [
+    ["made up, no swaps", madeUp()], ["made up, a pair", swapped(madeUp(), { 7: 5, 5: 7 })],
+    ["made up, an AREDL member", swapped(madeUp(), { 6: 4, 4: 6 })], ["made up, two groups", swapped(swapped(madeUp(), { 7: 3, 3: 5, 5: 7 }), { 6: 4, 4: 6 })],
+    ["the real data", R], ...fixtures.map((f, i) => [`the real data, made-up swaps ${i + 1}`, asReal(f)]),
+  ];
+  const pv = pyRun(PYVALUES, lists.map(([, X]) => ({ site: X.SITE, demons: X.DEMONS })));
+  if (pv.failed) {
+    if (pv.missing) console.log("(python not available - skipping the swap value cross-check)");
+    else check("swaps (py): the value harness ran", false, pv.failed);
+  } else {
+    const differ = [];
+    lists.forEach(([what, X], i) => X.DEMONS.forEach((d) => {
+      const v = X.DL.demonRating(d), k = String(d.levelId), grouped = inGroup(X, d);
+      if (!near(pv[i]["apply-edit"][k], v) || !near(pv[i]["refresh-order"][k], v) || grouped !== (k in pv[i].swaps)
+        || (grouped && !near(pv[i].swaps[k], v))) differ.push([what, d.name, v, pv[i]["apply-edit"][k], pv[i]["refresh-order"][k], pv[i].swaps[k]]);
+    }));
+    check(`swaps (py): apply-edit.py, refresh-order.py and tools/swaps.py give DL.demonRating's value - ${lists.length} lists`,
+      !differ.length, JSON.stringify(differ.slice(0, 3)));
+    // the demons whose sort keys skip their AREDL placement as a tie-break: the same on both sides
+    const held = lists.map(([what, X], i) => [what, X.DEMONS.filter((d) => X.DL.swapGroupOf(d)).map((d) => d.levelId).sort((a, b) => a - b), pv[i].members])
+      .filter(([, js, py]) => !eq(js, py));
+    check(`swaps (py): tools/swaps.py members() is every demon DL.swapGroupOf puts in a swap - ${lists.length} lists`,
+      !held.length && lists.some(([, X]) => X.DEMONS.some((d) => X.DL.swapGroupOf(d))), JSON.stringify(held[0] || ""));
+  }
+
+  // the unrated-placement window on swapped lists: views.js and apply-edit.py still agree,
+  // and every candidate's spots are still contiguous with one automatic spot
+  if (existsSync(path.join(ROOT, "static", "js", "views.js")) && fixtures.length) {
+    const PYSLOTS = String.raw`
+import importlib.util, json, os, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("apply_edit", os.path.join(sys.argv[1], "tools", "apply-edit.py"))
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+out = []
+for d in json.load(sys.stdin):
+    ids = [0] + [x["levelId"] for x in sorted(d["demons"], key=lambda x: x["position"])]
+    out.append([[m.unrated_slots(u, d["demons"], d["site"]), [a for a in ids if m.slot_ok(u, a, d["demons"], d["site"])]]
+                for u in d["cands"]])
+print(json.dumps(out))
+`;
+    const views = fixtures.slice(0, 3).map((f) => {
+      const X = world({}, ["data/config.js", "data/demons.js", "data/goals.js", "data/goal-levels.js",
+        "static/js/list-utils.js", "static/js/goals.js", "static/js/views.js"]);
+      X.DEMONS = JSON.parse(JSON.stringify(f));
+      X.DL._topRating = X.DL._extremeCount = null;
+      return X;
+    });
+    const r2 = (x) => Math.round(x * 100) / 100;
+    const ins = values(views[0]).filter((v, i) => views[0].DL.sortedDemons()[i].difficulty === "Insane");
+    const hiV = Math.max(...ins), loV = Math.min(...ins);
+    const cands = Array.from({ length: 24 }, (_, k) => ({ levelId: 950000000 + k, difficulty: "Insane", rating: r2(hiV + 1 - (k * (hiV - loV + 2)) / 23) }));
+    const js = views.map((X) => {
+      const L = X.DL.sortedDemons(), anchors = [0].concat(L.map((d) => d.levelId));
+      return cands.map((u) => [X.DL.unratedSlots(u, L).map((s) => s.anchor), anchors.filter((a) => X.DL.unratedSlotOk(u, a, L))]);
+    });
+    check("swaps (views): on lists with swaps, every candidate's spots are contiguous and include its automatic one", views.every((X) => {
+      const L = X.DL.sortedDemons(), anchors = [0].concat(L.map((d) => d.levelId));
+      return cands.every((u) => {
+        const s = X.DL.unratedSlots(u, L), at = s.map((x) => anchors.indexOf(x.anchor));
+        return s.filter((x) => x.auto).length === 1 && at.every((x, i) => !i || x === at[i - 1] + 1);
+      });
+    }));
+    const ps = pyRun(PYSLOTS, views.map((X) => ({ site: X.SITE, demons: X.DEMONS, cands })));
+    if (ps.failed) {
+      if (ps.missing) console.log("(python not available - skipping the swap slot cross-check)");
+      else check("swaps (py): the slot harness ran", false, ps.failed);
+    } else {
+      const differ = [];
+      views.forEach((X, i) => cands.forEach((u, j) => { if (!eq(ps[i][j], js[i][j])) differ.push({ list: i, u, js: js[i][j], py: ps[i][j] }); }));
+      check(`swaps (views): ${views.length} lists with swaps x ${cands.length} candidates - the same spots from views.js and apply-edit.py`,
+        !differ.length, JSON.stringify(differ[0] || "").slice(0, 300));
+    }
+  }
+}
+
 // --- Rated+ in the engine, offline: tools/apply-edit.py on a copy of the site ----------------
 // A temp copy (no .git, videos or __pycache__) with Rated+ turned on and a fixture
 // data/unrated.js; apply-edit.py is imported FROM the copy. gdbrowser answers from
@@ -2084,7 +2455,7 @@ try:
         A refused run leaves data/ as it found it, like the real one (restore())."""
         data = os.path.join(root, "data")
         kept = {f: m.read(root, "data/" + f) for f in os.listdir(data)}
-        e = m.Engine(root, role)
+        e = m.Engine(root, role, editor="Nigel")  # (the payload's editor, as apply_payload passes it)
         try:
             p = m.validate({"requestId": "0" * 16, "editor": "Nigel", "role": role, "ops": ops})
             e.apply(p["ops"])
@@ -2331,6 +2702,755 @@ out.write(json.dumps(results))
     else check("engine (py): the Rated+ harness ran", false, (r.stdout + r.stderr).slice(-600));
   } else {
     got.forEach((x) => check(x.label, x.ok, x.detail));
+  }
+}
+
+// --- Insane swaps in the engine, offline: tools/apply-edit.py on a copy of the site -------------
+// A temp copy with SITE.insaneSwaps appended to its config.js; apply-edit.py, refresh-order.py
+// and add-records.py imported FROM the copy, with nothing in this process able to reach the
+// network (curl fails at once, urllib opens nothing) and running another tool failing the
+// step. The editor is whoever has beaten the most Insane Demons on this list (Aceabase:
+// Dihmaster500; Nigel's Demonlist: Nigel), so it runs on both lists' data; Aceabase gets the
+// SPEC's own example, Heritage up over MikuMikuMikuMiku. Every run is validate() + apply()
+// + check() (VERIFY in node, the changelog's replay), as on the runner. Then the tools'
+// re-sorts on a swapped list, a swapped demon leaving the list, the runner's main() (a dry
+// run, and a real --no-push run in a git repo of its own), and the list as it is: no flag
+// and no swapGroup (Nigel's Demonlist) changes nothing.
+
+{
+  const PYSWAPS = String.raw`
+import contextlib, importlib.util, io, json, os, shutil, subprocess, sys, tempfile, urllib.request
+sys.dont_write_bytecode = True
+results, states, skipped = [], [], []
+def ok(label, cond, detail=""):
+    results.append({"label": label, "ok": bool(cond), "detail": "" if cond else str(detail)[:400]})
+
+OFFLINE = r'''
+import subprocess, urllib.request
+_run = subprocess.run
+def _offline_run(args, *a, **k):
+    if isinstance(args, (list, tuple)) and args and str(args[0]) == "curl":
+        return subprocess.CompletedProcess(args, 7, "", "curl: (7) offline (test)")
+    return _run(args, *a, **k)
+def _offline_urlopen(*a, **k):
+    raise OSError("offline (test)")
+subprocess.run, urllib.request.urlopen = _offline_run, _offline_urlopen
+'''
+out, sys.stdout = sys.stdout, sys.stderr  # the engine's own output goes to stderr; stdout is the results
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+real_run = subprocess.run
+exec(OFFLINE)  # this process too
+tmp = tempfile.mkdtemp(prefix="swap-test-")
+root = os.path.join(tmp, "site")
+
+
+def scenarios():
+    shutil.copytree(sys.argv[1], root, ignore=shutil.ignore_patterns(".git", "videos", "__pycache__"))
+
+    def tool(name, file):
+        spec = importlib.util.spec_from_file_location(name, os.path.join(root, "tools", file))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    m, ro, ar = tool("apply_edit_swaps", "apply-edit.py"), tool("refresh_order_swaps", "refresh-order.py"), tool("add_records_swaps", "add-records.py")
+    sw = ro.load_swaps()
+    cfg0 = m.read(root, "data/config.js")
+    ON, OFF, GONE = "window.SITE.insaneSwaps = true;", "window.SITE.insaneSwaps = false;", "delete window.SITE.insaneSwaps;"
+
+    def flag(line):  # data/config.js as the copy came, plus one line: the flag on, off or gone
+        m.write(root, "data/config.js", cfg0 + "\n" + line + "\n")
+    ran = []
+
+    def no_tools(_root, args, timeout=900):
+        ran.append(args[0])
+        raise m.Refuse("(test) " + args[0] + " was run")
+    m.run_tool = no_tools
+    m.curl = lambda url, timeout=30: (0, "")
+    m.gd_servers = lambda lid: None
+
+    def state():
+        return m.load_state(root)
+
+    def at(st, lid):
+        return next((d for d in st["DEMONS"] if d["levelId"] == lid), None)
+
+    def ids(st):
+        return [d["levelId"] for d in st["DEMONS"]]
+
+    def snap():
+        return {f: m.read(root, "data/" + f) for f in os.listdir(os.path.join(root, "data"))}
+
+    def put(kept):  # data/ as it was in kept (a file that wasn't there goes)
+        for f in os.listdir(os.path.join(root, "data")):
+            if f not in kept:
+                os.remove(os.path.join(root, "data", f))
+        for f, text in kept.items():
+            m.write(root, "data/" + f, text)
+
+    s0 = state()
+    site, L0 = s0["SITE"], s0["DEMONS"]
+
+    def base(d):
+        return m.base_value(d, site)
+
+    def r2(x):
+        return round(x, 2)
+
+    def won(d, who):
+        return any(r["player"] == who and r.get("progress", 0) >= 100 for r in d.get("records", []))
+
+    def grouped(d):
+        return isinstance(d.get("swapGroup"), (int, float)) and not isinstance(d.get("swapGroup"), bool)
+
+    # the editor: whoever has beaten the most Insane Demons on the list; the pairs come from those
+    tally = {}
+    for d in L0:
+        for r in d.get("records", []) if d["difficulty"] == "Insane" and not grouped(d) else []:
+            if r.get("progress", 0) >= 100:
+                tally[r["player"]] = tally.get(r["player"], 0) + 1
+    E = min(tally, key=lambda x: (-tally[x], x)) if tally else None
+    mine = [d for d in L0 if d["difficulty"] == "Insane" and not grouped(d) and E and won(d, E)]
+    if len(mine) < 4:
+        skipped.append("the Insane swap engine checks - nobody on this list has beaten 4 Insane Demons that aren't swapped")
+        return
+    grind = {g["levelId"] for g in s0["GOALS"]}
+    taken = set(ids(s0)) | grind | {int(k) for k in s0["GOAL_LEVELS"]} | {u["levelId"] for u in s0["UNRATED"]}
+    WORKED = (82824219, 75078198)  # the SPEC's example: Heritage up over MikuMikuMikuMiku (Aceabase, 2026-10-31)
+    hi, lo = at(s0, WORKED[0]), at(s0, WORKED[1])
+    worked = (E == "Dihmaster500" and hi in mine and lo in mine and lo["position"] - hi["position"] >= 2
+              and not grind & set(WORKED) and r2(base(hi)) != r2(base(lo)))
+    if not worked:
+        hi, lo = next(((x, y) for i, x in enumerate(mine) for y in mine[i + 1:] if y["position"] - x["position"] >= 2
+                       and r2(base(x)) != r2(base(y)) and not grind & {x["levelId"], y["levelId"]}), (None, None))
+    if not hi:
+        skipped.append("the Insane swap engine checks - no two of " + E + "'s Insane Demons with one between them")
+        return
+    a, b = lo["name"].strip(), hi["name"].strip()  # a goes up over b
+    p, q, gid = hi["position"], lo["position"], min(hi["levelId"], lo["levelId"])
+    flag(ON)
+
+    def run(ops, role="head", editor=None, engine_editor=True):
+        """(None, engine, False) when it went through and check() passed, else (why, engine,
+        whether data/ had changed by then); a refused run puts data/ back, as the runner does."""
+        editor = E if editor is None else editor
+        kept = snap()
+        e = m.Engine(root, role, editor=editor) if engine_editor else m.Engine(root, role)
+        try:
+            pl = m.validate({"requestId": "0" * 16, "editor": editor, "role": role, "ops": ops})
+            e.apply(pl["ops"])
+            m.check(root)
+            return None, e, False
+        except m.Refuse as x:
+            wrote = snap() != kept
+            put(kept)
+            return str(x), e, wrote
+
+    def swap(up, down, **k):
+        return run([{"op": "swap_insanes", "up": up["levelId"], "down": down["levelId"]}], **k)
+
+    def values(st):  # what every demon is placed and scored at, top to bottom (rating_value)
+        return [m.rating_value(d, site, st["DEMONS"]) for d in st["DEMONS"]]
+
+    def keep(label, same=True):  # this state for the JS side: DL.demonRating must be rating_value
+        st = state()
+        states.append({"label": label, "same": same, "demons": st["DEMONS"],
+                       "py": {str(d["levelId"]): m.rating_value(d, st["SITE"], st["DEMONS"]) for d in st["DEMONS"]}})
+
+    # --- a swap, the same swap again, and back ---------------------------------------------------
+    start, st0 = snap(), state()
+    had = sum(1 for d in st0["DEMONS"] if "swapGroup" in d)  # swaps already on the list
+    err, e, _ = swap(lo, hi)
+    st = state()
+    moved = sorted(d["levelId"] for d in st["DEMONS"] if d["position"] != at(st0, d["levelId"])["position"])
+    new = m.new_log_items(st0["CHANGELOG"], st["CHANGELOG"])
+    ok("swaps (engine): " + a + " up over " + b + " by " + E + " - the two trade places, nobody else moves, check() passes",
+       err is None and at(st, lo["levelId"])["position"] == p and at(st, hi["levelId"])["position"] == q
+       and moved == sorted([hi["levelId"], lo["levelId"]]), err or moved)
+    ok("swaps (engine): ...both get swapGroup, the smaller level id, as their last key - nobody else's changes",
+       at(st, lo["levelId"]).get("swapGroup") == gid == at(st, hi["levelId"]).get("swapGroup")
+       and list(at(st, lo["levelId"]))[-1] == list(at(st, hi["levelId"]))[-1] == "swapGroup"
+       and sum(1 for d in st["DEMONS"] if "swapGroup" in d) == had + 2, [at(st, x["levelId"]) for x in (lo, hi)])
+    want = {"kind": "swap", "demon": lo["name"], "demonId": lo["levelId"], "from": q, "to": p,
+            "with": hi["name"], "withId": hi["levelId"], "by": E}
+    ok("swaps (engine): ...one changelog item, kind swap, keys in order", new == [want] and list(new[0]) == list(want), new)
+    say = "Swapped: %s is #%d now and %s #%d (%s has beaten both)." % (a, p, b, q, E)
+    ok("swaps (engine): ...says so, one commit subject, no other tool run", say in e.lines and e.subjects == ["Swap: " + a + " above " + b]
+       and not ran, (e.lines, e.subjects, ran))
+    if worked:
+        ok("swaps (engine): ...in the SPEC's words for its example", say == "Swapped: Heritage is #40 now and MikuMikuMikuMiku #46 "
+           "(Dihmaster500 has beaten both)." and e.subjects == ["Swap: Heritage above MikuMikuMikuMiku"], (say, e.subjects))
+    ok("swaps (engine): ...each takes the other's value, and every position keeps its value",
+       m.rating_value(at(st, lo["levelId"]), site, st["DEMONS"]) == base(hi) and m.rating_value(at(st, hi["levelId"]), site, st["DEMONS"])
+       == base(lo) and values(st) == values(st0))
+    keep("one swap")
+    before = snap()
+    err, e, _ = swap(lo, hi)
+    ok("swaps (engine): the same swap again is no change - nothing written", err is None
+       and a + " is already above " + b + " - no change." in e.lines and snap() == before and not e.subjects, err or e.lines)
+    err, e, _ = swap(hi, lo)
+    st = state()
+    new = m.new_log_items(st0["CHANGELOG"], st["CHANGELOG"])
+    ok("swaps (engine): swapping them back - today's order, no swapGroup, data/demons.js byte for byte as it was",
+       err is None and ids(st) == ids(st0) and m.read(root, "data/demons.js") == start["demons.js"], err)
+    ok("swaps (engine): ...it says they're not swapped anymore, and logs a second swap item", "Swapped: %s is #%d now and %s #%d "
+       "(%s has beaten both). That's their own order again, so they're not swapped anymore." % (b, p, a, q, E) in e.lines
+       and [x["kind"] for x in new] == ["swap", "swap"] and (new[0]["demonId"], new[0]["from"], new[0]["to"]) == (hi["levelId"], q, p),
+       (e.lines, new))
+
+    # --- chains: the editor's name in other letters, a second group, a merge, and back ------------
+    E2 = E.lower() if E.lower() != E else E.upper()
+    err, e, _ = swap(lo, hi, editor=E2)
+    st = state()
+    ok("swaps (engine): the editor's name in other letters (" + E2 + ") still finds " + E + "'s clears", err is None
+       and at(st, lo["levelId"])["position"] == p and st["CHANGELOG"][0]["items"][0]["by"] == E2, err)
+    rest = [d for d in mine if d["levelId"] not in (hi["levelId"], lo["levelId"])]
+    c, dd = sorted(((x, y) for i, x in enumerate(rest) for y in rest[i + 1:] if r2(base(x)) != r2(base(y))),
+                   key=lambda xy: xy[1]["position"] - xy[0]["position"])[0]  # dd goes up over c
+    err, e, _ = swap(dd, c)
+    st = state()
+    g2 = min(c["levelId"], dd["levelId"])
+    ok("swaps (engine): a second pair (" + dd["name"].strip() + " up over " + c["name"].strip() + ") is a group of its own",
+       err is None and at(st, dd["levelId"]).get("swapGroup") == g2 == at(st, c["levelId"]).get("swapGroup")
+       and at(st, lo["levelId"]).get("swapGroup") == gid and values(st) == values(st0), err)
+    keep("two groups")
+    vals = {d["levelId"]: m.rating_value(d, site, st["DEMONS"]) for d in st["DEMONS"]}
+    x, y = next((x, y) for x in (lo, hi) for y in (c, dd) if r2(vals[x["levelId"]]) != r2(vals[y["levelId"]]))
+    u, w = (x, y) if at(st, x["levelId"])["position"] > at(st, y["levelId"])["position"] else (y, x)
+    err, e, _ = swap(u, w)
+    st = state()
+    four, g = (hi, lo, c, dd), min(hi["levelId"], lo["levelId"], c["levelId"], dd["levelId"])
+    ok("swaps (engine): a swap across the groups (" + u["name"].strip() + " up over " + w["name"].strip() + ") merges them under the smallest id",
+       err is None and all(at(st, z["levelId"]).get("swapGroup") == g for z in four)
+       and sum(1 for d in st["DEMONS"] if "swapGroup" in d) == had + 4, err or [at(st, z["levelId"]).get("swapGroup") for z in four])
+    ok("swaps (engine): ...every position still keeps its value", values(st) == values(st0))
+    merged = snap()
+    keep("a merged group of four")
+    err, e, _ = swap(w, u)
+    st = state()
+    ok("swaps (engine): swapping that pair back keeps the group (the others are still swapped)", err is None
+       and all(at(st, z["levelId"]).get("swapGroup") == g for z in four) and values(st) == values(st0), err)
+    err, e, _ = swap(c, dd)
+    st = state()
+    ok("swaps (engine): ...and so does swapping the second pair back", err is None
+       and all(at(st, z["levelId"]).get("swapGroup") == g for z in four), err)
+    err, e, _ = swap(hi, lo)
+    st = state()
+    ok("swaps (engine): swapping the last pair back - today's order, none of their swapGroups left", err is None and ids(st) == ids(st0)
+       and [d.get("swapGroup") for d in st["DEMONS"]] == [d.get("swapGroup") for d in st0["DEMONS"]]
+       and any(x.endswith("so they're not swapped anymore.") for x in e.lines), err)
+
+    # --- refused, before anything is written --------------------------------------------------------
+    def refused(label, got, want):
+        err, _, wrote = got
+        ok("swaps (engine): refused - " + label, err == want and not wrote, (err, wrote))
+    M = mine[0]
+    beaten_not = next((d for d in L0 if d["difficulty"] == "Insane" and not won(d, E)), None)
+    if beaten_not:
+        refused(E + " hasn't beaten " + beaten_not["name"].strip(), swap(beaten_not, M),
+                E + " hasn't beaten " + beaten_not["name"].strip() + " - only a head mod who has beaten both can swap them")
+    else:
+        skipped.append("the not-beaten refusal - " + E + " has beaten every Insane on this list")
+    ext = next((d for d in L0 if d["difficulty"] == "Extreme"), None)
+    if ext:
+        refused(ext["name"].strip() + " is an Extreme", swap(M, ext), ext["name"].strip() + " is an Extreme Demon - only Insane Demons can be swapped")
+    other = next((d for d in L0 if d["difficulty"] in ("Hard", "Medium", "Easy", "Official")), None)
+    if other:
+        phrase = {"Hard": "a Hard Demon", "Medium": "a Medium Demon", "Easy": "an Easy Demon", "Official": "an Official level"}
+        refused(other["name"].strip() + " is " + phrase[other["difficulty"]], swap(M, other),
+                other["name"].strip() + " is " + phrase[other["difficulty"]] + " - only Insane Demons can be swapped")
+    kept = snap()
+    un = next((x for x in s0["UNRATED"] if x.get("difficulty") == "Insane"), None)
+    if not un:  # a fixture unrated Insane in data/unrated.js (Nigel's Demonlist has no Rated+)
+        lid = next(i for i in range(990000501, 990000600) if i not in taken)
+        un = {"id": lid, "name": "Fixture " + str(lid), "difficulty": "Insane", "rating": 17, "publisher": "Someone",
+              "creators": ["Someone"], "verifier": None, "videoUrl": None, "thumbnailUrl": None, "levelId": lid,
+              "description": None, "requirementPercent": 100, "records": [], "gd": {"inGameDifficulty": "Unrated"},
+              "added": "2026-10-31"}
+        m.write_unrated(root, s0["UNRATED"] + [un])
+    refused("an unrated level (" + un["name"] + ", data/unrated.js)", swap(un, M), "level " + str(un["levelId"]) + " isn't on the list")
+    put(kept)
+    nowhere = next(i for i in range(990000601, 990000700) if i not in taken)
+    refused("a level that's nowhere", run([{"op": "swap_insanes", "up": nowhere, "down": M["levelId"]}]),
+            "level " + str(nowhere) + " isn't on the list")
+    for what, line in (("off", OFF), ("gone, as on Nigel's Demonlist", GONE)):
+        flag(line)
+        refused("the flag " + what, swap(lo, hi), "this list doesn't have insane swaps")
+    flag(ON)
+    refused("a mod", swap(lo, hi, role="mod"), "edit 1 (swap_insanes): only head mods can swap insanes")
+    refused("the scheduled upkeep (no clears)", swap(lo, hi, editor="Upkeep"),
+            "Upkeep hasn't beaten " + a + " - only a head mod who has beaten both can swap them")
+    refused("an Engine that wasn't told who sent it", swap(lo, hi, engine_editor=False),
+            "this edit doesn't say who sent it - only a head mod who has beaten both can swap them")
+    refused("the same level twice", run([{"op": "swap_insanes", "up": lo["levelId"], "down": lo["levelId"]}]),
+            "edit 1 (swap_insanes): up and down are the same level - pick two different ones")
+    tie = next(((x, y) for x, y in zip(mine, mine[1:]) if y["position"] == x["position"] + 1
+                and not isinstance(y.get("aredlPosition"), int)), None)
+    if tie:  # y, right below x, gets x's value to 2 dp as its GDDL rating: still in order, now tied
+        x, y = tie
+        kept = snap()
+        st = state()
+        at(st, y["levelId"])["rating"] = r2(base(x))
+        m.write_json_var(root, "data/demons.js", "DEMONS", st["DEMONS"])
+        try:
+            m.check(root)
+            fixture = None
+        except m.Refuse as why:
+            fixture = str(why)
+        ok("swaps (engine): (the tie fixture checks out)", fixture is None, fixture)
+        refused("a tie at 2 decimals (" + y["name"].strip() + " and " + x["name"].strip() + ")", swap(y, x),
+                "%s and %s are tied at %.2f - swapping them changes nothing" % (y["name"].strip(), x["name"].strip(), r2(base(x))))
+        put(kept)
+    else:
+        skipped.append("the tie refusal - no two of " + E + "'s Insane Demons next to each other")
+    try:
+        m.check(root)
+        ok("swaps (engine): after the refusals the list is as it was and checks out", ids(state()) == ids(st0))
+    except m.Refuse as why:
+        ok("swaps (engine): after the refusals the list is as it was and checks out", False, why)
+
+    # --- the tools' re-sorts keep a swap (their real main(), nothing answering but these fakes) ----
+    put(start)
+    flag(ON)
+    swap(lo, hi)
+    p1, st1 = snap(), state()
+
+    class NoSleep:
+        @staticmethod
+        def sleep(_):
+            pass
+
+    def capture(fn, argv):
+        said, old = io.TextIOWrapper(io.BytesIO(), encoding="utf-8", write_through=True), sys.argv
+        sys.argv = argv
+        try:
+            with contextlib.redirect_stdout(said):
+                fn()
+        except SystemExit as x:
+            said.write("\nexit: " + str(x.code))
+        finally:
+            sys.argv = old
+        return said.buffer.getvalue().decode("utf-8", "replace")
+
+    def checked():
+        try:
+            m.check(root)
+            return None
+        except m.Refuse as why:
+            return str(why)
+
+    def placements(st):  # the AREDL as the data has it: the listed demons' and the Grind levels' placements
+        return ([{"level_id": d["levelId"], "position": d["aredlPosition"]} for d in st["DEMONS"] if isinstance(d.get("aredlPosition"), int)]
+                + [{"level_id": int(k), "position": v["aredlPosition"]} for k, v in st["GOAL_LEVELS"].items()
+                   if isinstance(v.get("aredlPosition"), int)])
+
+    def refresh(drift=None, aredl_moves=None):
+        """refresh-order.py's main(): the AREDL, its fit and the GDDL ratings as stored, but for
+        drift {levelId: new rating} and aredl_moves {levelId: new AREDL placement}. (before,
+        after, its output, check()'s problem)"""
+        st = state()
+        fit, aredl = dict(st["SITE"]["aredlFit"]), placements(st)
+        if aredl_moves:
+            aredl = [x for x in aredl if x["level_id"] not in aredl_moves] + [
+                {"level_id": k, "position": v} for k, v in aredl_moves.items()]
+        ratings = {d["levelId"]: d.get("rating") for d in st["DEMONS"]}
+        ratings.update(drift or {})
+
+        def fake(url):
+            if url == ro.AREDL:
+                return aredl
+            lid = int(url.rstrip("/").rsplit("/", 1)[1])
+            return {"ID": lid, "Rating": ratings.get(lid)}
+        ro.curl_json, ro.fit_curve, ro.time = fake, (lambda levels: dict(fit)), NoSleep
+        said = capture(ro.main, ["refresh-order.py"])
+        return st, state(), said, checked()
+
+    def add(records, aredl_extra=None, new_levels=None):
+        """add-records.py's main() on a spec of records: the AREDL as stored (plus aredl_extra),
+        a new level's facts from new_levels. (before, after, its output, check()'s problem)"""
+        st = state()
+        aredl = placements(st) + [{"level_id": k, "position": v} for k, v in (aredl_extra or {}).items()]
+        ar.curl_json = lambda url: aredl if url == ar.AREDL else None
+        ar.fetch_level = lambda lid, allowed: ((dict(new_levels[lid]), None) if lid in (new_levels or {}) else (None, "(test) unknown"))
+        spec = os.path.join(tmp, "spec.json")
+        with io.open(spec, "w", encoding="utf-8") as f:
+            json.dump({"records": records}, f)
+        said = capture(ar.main, ["add-records.py", spec])
+        return st, state(), said, checked()
+
+    def moves(before, after):
+        return [x for x in m.new_log_items(before["CHANGELOG"], after["CHANGELOG"]) if x["kind"] == "move"]
+
+    def pair_kept(st):
+        return (at(st, lo["levelId"])["position"] < at(st, hi["levelId"])["position"]
+                and at(st, lo["levelId"]).get("swapGroup") == gid == at(st, hi["levelId"]).get("swapGroup"))
+
+    before, after, said, why = refresh()
+    ok("swaps (refresh-order): nothing drifted - no moves, the swap stays, check() passes", why is None and not moves(before, after)
+       and ids(after) == ids(before) and pair_kept(after) and "replay check: OK" in said, why or said[-400:])
+    plain = not isinstance(hi.get("aredlPosition"), int) and not isinstance(lo.get("aredlPosition"), int)
+    nxt = next(d for d in st1["DEMONS"] if d["position"] == p + 1)  # right below the swapped pair's top
+    drift = r2(m.rating_value(nxt, site, st1["DEMONS"]) - 0.01)  # just under what's placed there
+    if plain and drift > base(lo):
+        put(p1)
+        before, after, said, why = refresh({hi["levelId"]: drift})
+        mv, old = moves(before, after), at(before, hi["levelId"])["rating"]
+        ok("swaps (refresh-order): " + b + "'s GDDL rating drifts " + str(old) + " -> " + str(drift) + " - the pair keeps its order and "
+           "trades the new value, check() passes", why is None and mv and pair_kept(after)
+           and m.rating_value(at(after, lo["levelId"]), site, after["DEMONS"]) == drift
+           and m.rating_value(at(after, hi["levelId"]), site, after["DEMONS"]) == base(lo), why or mv)
+        reason = "GD Demon Ladder rating refresh - %s %s → %s (swapped with %s)" % (hi["name"], old, drift, lo["name"])
+        ok("swaps (refresh-order): ...whoever passes " + a + " says whose drift it was", all(x["text"] == reason for x in mv),
+           [x["text"] for x in mv])
+        keep("refresh-order: a swapped demon's rating drifted", same=False)
+    else:
+        skipped.append("the refresh-order partner-drift check - the swapped pair has an AREDL placement, or no room under it")
+    if isinstance(nxt.get("aredlPosition"), int) or grouped(nxt):
+        skipped.append("the refresh-order third-demon drift check - " + nxt["name"].strip() + " goes by its AREDL placement or is swapped")
+    else:
+        put(p1)
+        new3 = r2(base(hi) + 0.01)  # nxt, in no swap, drifts over what the pair's top holds
+        before, after, said, why = refresh({nxt["levelId"]: new3})
+        mv, old3 = moves(before, after), at(before, nxt["levelId"])["rating"]
+        ok("swaps (refresh-order): " + nxt["name"].strip() + " (no swap) drifts over " + a + " - one move, its own drift the reason, the pair stays",
+           why is None and len(mv) == 1 and mv[0]["demonId"] == nxt["levelId"] and mv[0]["from"] == p + 1 and mv[0]["to"] <= p
+           and mv[0]["text"] == "GD Demon Ladder rating refresh - %s %s → %s" % (nxt["name"], old3, new3) and pair_kept(after), why or mv)
+    members = [x["name"] for x in site.get("members") or []]
+    P = next((n for n in members if n != E and not any(r["player"] == n for r in hi.get("records", []))), None)
+    if P:
+        put(p1)
+        before, after, said, why = add([{"player": P, "level": hi["levelId"], "progress": 100}])
+        ok("swaps (add-records): " + P + " beats " + b + " - no moves, the swap stays, check() passes", why is None and not moves(before, after)
+           and ids(after) == ids(before) and pair_kept(after) and any(r["player"] == P for r in at(after, hi["levelId"])["records"]),
+           why or said[-400:])
+        put(p1)
+        NEW = next(i for i in range(990000701, 990000800) if i not in taken)
+        held = {r2(v) for v in values(st1)}
+        r = next(x for x in (r2((base(hi) + base(lo)) / 2 + k * 0.01) for k in (0, 1, -1, 2, -2, 3, -3, 4, -4))
+                 if base(lo) < x < base(hi) and x not in held)
+        allowed = site.get("allowedDifficulties")
+        def tier(d):
+            return allowed.index(d["difficulty"]) if allowed and d["difficulty"] in allowed else 0
+        exp = 1 + sum(1 for d in st1["DEMONS"] if (tier(d), -r2(m.rating_value(d, site, st1["DEMONS"]))) < (tier({"difficulty": "Insane"}), -r))
+        level = {"id": NEW, "position": 0, "name": "Swap Fixture", "difficulty": "Insane", "rating": r, "publisher": "Someone",
+                 "creators": ["Someone"], "verifier": None, "videoUrl": None, "thumbnailUrl": None, "levelId": NEW, "description": None,
+                 "requirementPercent": 100, "records": [], "gd": {"inGameDifficulty": "Insane Demon"}}
+        before, after, said, why = add([{"player": P, "level": NEW, "progress": 100}], new_levels={NEW: level})
+        new = m.new_log_items(before["CHANGELOG"], after["CHANGELOG"])
+        ok("swaps (add-records): a new Insane rated %.2f goes in by its own value, at #%d between the two; nobody re-sorted; check() passes"
+           % (r, exp), why is None and at(after, NEW) and at(after, NEW)["position"] == exp and "swapGroup" not in at(after, NEW)
+           and at(after, lo["levelId"])["position"] == p and at(after, hi["levelId"])["position"] == q + 1 and pair_kept(after)
+           and [x["kind"] for x in new] == ["add"] and new[0]["at"] == exp, why or new or said[-400:])
+        fit = site.get("aredlFit")
+        if fit and plain:
+            put(p1)
+            low = fit["a"] + fit["b"] * 5000 ** fit["exponent"]
+            before, after, said, why = add([{"player": P, "level": hi["levelId"], "progress": 100}], aredl_extra={hi["levelId"]: 5000})
+            ok("swaps (add-records): the AREDL places " + b + " at #5000 (%.2f) - the two keep their order, each now at its own value; "
+               "check() passes" % low, why is None and pair_kept(after) and at(after, hi["levelId"])["aredlPosition"] == 5000
+               and m.rating_value(at(after, lo["levelId"]), site, after["DEMONS"]) == base(lo)
+               and abs(m.rating_value(at(after, hi["levelId"]), site, after["DEMONS"]) - low) < 1e-9, why or said[-400:])
+            keep("add-records: the AREDL placed a swapped demon", same=False)
+    else:
+        skipped.append("the add-records checks - no member to add a clear for")
+
+    # --- a swapped demon leaves the list (remove_record of every clear on it, the editor's last) -----
+    def leave(d):
+        recs = [r["player"] for r in at(state(), d["levelId"])["records"]]
+        return run([{"op": "remove_record", "player": x, "level": d["levelId"]} for x in [x for x in recs if x != E] + [x for x in recs if x == E]])
+    put(p1)
+    st = state()
+    between = [d for d in st["DEMONS"] if p < d["position"] < q]
+    err, e, _ = leave(hi)
+    after = state()
+    new = m.new_log_items(st["CHANGELOG"], after["CHANGELOG"])
+    why = "Swap ended - " + b + " left the list"
+    ok("swaps (engine): " + b + " leaves the list - the swap ends, " + a + " goes back down, the " + str(len(between))
+       + (" demon between moves" if len(between) == 1 else " demons between move") + " up a place; check() passes", err is None and at(after, hi["levelId"]) is None and at(after, lo["levelId"])["position"] == q - 1
+       and "swapGroup" not in at(after, lo["levelId"])
+       and new[:len(between)] == [{"kind": "move", "demon": d["name"], "demonId": d["levelId"], "from": d["position"],
+                                   "to": d["position"] - 1, "text": why} for d in reversed(between)]
+       and new[len(between)] == {"kind": "remove", "demon": hi["name"], "demonId": hi["levelId"], "from": q,
+                                 "text": "its only record (" + E + "'s) was removed"}, err or new[:len(between) + 1])
+    put(p1)
+    err, e, _ = leave(lo)
+    after = state()
+    new = m.new_log_items(st["CHANGELOG"], after["CHANGELOG"])
+    ok("swaps (engine): " + a + " leaves instead - " + b + " goes back up to #" + str(p) + ", one move; check() passes", err is None
+       and at(after, lo["levelId"]) is None and at(after, hi["levelId"])["position"] == p and "swapGroup" not in at(after, hi["levelId"])
+       and new[:2] == [{"kind": "move", "demon": hi["name"], "demonId": hi["levelId"], "from": q - 1, "to": p,
+                        "text": "Swap ended - " + a + " left the list"},
+                       {"kind": "remove", "demon": lo["name"], "demonId": lo["levelId"], "from": p,
+                        "text": "its only record (" + E + "'s) was removed"}], err or new[:3])
+    put(merged)
+    st = state()
+    err, e, _ = leave(u)
+    after = state()
+    left = min(z["levelId"] for z in four if z["levelId"] != u["levelId"])  # its number if it's still swapped
+    rest3 = [at(after, z["levelId"]).get("swapGroup") for z in four if z["levelId"] != u["levelId"]]
+    still = all(x == left for x in rest3)
+    mv = moves(st, after)
+    ok("swaps (engine): " + u["name"].strip() + " leaves a group of four - the other three re-sort offline (Swap "
+       + ("changed, the group numbered " + str(left) + ", the smallest level id left in it" if still else "ended") + "); check() passes",
+       err is None and (still or all(x is None for x in rest3))
+       and all(x["text"] == "Swap " + ("changed" if still else "ended") + " - " + u["name"].strip() + " left the list" for x in mv),
+       err or (rest3, mv))
+    keep("a member of a group of four left", same=False)
+
+    # --- a tie inside a swap keeps the head mods' order: the sort keys skip a swapped demon's own
+    # AREDL placement as a tie-break (tools/swaps.py members). The AREDL places b - below a now -
+    # and walks b's own value down through a's: over it, tied with it to 2 dp, under it. Every
+    # upkeep keeps a above b. At the tie a clear (add-records.py) keeps it too, and so does a third
+    # member of the group leaving the list (Engine.swap_left), which numbers the group by the
+    # smallest level id left in it; that level, back on the list and swapped with another demon,
+    # makes a group of its own.
+    fit = site.get("aredlFit")
+    if not (fit and plain):
+        skipped.append("the swap tie checks - the swapped pair has an AREDL placement, or the list has no AREDL fit")
+    else:
+        def own_at(n):  # the value the fit gives AREDL placement n
+            return fit["a"] + fit["b"] * n ** fit["exponent"]
+
+        def spot(v):  # the last AREDL placement worth v or more
+            return max(1, int(((v - fit["a"]) / fit["b"]) ** (1 / fit["exponent"])))
+        va = base(lo)
+        around = range(max(1, spot(va) - 80), spot(va) + 80)
+        # the tie: a placement worth a's value to 2 dp, a little over it (so the two still trade
+        # values), else a little under it
+        tie = (next((n for n in around if r2(own_at(n)) == r2(va) and own_at(n) > va), None)
+               or next((n for n in around if r2(own_at(n)) == r2(va) and own_at(n) < va), None))
+        put(p1)
+        walk, tied = [], None
+        for label, n in (("over", spot(va + 0.05)), ("tied", tie), ("under", spot(va - 0.05) + 1)):
+            if n is None:
+                continue
+            before, after, said, why = refresh(aredl_moves={hi["levelId"]: n})
+            walk.append([label, n, round(own_at(n), 4), why, at(after, lo["levelId"])["position"], at(after, hi["levelId"])["position"]])
+            ok("swaps (refresh-order): the AREDL places " + b + " at #%d (%.4f, %s %s's %.2f) - %s stays above it, check() passes"
+               % (n, own_at(n), label if label != "tied" else "tied to 2 dp with", a, va, a), why is None and pair_kept(after), walk[-1])
+            if label == "tied":
+                tied = snap()
+                keep("a tie inside a swap", same=False)
+        if tie is None:
+            ok("swaps (refresh-order): (an AREDL placement ties with %s's %.2f)" % (a, va), False, list(around)[:3])
+        if P and tied:
+            put(tied)
+            before, after, said, why = add([{"player": P, "level": hi["levelId"], "progress": 100}])
+            ok("swaps (add-records): at that tie " + P + " beats " + b + " - no moves, " + a + " stays above it, check() passes",
+               why is None and not moves(before, after) and pair_kept(after), why or moves(before, after) or said[-300:])
+        # the smallest level id among the editor's other Insanes joins the tied pair's group, then leaves
+        free = sorted((d for d in mine if d["levelId"] not in (lo["levelId"], hi["levelId"])), key=lambda d: d["levelId"])
+        c = next((d for d in free if r2(base(d)) != r2(va)), None)
+        w = next((d for d in free if c and d is not c and r2(base(d)) != r2(base(c))), None)
+        if not (tied and tie and own_at(tie) > va and c and w):
+            skipped.append("the swap tie checks with a third member - no tie where the two still trade, or too few Insanes")
+        else:
+            put(tied)
+            st = state()
+            x, y = (c, hi) if at(st, c["levelId"])["position"] > at(st, hi["levelId"])["position"] else (hi, c)
+            err1, _, _ = swap(x, y)
+            st2, g3 = state(), min(lo["levelId"], hi["levelId"], c["levelId"])
+            three = err1 is None and all(at(st2, z["levelId"]).get("swapGroup") == g3 for z in (lo, hi, c))
+            err2, _, _ = leave(c)
+            after = state()
+            ok("swaps (engine): " + c["name"].strip() + " joins the tied pair's group (number " + str(g3) + ") and leaves the list - "
+               + a + " stays above " + b + ", their group numbered " + str(gid) + " (the smallest level id left); check() passes",
+               three and err2 is None and at(after, c["levelId"]) is None and pair_kept(after),
+               (err1, three, err2, [(z["name"].strip(), at(after, z["levelId"]) and at(after, z["levelId"])["position"],
+                                     at(after, z["levelId"]) and at(after, z["levelId"]).get("swapGroup")) for z in (lo, hi)]))
+            fresh = {k: v for k, v in at(s0, c["levelId"]).items() if k not in ("swapGroup", "aredlPosition")}
+            fresh.update(position=0, records=[], verifier=None)
+            before, back, said, why = add([{"player": E, "level": c["levelId"], "progress": 100}], new_levels={c["levelId"]: fresh})
+            st3 = state()
+            x, y = (c, w) if at(st3, c["levelId"])["position"] > at(st3, w["levelId"])["position"] else (w, c)
+            err3, _, _ = swap(x, y)
+            st4, g2 = state(), min(c["levelId"], w["levelId"])
+            ok("swaps (engine): " + c["name"].strip() + " back on the list and swapped with " + w["name"].strip() + " - a group of its own ("
+               + str(g2) + "), " + a + " and " + b + " keep theirs; check() passes", why is None and err3 is None
+               and at(st4, c["levelId"]).get("swapGroup") == g2 == at(st4, w["levelId"]).get("swapGroup") and pair_kept(st4)
+               and sum(1 for d in st4["DEMONS"] if d.get("swapGroup") == g2) == 2,
+               (why, err3, [(d["name"].strip(), d.get("swapGroup")) for d in st4["DEMONS"] if "swapGroup" in d]))
+
+    # --- a swap never joins another group through a number that group has from elsewhere (a hand
+    # edit or an undo can leave one): the new pair takes the next smallest id nobody has ------------
+    put(start)
+    flag(ON)
+    pool = sorted(mine, key=lambda d: d["levelId"])
+    Z = pool[0]
+    W = next((d for d in pool[1:] if r2(base(d)) != r2(base(Z))), None)
+    XY = [d for d in pool if d is not Z and d is not W][:2]
+    if not W or len(XY) < 2:
+        skipped.append("the stale group number check - too few Insanes")
+    else:
+        st = state()
+        for d in XY:  # X and Y carry Z's level id: a group in its own order, so nothing changes
+            at(st, d["levelId"])["swapGroup"] = Z["levelId"]
+        m.write_json_var(root, "data/demons.js", "DEMONS", st["DEMONS"])
+        ok("swaps (engine): (the stale group number fixture checks out)", checked() is None, checked())
+        x, y = (Z, W) if at(st, Z["levelId"])["position"] > at(st, W["levelId"])["position"] else (W, Z)
+        err, _, _ = swap(x, y)
+        st = state()
+        num = {d["name"].strip(): d.get("swapGroup") for d in st["DEMONS"] if "swapGroup" in d}
+        ok("swaps (engine): " + x["name"].strip() + " up over " + y["name"].strip() + " while two others carry " + Z["name"].strip()
+           + "'s level id as their group number - the pair takes " + W["name"].strip() + "'s (" + str(W["levelId"]) + "), the two keep theirs",
+           err is None and at(st, Z["levelId"]).get("swapGroup") == W["levelId"] == at(st, W["levelId"]).get("swapGroup")
+           and all(at(st, d["levelId"]).get("swapGroup") == Z["levelId"] for d in XY) and len(num) == 4, err or num)
+
+    # --- the runner: a dry run through main(), and a real one (--no-push) in a git repo ----------
+    put(start)
+    flag(ON)
+    pf = os.path.join(tmp, "payload.json")
+    op = {"op": "swap_insanes", "up": lo["levelId"], "down": hi["levelId"]}
+    with io.open(pf, "w", encoding="utf-8") as f:
+        json.dump({"requestId": "1" * 16, "editor": E, "role": "head", "dryRun": True, "ops": [op]}, f)
+    before = snap()
+    said = capture(m.main, ["apply-edit.py", pf])
+    ok("swaps (runner): a dry run of the payload - the payload's editor reaches the engine; a throwaway copy changes",
+       "Dry run - Swap: " + a + " above " + b + " (by " + E + " via the mod page)" in said and say in said
+       and "would change data/demons.js" in said and "would change data/changelog.js" in said and snap() == before, said[-600:])
+    repo, hooks, offline = os.path.join(tmp, "repo"), os.path.join(tmp, "no-hooks"), os.path.join(tmp, "offline")
+    shutil.copytree(root, repo, ignore=shutil.ignore_patterns(".git", "videos", "__pycache__"))
+    os.makedirs(hooks)
+    os.makedirs(offline)
+    with io.open(os.path.join(offline, "sitecustomize.py"), "w", encoding="utf-8") as f:
+        f.write(OFFLINE)
+    genv = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}  # nothing points git at another repo
+
+    def git(*args):
+        return real_run(["git", "-C", repo] + list(args), env=genv, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    for args in (["init", "-q"], ["config", "user.name", "Test"], ["config", "user.email", "test@example.com"],
+                 ["config", "core.autocrlf", "false"], ["config", "commit.gpgsign", "false"], ["config", "core.hooksPath", hooks],
+                 ["add", "-A"], ["commit", "-q", "-m", "The site"]):
+        done = git(*args)
+        if done.returncode:
+            raise RuntimeError("git " + " ".join(args) + ": " + (done.stderr or done.stdout).strip()[:300])
+    if git("rev-parse", "--git-dir").stdout.strip() != ".git" or git("remote").stdout.strip():
+        raise RuntimeError("the copy isn't a git repo of its own")
+    head0 = git("rev-parse", "HEAD").stdout.strip()
+    pf = os.path.join(tmp, "payload-real.json")  # (outside the repo: a run needs a clean tree)
+    with io.open(pf, "w", encoding="utf-8") as f:
+        json.dump({"requestId": "2" * 16, "editor": E, "role": "head", "ops": [op]}, f)
+    env = dict(genv, PYTHONUTF8="1", PYTHONIOENCODING="utf-8", PYTHONDONTWRITEBYTECODE="1",
+               PYTHONPATH=offline + (os.pathsep + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH") else ""))
+    for k in ("GITHUB_ACTIONS", "GITHUB_STEP_SUMMARY"):
+        env.pop(k, None)
+    done = real_run([sys.executable, "-B", os.path.join(repo, "tools", "apply-edit.py"), pf, "--no-push"], cwd=repo, env=env,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+    said = done.stdout + done.stderr
+
+    def committed():  # {levelId: (position, swapGroup)} in data/demons.js as committed
+        shown = git("show", "HEAD:data/demons.js").stdout
+        try:
+            dem = json.loads(shown[shown.index("=", shown.index("window.DEMONS")) + 1:].strip().rstrip(";"))
+        except ValueError:
+            dem = []
+        return {d["levelId"]: (d["position"], d.get("swapGroup")) for d in dem}
+    pos = committed()
+    ok("swaps (runner): a real run (--no-push) - one commit by the bot, 'Swap: " + a + " above " + b + " (by " + E + " via the mod page)', "
+       "the two swapped in it", done.returncode == 0 and "(not pushed)" in said and git("rev-parse", "HEAD~1").stdout.strip() == head0
+       and not git("status", "--porcelain").stdout.strip() and git("log", "-1", "--format=%an").stdout.strip() == m.BOT_NAME
+       and git("log", "-1", "--format=%s").stdout.strip() == "Swap: " + a + " above " + b + " (by " + E + " via the mod page)"
+       and pos.get(lo["levelId"]) == (p, gid) and pos.get(hi["levelId"]) == (q, gid), said[-800:])
+
+    # undo swaps them again, so it takes a head mod who has beaten both (Engine.undo): another
+    # head mod can't undo the swap, its swapper can, and nobody else can undo that undo either
+    def real(rid, editor, ops):
+        pf = os.path.join(tmp, "payload-" + rid + ".json")
+        with io.open(pf, "w", encoding="utf-8") as f:
+            json.dump({"requestId": rid, "editor": editor, "role": "head", "ops": ops}, f)
+        done = real_run([sys.executable, "-B", os.path.join(repo, "tools", "apply-edit.py"), pf, "--no-push"], cwd=repo, env=env,
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
+        return done.returncode, done.stdout + done.stderr, git("rev-parse", "HEAD").stdout.strip()
+    head1, other = git("rev-parse", "HEAD").stdout.strip(), "Not A Player"
+    refusal = "that edit swapped " + a + " and " + b + " - only a head mod who has beaten both can undo it (or swap them back)"
+    code, said, head = real("3" * 16, other, [{"op": "undo", "requestId": "2" * 16}])
+    ok("swaps (runner): a head mod who hasn't beaten both can't undo the swap - refused, nothing committed",
+       code == 1 and refusal in said and head == head1 and committed() == pos and not git("status", "--porcelain").stdout.strip(), said[-600:])
+    code, said, head = real("4" * 16, E, [{"op": "undo", "requestId": "2" * 16}])
+    back = committed()
+    ok("swaps (runner): ..." + E + " can (they've beaten both) - the two are back in their places, no swapGroup",
+       code == 0 and head != head1 and git("log", "-1", "--format=%s").stdout.strip() == "Undo: Swap: " + a + " above " + b
+       + " (by " + E + " via the mod page)" and back.get(lo["levelId"]) == (q, None)
+       and back.get(hi["levelId"]) == (p, None), said[-600:])
+    code, said, head2 = real("5" * 16, other, [{"op": "undo", "requestId": "4" * 16}])
+    ok("swaps (runner): ...and nobody who hasn't beaten both can undo that undo (it would swap them again)",
+       code == 1 and refusal in said and head2 == head and committed() == back, said[-600:])
+
+    # --- the list as it is: no swapGroup, and the flag gone (Nigel's Demonlist) - nothing changes --
+    if had:
+        skipped.append("the no-swaps checks - this list has swaps now (Nigel's Demonlist still runs them)")
+        return
+    put(start)
+    flag(GONE)
+    st = state()
+    fit = st["SITE"].get("aredlFit")
+    ok("swaps (as it is): no swapGroup - tools/swaps.py hands nothing out; every copy of the rule gives each demon its own value",
+       sw.effective_values(st["DEMONS"], base) == {} and ro.placed_values(st["DEMONS"], fit, sw) == {d["id"]: ro.value(d, fit) for d in st["DEMONS"]}
+       and all(m.rating_value(d, st["SITE"], st["DEMONS"]) == m.base_value(d, st["SITE"]) for d in st["DEMONS"]))
+    # two GDDL drifts that move demons: the last Insane jumps to the top of the Insanes, the first drops below the second
+    ins = [d for d in st["DEMONS"] if d["difficulty"] == "Insane" and not isinstance(d.get("aredlPosition"), int)]
+    drift = {ins[-1]["levelId"]: r2(base(ins[0]) + 0.3), ins[0]["levelId"]: r2(base(ins[1]) - 0.02)}
+    before, after, said, why = refresh(drift)
+    extremes_first = st["SITE"].get("mainListSize") == "extremes"
+    rank = {"Extreme": 0, "Insane": 1}
+    def old_key(d):  # refresh-order.py's key before Insane swaps
+        return ((rank.get(d.get("difficulty"), 2) if extremes_first else 0), -r2(ro.value(d, fit)), d.get("aredlPosition") or 10 ** 9, d["position"])
+    expect = [d["levelId"] for d in sorted([dict(d, rating=drift.get(d["levelId"], d.get("rating"))) for d in before["DEMONS"]], key=old_key)]
+    ok("swaps (as it is): refresh-order.py with two ratings drifted sorts exactly by its old key, and check() passes", why is None
+       and ids(after) == expect and moves(before, after) and not any("swapGroup" in d for d in after["DEMONS"]), why or (ids(after)[:12], expect[:12]))
+
+
+try:
+    scenarios()
+except Exception:
+    import traceback
+    ok("swaps (py): the engine harness ran", False, traceback.format_exc()[-600:])
+finally:
+    for d, _, files in os.walk(tmp):  # git's object files are read-only, which rmtree can't delete on Windows
+        for f in files:
+            try:
+                os.chmod(os.path.join(d, f), 0o600)
+            except OSError:
+                pass
+    shutil.rmtree(tmp, ignore_errors=True)
+out.write(json.dumps({"results": results, "states": states, "skipped": skipped}))
+`;
+  // (the script goes in on stdin: it's longer than a Windows command line may be)
+  const r = spawnSync("python", ["-", ROOT], { input: PYSWAPS, encoding: "utf8", env: { ...process.env, PYTHONUTF8: "1" },
+    maxBuffer: 64 << 20, timeout: 600000 });
+  let got = null;
+  try { got = JSON.parse(r.stdout); } catch { /* below */ }
+  if (!got) {
+    if (r.error || /not found|not recognized/i.test(r.stderr || "")) console.log("(python not available - skipping the Insane swap engine checks)");
+    else check("swaps (py): the engine harness ran", false, (r.stdout + r.stderr).slice(-600));
+  } else {
+    got.skipped.forEach((s) => console.log(`(skipping ${s})`));
+    got.results.forEach((x) => check(x.label, x.ok, x.detail));
+    // what the engine and the tools wrote, as the site reads it: DL.demonRating is the runner's
+    // rating_value for every demon, the list is in order (VERIFY's rule), and a swap keeps every
+    // position's value (so topRating too)
+    if (got.states.length) {
+      const W = {};
+      const sb = { window: W, console: { log() {}, warn() {}, error: console.error } };
+      vm.createContext(sb);
+      for (const f of ["data/config.js", "data/demons.js", "static/js/list-utils.js"]) vm.runInContext(readFileSync(path.join(ROOT, f), "utf8"), sb, { filename: f });
+      const DL = W.DL, allowed = W.SITE.allowedDifficulties;
+      const rankOf = (d) => (allowed ? allowed.indexOf(d.difficulty) : 0);
+      const now = () => DL.sortedDemons().map((d) => DL.demonRating(d));
+      const today = now(), top = DL.topRating();
+      const bad = [];
+      for (const s of got.states) {
+        W.DEMONS = s.demons;
+        DL._topRating = DL._extremeCount = null;
+        const L = DL.sortedDemons();
+        const off = L.filter((d) => !(Math.abs(DL.demonRating(d) - s.py[String(d.levelId)]) < 1e-9)).map((d) => d.name);
+        const unordered = L.filter((d, i) => i && rankOf(L[i - 1]) === rankOf(d)
+          && Math.round(DL.demonRating(L[i - 1]) * 100) < Math.round(DL.demonRating(d) * 100)).map((d) => d.name);
+        const moved = s.same && !(eq(now(), today) && DL.topRating() === top);
+        if (off.length || unordered.length || moved) bad.push({ state: s.label, off, unordered, moved });
+      }
+      check(`swaps (DL): on ${got.states.length} lists the engine and the tools wrote, DL.demonRating is the runner's value, the list is in order, and a swap keeps every position's value`,
+        !bad.length, JSON.stringify(bad[0] || "").slice(0, 300));
+    }
   }
 }
 

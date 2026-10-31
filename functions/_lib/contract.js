@@ -37,6 +37,9 @@ export const OPS = {
   add_unrated: [["level", "rating"], ["difficulty", "placeBelow", "showcase"]],
   set_unrated: [["level"], ["rating", "difficulty", "placeBelow", "showcase"]], // at least one of them
   remove_unrated: [["level"], []],
+  // Insane swaps (SITE.insaneSwaps): head mods who have beaten both put `up`
+  // above `down`. Not "level": that name makes a field eligible for RobTop's answers.
+  swap_insanes: [["up", "down"], []],
 };
 
 // What set_unrated can change (it needs at least one).
@@ -129,7 +132,8 @@ export function checkInt(v, what, lo, hi) {
 }
 
 // A level id or a gdladder.com / gdbrowser.com level link -> the id (a number).
-export function checkLevel(v) {
+// what: the field's name for the message (swap_insanes' up and down are level ids too).
+export function checkLevel(v, what = "level") {
   let lid;
   if (isInt(v)) {
     lid = v;
@@ -138,9 +142,9 @@ export function checkLevel(v) {
   } else if (typeof v === "string" && LEVEL_LINK.test(v.trim())) {
     lid = Number(LEVEL_LINK.exec(v.trim())[1]);
   } else {
-    throw new Refuse(`level ${show(v)} isn't a level id or a gdladder.com / gdbrowser.com level link`);
+    throw new Refuse(`${what} ${show(v)} isn't a level id or a gdladder.com / gdbrowser.com level link`);
   }
-  if (!(lid >= 1 && lid <= MAX_LEVEL_ID)) throw new Refuse(`level ${show(v)} isn't a real level id`);
+  if (!(lid >= 1 && lid <= MAX_LEVEL_ID)) throw new Refuse(`${what} ${show(v)} isn't a real level id`);
   return lid;
 }
 
@@ -231,6 +235,8 @@ export function validateOps(ops) {
       if (Object.hasOwn(op, "nationality")) o.nationality = checkCountry(op.nationality, "country");
       if (Object.hasOwn(op, "subdivision")) o.subdivision = checkSubdivision(op.subdivision);
       if (Object.hasOwn(op, "level")) o.level = checkLevel(op.level);
+      if (Object.hasOwn(op, "up")) o.up = checkLevel(op.up, "up");
+      if (Object.hasOwn(op, "down")) o.down = checkLevel(op.down, "down");
       if (Object.hasOwn(op, "progress")) o.progress = checkInt(op.progress, "progress", 1, 100);
       if (Object.hasOwn(op, "best")) o.best = op.best === null ? null : checkInt(op.best, "best", 0, 100);
       if (Object.hasOwn(op, "segments")) o.segments = checkSegments(op.segments);
@@ -250,6 +256,9 @@ export function validateOps(ops) {
       if (Object.hasOwn(op, "showcase")) o.showcase = checkShowcase(op.showcase);
       if (op.op === "set_unrated" && !UNRATED_FIELDS.some((f) => Object.hasOwn(op, f))) {
         throw new Refuse("nothing to change - give rating, difficulty, placeBelow or showcase");
+      }
+      if (op.op === "swap_insanes" && o.up === o.down) {
+        throw new Refuse("up and down are the same level - pick two different ones");
       }
     } catch (e) {
       if (e instanceof Refuse) throw new Refuse(`${where} (${op.op}): ${e.message}`);
@@ -272,7 +281,8 @@ export function validateEditBody(body) {
 // for players already on the list, Grind, videos. tools/apply-edit.py keeps the
 // same list, and also refuses a mod's add_record for a player not on the list.
 // The unrated levels (Rated+, 2026-10-30) are head mods' too; a clear on one is
-// an add_record like any other, so mods can still add those.
+// an add_record like any other, so mods can still add those. So are Insane swaps
+// (2026-10-31); tools/apply-edit.py also checks the head mod has beaten both.
 export const HEAD_ONLY = new Map([
   ["add_member", "add members"],
   ["remove_record", "remove clears"],
@@ -285,6 +295,7 @@ export const HEAD_ONLY = new Map([
   ["add_unrated", "add unrated levels"],
   ["set_unrated", "edit unrated levels"],
   ["remove_unrated", "remove unrated levels"],
+  ["swap_insanes", "swap insanes"],
 ]);
 
 // Nigel's Discord account: the only one that can change the mod team (Nigel,

@@ -40,10 +40,11 @@ and runs this. The payload:
   {"op":"set_unrated","level":L,"rating":E,"difficulty":TT,"placeBelow":A,"showcase":Y}
                     head mods; the level and at least one of the others
   {"op":"remove_unrated","level":L}                             head mods
+  {"op":"swap_insanes","up":L,"down":L}       head mods who have beaten both: up goes above down
 
   S  1-32 letters (any alphabet), digits, spaces and . _ -
   CC an ISO 3166-1 alpha-2 country code, capitals
-  L  a level id, or a gdladder.com / gdbrowser.com level link
+  L  a level id, or a gdladder.com / gdbrowser.com level link (up and down: two different ones)
   P  1-100   B 0-100 or null   segments: up to 20 [a, b] with 0 <= a < b <= 100
   T  up to 140 characters of plain text
   U  https on youtube.com, www.youtube.com, youtu.be or drive.google.com
@@ -68,6 +69,22 @@ goes on Rated+ with a clear or Grind goal: the mod page sends
 [add_unrated, add_record] or [add_unrated, set_grind] as one batch, applied in
 order. A clear, or a goal on a new Grind level, on a level that's unrated in game
 (0 stars) but isn't on Rated+ is refused (Engine.refuse_unrated_in_game).
+
+Insane swaps (SITE.insaneSwaps; Nigel and Dihmaster500, 2026-10-31): a head mod
+with a 100% record on two rated Insane Demons on the list can swap them - each
+takes the other's place and points, so everyone who beat just one of them gains
+or loses the difference, and the swapper's own score stays the same.
+swap_insanes puts `up` above `down`: the two exchange their stored positions
+(nobody else moves) and share a swapGroup in data/demons.js (joining any group
+either was already in). tools/swaps.py hands a group's own values out in its
+stored order, so add-records.py and refresh-order.py keep the members where the
+head mods put them and they keep trading values when the AREDL or GD Demon
+Ladder moves. Sending it again is "no change"; the same op the other way round
+swaps them back, and a group that's back in its own order loses its swapGroup.
+It's one changelog item of kind "swap", and no other tool runs. A swapped demon
+leaving the list (remove_record) re-sorts the list offline (Engine.swap_left).
+Undoing an edit that swapped two (or swapped them back) swaps them again, so
+undo takes the same as swap_insanes: a head mod who has beaten both.
 
 Every edit goes through the same tools Claude uses by hand (add-records.py,
 add-video.py, refresh-order.py, build-goal-levels.py), so ordering, the AREDL
@@ -126,6 +143,8 @@ OPS = {  # op -> (required fields, optional fields), besides "op"
     "add_unrated": ({"level", "rating"}, {"difficulty", "placeBelow", "showcase"}),
     "set_unrated": ({"level"}, {"rating", "difficulty", "placeBelow", "showcase"}),  # at least one of them
     "remove_unrated": ({"level"}, set()),
+    # Insane swaps (SITE.insaneSwaps): head mods who have beaten both; up goes above down
+    "swap_insanes": ({"up", "down"}, set()),
 }
 UNRATED_FIELDS = {"rating", "difficulty", "placeBelow", "showcase"}  # what set_unrated can change
 # What only head mods may do; functions/_lib/contract.js HEAD_ONLY is the same list.
@@ -134,7 +153,8 @@ HEAD_ONLY = {"add_member": "add members", "remove_record": "remove clears", "ref
              "refresh_showcases": "check Nigel's channel for showcases", "undo": "undo edits",
              "rename_member": "rename members", "set_member_country": "change a member's country",
              "remove_member": "remove members", "add_unrated": "add unrated levels",
-             "set_unrated": "edit unrated levels", "remove_unrated": "remove unrated levels"}
+             "set_unrated": "edit unrated levels", "remove_unrated": "remove unrated levels",
+             "swap_insanes": "swap insanes"}
 # Nigel's Discord account, the only one that can change the mod team (Nigel, 2026-10-07);
 # functions/_lib/contract.js OWNER_ID is the same, and the Function marks his edits
 # "owner": true. The mod team is functions/editors.json (the logins); the List Mods
@@ -253,7 +273,9 @@ def check_int(v, what, lo, hi):
     return v
 
 
-def check_level(v):
+def check_level(v, what="level"):
+    """A level id or a gdladder.com / gdbrowser.com level link -> the id. what: the
+    field's name for the message (swap_insanes' up and down are level ids too)."""
     if isinstance(v, int) and not isinstance(v, bool):
         lid = v
     elif isinstance(v, str) and v.strip().isdigit():
@@ -261,9 +283,9 @@ def check_level(v):
     elif isinstance(v, str) and LEVEL_LINK.match(v.strip()):
         lid = int(LEVEL_LINK.match(v.strip()).group(1))
     else:
-        raise Refuse(f"level {show(v)} isn't a level id or a gdladder.com / gdbrowser.com level link")
+        raise Refuse(f"{what} {show(v)} isn't a level id or a gdladder.com / gdbrowser.com level link")
     if not 1 <= lid <= 2 ** 31 - 1:
-        raise Refuse(f"level {show(v)} isn't a real level id")
+        raise Refuse(f"{what} {show(v)} isn't a real level id")
     return lid
 
 
@@ -386,6 +408,11 @@ def validate(p):
                 o["subdivision"] = check_subdivision(op["subdivision"])
             if "level" in op:
                 o["level"] = check_level(op["level"])
+            # swap_insanes' two levels: not called "level", so RobTop's answers (gd) never apply to them
+            if "up" in op:
+                o["up"] = check_level(op["up"], "up")
+            if "down" in op:
+                o["down"] = check_level(op["down"], "down")
             if "progress" in op:
                 o["progress"] = check_int(op["progress"], "progress", 1, 100)
             if "best" in op:
@@ -423,6 +450,8 @@ def validate(p):
                 o["showcase"] = check_showcase(op["showcase"])
             if op["op"] == "set_unrated" and not UNRATED_FIELDS & set(op):
                 raise Refuse("nothing to change - give rating, difficulty, placeBelow or showcase")
+            if op["op"] == "swap_insanes" and o["up"] == o["down"]:
+                raise Refuse("up and down are the same level - pick two different ones")
         except Refuse as e:
             raise Refuse(f"{where} ({op['op']}): {e}")
         out.append(o)
@@ -501,6 +530,11 @@ def tool(root, name):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+# Insane swaps: the one rule (tools/swaps.py) that add-records.py and refresh-order.py
+# sort by and DL.demonRating scores by; rating_value, swap_insanes and remove_record use it.
+SWAPS = tool(REPO, "swaps")
 
 
 def run_tool(root, args, timeout=900):
@@ -630,10 +664,10 @@ def window_width(site):
     return w if isinstance(w, (int, float)) and not isinstance(w, bool) and w >= 0.05 else 1
 
 
-def rating_value(d, site):
-    """The number a level is ordered and scored by (mirrors DL.demonRating): an
-    AREDL placement through SITE.aredlFit, else its rating (for an unrated level,
-    the head mod's estimate), else a typical rating for its tier."""
+def base_value(d, site):
+    """A level's own value (DL.baseRating): an AREDL placement through
+    SITE.aredlFit, else its rating (for an unrated level, the head mod's estimate),
+    else a typical rating for its tier."""
     fit, pos = site.get("aredlFit"), d.get("aredlPosition")
     if fit and isinstance(pos, (int, float)) and not isinstance(pos, bool):
         return fit["a"] + fit["b"] * pos ** fit["exponent"]
@@ -643,12 +677,44 @@ def rating_value(d, site):
     return FALLBACK.get(d.get("difficulty"), 3)
 
 
-def slot_fits(u, x, y, site):
+def placed_values(demons, site):
+    """{levelId: value} for the listed demons in an Insane swap (tools/swaps.py), from
+    today's list; a demon that isn't in one is placed at its base_value."""
+    return SWAPS.effective_values(demons, lambda d: base_value(d, site))
+
+
+def group_number(group, demons):
+    """The swapGroup for a swap group (its members, all listed): the smallest level id
+    among them, so a group's number always belongs to one of its members, and a level
+    that leaves and comes back can't find its old group's number still in use. If a
+    demon outside the group has that number anyway (only a hand edit or an undo can
+    leave one behind), the next smallest member's id that nobody else has - never a
+    number that would join the group to another."""
+    mine = {id(d) for d in group}
+    used = {SWAPS.group_id(d) for d in demons if id(d) not in mine} - {None}
+    return next((lid for lid in sorted(d["levelId"] for d in group) if lid not in used), max(used, default=0) + 1)
+
+
+def rating_value(d, site, demons=None):
+    """The number a level is ordered and scored by (mirrors DL.demonRating): its
+    base_value, except that a listed demon in an Insane swap gets the value its place
+    in the group hands it (tools/swaps.py) - worked out from demons, today's list
+    (data/demons.js). Without demons, and for an unrated level or a candidate (never
+    on the list), the base value."""
+    if demons is not None and SWAPS.group_id(d) is not None:
+        v = placed_values(demons, site).get(d.get("levelId"))
+        if v is not None:
+            return v
+    return base_value(d, site)
+
+
+def slot_fits(u, x, y, site, demons=None):
     """Can unrated level u sit between listed demons x (above) and y (below)?
-    None = the top / the bottom of the list."""
+    None = the top / the bottom of the list. demons: today's list, which places a
+    swapped neighbor (rating_value); u is placed by its estimate."""
     e, t, w = rating_value(u, site), tier_rank(u, site), window_width(site)
-    above = x is None or tier_rank(x, site) < t or (tier_rank(x, site) == t and rating_value(x, site) >= e - w)
-    below = y is None or tier_rank(y, site) > t or (tier_rank(y, site) == t and rating_value(y, site) <= e + w)
+    above = x is None or tier_rank(x, site) < t or (tier_rank(x, site) == t and rating_value(x, site, demons) >= e - w)
+    below = y is None or tier_rank(y, site) > t or (tier_rank(y, site) == t and rating_value(y, site, demons) <= e + w)
     return above and below
 
 
@@ -658,9 +724,9 @@ def slot_ok(u, anchor, demons, site):
     today's list (data/demons.js), never other unrated or Grind levels."""
     L = sorted(demons, key=lambda d: d["position"])
     if anchor == 0:
-        return slot_fits(u, None, L[0] if L else None, site)
+        return slot_fits(u, None, L[0] if L else None, site, demons)
     i = next((n for n, d in enumerate(L) if d["levelId"] == anchor), None)
-    return i is not None and slot_fits(u, L[i], L[i + 1] if i + 1 < len(L) else None, site)
+    return i is not None and slot_fits(u, L[i], L[i + 1] if i + 1 < len(L) else None, site, demons)
 
 
 def unrated_slots(u, demons, site):
@@ -668,7 +734,7 @@ def unrated_slots(u, demons, site):
     They're contiguous and always include the one its estimate puts it in."""
     L = sorted(demons, key=lambda d: d["position"])
     return [L[i - 1]["levelId"] if i else 0 for i in range(len(L) + 1)
-            if slot_fits(u, L[i - 1] if i else None, L[i] if i < len(L) else None, site)]
+            if slot_fits(u, L[i - 1] if i else None, L[i] if i < len(L) else None, site, demons)]
 
 
 def write_unrated(root, entries):
@@ -823,11 +889,12 @@ def wiki_writeup(name, lid):
 # --- applying the edits -------------------------------------------------------
 
 class Engine:
-    def __init__(self, root, role="mod", upkeep=False, owner=False):
+    def __init__(self, root, role="mod", upkeep=False, owner=False, editor=None):
         self.root = root
         self.upkeep = upkeep     # the scheduled upkeep: network trouble skips, never fails
         self.role = role         # "head" or "mod"
         self.owner = owner       # Nigel's account (OWNER_ID): the mod team is his alone
+        self.editor = editor     # the payload's editor (functions/editors.json): whose clears swap_insanes checks
         self.lines = []          # plain-English summary, one line per change
         self.subjects = []       # short phrases for the commit subject
         self.goals_touched = False
@@ -1129,6 +1196,7 @@ class Engine:
             if os.path.isdir(vdir):
                 shutil.rmtree(vdir)
             self.say(f"Removed {who}'s record on {name}. It was the only one, so {name} left the list (was #{pos}).")
+            items = self.swap_left(s, d) + items  # its swap group's re-sort, logged after (above) the remove
         else:
             if d.get("verifier") == who:
                 d["verifier"] = next((r["player"] for r in d["records"] if r["progress"] >= 100), None)
@@ -1386,6 +1454,15 @@ class Engine:
         # undoing a change to it would be a way around that.
         if not self.owner and self.mod_team_at(sha) != self.mod_team_at(f"{sha}^"):
             raise Refuse("that edit changed the mod team - only Nigel can undo it")
+        # An Insane swap is only for a head mod who has beaten both demons (swap_insanes).
+        # Undoing an edit that swapped two - or swapped them back, or undid a swap - swaps
+        # them again, so it takes the same, checked on today's list.
+        s = load_state(self.root)
+        for it in swaps_changed(sha):
+            pair = [next((d for d in s["DEMONS"] if d["levelId"] == it.get(k)), None) for k in ("demonId", "withId")]
+            if not all(d is not None and self.beaten(d, self.editor) for d in pair):
+                raise Refuse(f"that edit swapped {str(it.get('demon')).strip()} and {str(it.get('with')).strip()} - "
+                             "only a head mod who has beaten both can undo it (or swap them back)")
         # git works out the undone files itself (a three-way merge of HEAD with the
         # edit reversed, written to no working tree), so line endings and nearby
         # changes don't matter; a real conflict (a newer edit changed the same
@@ -1834,6 +1911,129 @@ class Engine:
             self.say(f"{u['name']}'s hand-picked spot no longer fits after this ({x} moved or left), so the site "
                       "places it by its estimate until a head mod picks a new one.")
 
+    # --- Insane swaps (head mods who have beaten both) ------------------------------------
+    # SITE.insaneSwaps (Nigel and Dihmaster500, 2026-10-31). swap_insanes puts `up` above
+    # `down`: the two trade their stored positions (nobody else moves) and share a
+    # swapGroup in data/demons.js, with every demon already swapped with either of them.
+    # A group's own values go to its members in their stored order (tools/swaps.py,
+    # DL.demonRating), so each takes the other's place and points, and every re-sort
+    # keeps them there. A re-sent request is "no change"; the same op the other way round
+    # swaps them back, and a group that's back in its own order loses its swapGroup. One
+    # changelog item of kind "swap", which DL.positionHistoryFor and refresh-order.py
+    # replay_check replay as the two trading places. No other tool runs: nothing is
+    # looked up, and the per-position values don't change, so the list stays in order.
+
+    def beaten(self, d, who):
+        """Whether who has a 100% record on listed demon d: the record by who (exactly,
+        else the one name that only differs in case, as resolve matches) with progress
+        100. Grind goals, unrated levels and records under 100% never count."""
+        hit = self.resolve(who, [r["player"] for r in d.get("records", [])]) if who else None
+        return bool(hit) and any(r["player"] == hit and r.get("progress", 0) >= 100 for r in d["records"])
+
+    @staticmethod
+    def kind_phrase(d):
+        """What a demon is, for a refusal: "an Extreme Demon", "a Hard Demon"."""
+        t = str(d.get("difficulty") or "unrated")
+        what = "Official level" if t == "Official" else t + " Demon"
+        return ("an " if what[0] in "AEIOU" else "a ") + what
+
+    def swap_insanes(self, o):
+        s = load_state(self.root)
+        site, demons = s["SITE"], s["DEMONS"]
+        if not site.get("insaneSwaps"):
+            raise Refuse("this list doesn't have insane swaps")
+        up, down = self.demon(s, o["up"]), self.demon(s, o["down"])
+        if up is down:
+            raise Refuse("up and down are the same level - pick two different ones")
+        for d in (up, down):
+            if d.get("difficulty") != "Insane":
+                raise Refuse(f"{d['name'].strip()} is {self.kind_phrase(d)} - only Insane Demons can be swapped")
+        if not self.editor:
+            raise Refuse("this edit doesn't say who sent it - only a head mod who has beaten both can swap them")
+        for d in (up, down):
+            if not self.beaten(d, self.editor):
+                raise Refuse(f"{self.editor} hasn't beaten {d['name'].strip()} - only a head mod who has beaten both can swap them")
+        a, b = up["name"].strip(), down["name"].strip()
+        p, q = up["position"], down["position"]  # up goes from p to q, down from q to p
+        if p < q:
+            self.say(f"{a} is already above {b} - no change.")
+            return
+        placed = placed_values(demons, site)
+        va = placed.get(up["levelId"], base_value(up, site))
+        vb = placed.get(down["levelId"], base_value(down, site))
+        if round(va, 2) == round(vb, 2):
+            raise Refuse(f"{a} and {b} are tied at {va:.2f} - swapping them changes nothing")
+        # one group: the two, and every member of a group either was in, under the smallest
+        # level id among them (group_number)
+        joined = {g for g in (SWAPS.group_id(up), SWAPS.group_id(down)) if g is not None}
+        merged = [d for d in demons if d is up or d is down or SWAPS.group_id(d) in joined]
+        gid = group_number(merged, demons)
+        for d in merged:
+            d["swapGroup"] = gid
+        up["position"], down["position"] = q, p
+        demons.sort(key=lambda d: d["position"])
+        group = [d for d in demons if d.get("swapGroup") == gid]
+        now = placed_values(group, site)
+        undone = all(now[d["levelId"]] == base_value(d, site) for d in group)
+        if undone:  # a swap back: every member is in its own place again, so nothing is swapped
+            for d in group:
+                del d["swapGroup"]
+        write_json_var(self.root, "data/demons.js", "DEMONS", demons)
+        self.log(s["CHANGELOG"], [{"kind": "swap", "demon": up["name"], "demonId": up["levelId"], "from": p, "to": q,
+                                   "with": down["name"], "withId": down["levelId"], "by": self.editor}])
+        self.say(f"Swapped: {a} is #{q} now and {b} #{p} ({self.editor} has beaten both)."
+                 + (" That's their own order again, so they're not swapped anymore." if undone else ""))
+        self.subjects.append(f"Swap: {a} above {b}")
+
+    def swap_left(self, s, gone):
+        """remove_record took demon `gone` off the list (s["DEMONS"] is without it and
+        renumbered). When it was in an Insane swap, its group shrinks and hands out
+        different values, so the list is re-sorted here, offline: refresh-order.py's key
+        on today's data (the stored AREDL placements and fit, no network) with the
+        group's new values. Every move goes in the changelog with the swap as its reason.
+        A group down to one demon, or back in its own order, loses its swapGroup; one
+        that's still swapped takes the smallest level id left in it (group_number), so
+        its number never outlives its members.
+        Returns the move items, newest first (they go above the remove)."""
+        g = SWAPS.group_id(gone)
+        demons, site = s["DEMONS"], s["SITE"]
+        rest = [x for x in demons if g is not None and SWAPS.group_id(x) == g]
+        if not rest:
+            return []
+        placed = placed_values(demons, site)
+        ended = len(rest) < 2 or all(placed[x["levelId"]] == base_value(x, site) for x in rest)
+        name = gone["name"].strip()
+        why = f"Swap ended - {name} left the list" if ended else f"Swap changed - {name} left the list"
+        # in a swap, a tie goes by position, not the demon's own AREDL placement
+        # (tools/swaps.py); a group that ends here sorts like any other demons
+        held = SWAPS.members(demons) - ({x["levelId"] for x in rest} if ended else set())
+
+        def key(x):  # refresh-order.py's sort key
+            return (tier_rank(x, site), -round(placed.get(x["levelId"], base_value(x, site)), 2),
+                    10 ** 9 if x["levelId"] in held else x.get("aredlPosition") or 10 ** 9, x["position"])
+        order, moves = list(demons), []
+        for i, x in enumerate(sorted(demons, key=key)):  # top-down: every move goes up the list
+            j = next(n for n, y in enumerate(order) if y is x)
+            if j != i:
+                moves.append({"kind": "move", "demon": x["name"], "demonId": x["levelId"], "from": j + 1, "to": i + 1,
+                              "text": why})
+                order.insert(i, order.pop(j))
+        for n, x in enumerate(order, 1):
+            x["position"] = n
+        demons[:] = order
+        if ended:
+            for x in rest:
+                del x["swapGroup"]
+        else:
+            gid = group_number(rest, demons)
+            for x in rest:
+                x["swapGroup"] = gid
+        said = f"That {'ends' if ended else 'changes'} its swap"
+        self.say(said + (f", so {len(moves)} demon{'s' if len(moves) != 1 else ''} moved: "
+                         + ", ".join(f"{m['demon']} #{m['from']} -> #{m['to']}" for m in moves[:6])
+                         + (" ..." if len(moves) > 6 else "") + "." if moves else " - nobody had to move."))
+        return list(reversed(moves))
+
     def sync_goal_comments(self, listed_before):
         """A goal row's comment says "(on the list)" when its level is on the list;
         keep that true for levels that joined or left the list in this run (only
@@ -1915,6 +2115,52 @@ class Engine:
         i = src.index("window.GOAL_LEVELS =")
         write(self.root, "data/goal-levels.js",
               src[:i] + "window.GOAL_LEVELS = " + json.dumps(after, indent=2, ensure_ascii=False) + ";\n")
+
+
+# window.CHANGELOG from a changelog.js read on stdin (an older commit's: git show)
+CHANGELOG_JS = r"""
+const vm = require('vm');
+let src = '';
+process.stdin.on('data', (c) => (src += c)).on('end', () => {
+  const w = {};
+  vm.runInNewContext(src, { window: w });
+  process.stdout.write(JSON.stringify(w.CHANGELOG));
+});
+"""
+
+
+def changelog_at(rev):
+    """data/changelog.js's entries as of a commit ([] if it had none). A file that's
+    there but doesn't load refuses: undo can't tell what that edit did."""
+    text = git("show", f"{rev}:data/changelog.js", check=False).stdout
+    if not text.strip():
+        return []
+    r = subprocess.run(["node", "-e", CHANGELOG_JS], input=text, capture_output=True, text=True, encoding="utf-8")
+    try:
+        log = json.loads(r.stdout) if not r.returncode else None
+    except ValueError:
+        log = None
+    if not isinstance(log, list):
+        raise Refuse(f"couldn't read data/changelog.js as of {rev[:7]} to see what that edit did")
+    return log
+
+
+def swaps_changed(sha):
+    """The Insane swaps a commit made or took back: the `swap` items it added to
+    data/changelog.js and the ones it took out of it."""
+    def swaps(rev):
+        return [json.dumps(it, sort_keys=True) for e in changelog_at(rev) if isinstance(e, dict)
+                for it in e.get("items") or [] if isinstance(it, dict) and it.get("kind") == "swap"]
+    before, after = swaps(f"{sha}^"), swaps(sha)
+    added = list(after)
+    for x in before:  # what both have is what the commit didn't touch
+        if x in added:
+            added.remove(x)
+    gone = list(before)
+    for x in after:
+        if x in gone:
+            gone.remove(x)
+    return [json.loads(x) for x in added + gone]
 
 
 def new_log_items(before, after):
@@ -2081,7 +2327,7 @@ def apply_payload(p, dry, opts):
         root = os.path.join(tmp, "site")
         shutil.copytree(REPO, root, ignore=shutil.ignore_patterns(".git", "videos"))
         try:
-            e = Engine(root, p["role"], p["upkeep"], p["owner"])
+            e = Engine(root, p["role"], p["upkeep"], p["owner"], editor=p["editor"])
             e.apply(p["ops"])
             check(root)
             for rel in changed_files(REPO, root):
@@ -2108,7 +2354,7 @@ def apply_payload(p, dry, opts):
             except Refuse as err:
                 report("Edit failed", [str(err)], False)
                 sys.exit(1)
-        e = Engine(REPO, p["role"], p["upkeep"], p["owner"])
+        e = Engine(REPO, p["role"], p["upkeep"], p["owner"], editor=p["editor"])
         try:
             e.apply(p["ops"])
             check(REPO)

@@ -23,6 +23,9 @@
 // insanes when the Main List is "extremes", then DL.demonRating, then AREDL
 // placement), and every level's points and every player's score are worked
 // out again for the view: the hardest level present is the one worth topScore.
+// Insanes a head mod swapped (SITE.insaneSwaps) trade values inside
+// DL.demonRating, and a tie between them goes by position, so they keep the
+// head mods' order here too.
 // An unrated level is placed and scored by the head mods' GD Demon Ladder
 // estimate, or sits in a spot a head mod picked close to it (placeBelow,
 // inside DL.unratedSlots' window); its points come from the estimate either way.
@@ -107,14 +110,16 @@
   };
 
   // tools/refresh-order.py's sort key, field for field, then two tie-breaks
-  // for levels that aren't listed: unrated before Grind, then level id.
+  // for levels that aren't listed: unrated before Grind, then level id. A
+  // demon an Insane swap holds never uses its own AREDL placement as a
+  // tie-break (DL.swapGroupOf): its position keeps the head mods' order.
   var KIND_RANK = { listed: 0, unrated: 1, grind: 2 };
   function sortKey(row) {
     var lv = row.level;
     return [
       DL.tierRank(lv),
       -Math.round(DL.demonRating(lv) * 100) / 100,
-      typeof lv.aredlPosition === "number" && lv.aredlPosition ? lv.aredlPosition : 1e9,
+      typeof lv.aredlPosition === "number" && lv.aredlPosition && !DL.swapGroupOf(lv) ? lv.aredlPosition : 1e9,
       row.kind === "listed" ? lv.position : Infinity, // an incoming level goes below a listed tie
       KIND_RANK[row.kind],
       levelIdOf(lv),

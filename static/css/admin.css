@@ -312,6 +312,35 @@
   gap: 6px;
 }
 
+/* --- swap insanes (head mods) --- */
+
+#admin-page .swap-preview {
+  margin: 6px 0 4px;
+  overflow-wrap: anywhere;
+}
+
+#admin-page .swap-players {
+  margin: 2px 0 4px;
+  padding-left: 20px;
+}
+
+#admin-page .swap-players li {
+  margin: 2px 0;
+}
+
+#admin-page .swap-players .gain,
+#admin-page .swap-players .loss {
+  font-weight: bold;
+}
+
+#admin-page .swap-players .gain {
+  color: var(--color-ok-text);
+}
+
+#admin-page .swap-players .loss {
+  color: var(--color-error-text);
+}
+
 /* --- members --- */
 
 #admin-page .roster {

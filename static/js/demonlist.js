@@ -18,20 +18,33 @@
   // One <li> for a data/changelog.js item. `demonBase` is prepended to demon
   // links (e.g. "../demonlist/" from the /changelog/ page).
   function changelogItemHtml(item, demonBase) {
-    var name = item.demon
-      ? item.demonId && DL.demonById(item.demonId)
-        ? '<a href="' + demonBase + DL.demonUrl(item.demonId) + '">' + DL.escapeHtml(item.demon) + "</a>"
-        : "<b>" + DL.escapeHtml(item.demon) + "</b>"
-      : "";
+    // a demon's name: a link to its page while it's on the list, else bold
+    function demonName(label, id) {
+      if (!label) return "";
+      return id && DL.demonById(id)
+        ? '<a href="' + demonBase + DL.demonUrl(id) + '">' + DL.escapeHtml(label) + "</a>"
+        : "<b>" + DL.escapeHtml(label) + "</b>";
+    }
+    var name = demonName(item.demon, item.demonId);
     var kind = item.kind || "note";
     var body;
-    // the badge already says Added / Moved / Removed, so the body doesn't repeat it
+    // the badge already says Added / Moved / Swapped / Removed, so the body
+    // doesn't repeat it. A swap is a head mod's swap of two Insane Demons they
+    // have both beaten (SITE.insaneSwaps): `demon` went from #from up to #to,
+    // `with` the other way.
     if (kind === "add") body = name + (item.at != null ? " at #" + item.at : "");
     else if (kind === "move") body = name + " from #" + item.from + " to #" + item.to;
+    else if (kind === "swap")
+      body =
+        name + (item["with"] ? " and " + demonName(item["with"], item.withId) : "") + " swapped places" +
+        (item.from != null && item.to != null
+          ? " (#" + DL.escapeHtml(item.from) + " &harr; #" + DL.escapeHtml(item.to) + ")"
+          : "") +
+        (item.by ? " &mdash; by " + DL.escapeHtml(item.by) + ", who has beaten both" : "");
     else if (kind === "remove") body = name + (item.from != null ? " (was #" + item.from + ")" : "");
     else body = "";
     if (item.text) body += (body ? " &mdash; " : "") + DL.escapeHtml(item.text);
-    var labels = { add: "Added", move: "Moved", remove: "Removed", note: "Note" };
+    var labels = { add: "Added", move: "Moved", swap: "Swapped", remove: "Removed", note: "Note" };
     return (
       '<li class="changelog-item changelog-' + kind + '">' +
         '<span class="changelog-badge">' + labels[kind] + "</span>" +
@@ -679,11 +692,66 @@
       "</section>";
   };
 
+  // The newest `swap` item about this demon in data/changelog.js, with its
+  // entry's date: { item, date }, or null (also on a page without the changelog).
+  function latestSwap(demon) {
+    var log = window.CHANGELOG || [];
+    var id = Number(demon.levelId || demon.id);
+    for (var i = 0; i < log.length; i++) {
+      var items = log[i].items || [];
+      for (var j = 0; j < items.length; j++) {
+        var it = items[j];
+        if (it && it.kind === "swap" && (Number(it.demonId) === id || Number(it.withId) === id)) {
+          return { item: it, date: log[i].date };
+        }
+      }
+    }
+    return null;
+  }
+
+  // Insane swaps (SITE.insaneSwaps; data/demons.js swapGroup): the note under the
+  // byline of a demon that a head mod's swap places and scores at another value
+  // than its own (DL.demonRating vs DL.baseRating, at 2 decimals), naming the
+  // demon it was swapped with, the head mod and the day when the changelog has
+  // them. "" for every other demon, and on a list without swaps.
+  function swapNoteHtml(demon, pageUrl) {
+    var cfg = window.SITE || {};
+    if (!cfg.insaneSwaps || typeof demon.swapGroup !== "number" || typeof DL.baseRating !== "function") return "";
+    var own = DL.baseRating(demon);
+    var placed = DL.demonRating(demon);
+    if (Math.round(own * 100) === Math.round(placed * 100)) return "";
+    var text =
+      "Placed by a head-mod swap: its own rating is " + own.toFixed(2) +
+      ", but it's placed and scored at " + placed.toFixed(2);
+    var swap = latestSwap(demon);
+    if (swap) {
+      var it = swap.item;
+      var mine = Number(it.demonId) === Number(demon.levelId || demon.id);
+      var otherName = mine ? it["with"] : it.demon;
+      var other = DL.demonById(mine ? it.withId : it.demonId);
+      var partner = other
+        ? '<a href="' + pageUrl(other) + '">' + DL.escapeHtml(other.name) + "</a>"
+        : otherName
+        ? "<b>" + DL.escapeHtml(otherName) + "</b>"
+        : "";
+      if (partner) {
+        text +=
+          " since " + (it.by ? DL.escapeHtml(it.by) : "a head mod") + " swapped it with " + partner +
+          (swap.date ? " on " + DL.escapeHtml(DL.formatDate(swap.date)) : "");
+      }
+    }
+    return (
+      '<div class="underlined pad"><p class="swap-note"><span class="future-badge swap-badge">Swapped</span> ' +
+      text + ".</p></div>"
+    );
+  }
+
   // `view` (optional, static/js/views.js): the demon's neighbors, position,
   // list and points in that view. An unrated level (data/unrated.js) comes
   // with a Rated+ view and gets a note on what it is - one nobody has beaten
   // yet isn't on Rated+ until someone does, but its page still lists its
-  // records; it has no Position History (that's for listed demons).
+  // records; it has no Position History (that's for listed demons). A demon a
+  // head mod swapped gets a note too (swapNoteHtml).
   DL.renderDemonDetail = function (root, demon, view) {
     var V = otherView(view);
     var listed = !!DL.demonById(demon.id);
@@ -742,6 +810,10 @@
               : "")) +
         "</p></div>";
     }
+
+    // a listed demon a head mod swapped (SITE.insaneSwaps): its own value and
+    // the one it's placed and scored at
+    var swapNote = listed ? swapNoteHtml(demon, pageUrl) : "";
 
     // Hosted: embed the player directly, exactly like pointercrate
     // (iframe.ratio-16-9, width:90% margin:15px 5%). On file:// a YouTube embed
@@ -840,6 +912,7 @@
       '<section class="panel fade js-scroll-anim" data-anim="fade">' +
         '<div class="underlined">' + heading + "<h3>" + bylineHtml(demon) + "</h3></div>" +
         unratedNote +
+        swapNote +
         (demon.description ? '<div class="underlined pad"><q>' + DL.escapeHtml(demon.description) + "</q></div>" : "") +
         videoHtml +
         '<div class="underlined pad flex wrap" id="level-info">' + infoBits.join("") + "</div>" +

@@ -304,6 +304,16 @@ tr:nth-child(even) {
   box-shadow: inset 3px 0 0 #4a9e2f, inset 6px 0 0 #7b4bc4;
 }
 
+/* Insane swaps (SITE.insaneSwaps): the demon page's note on a demon a head
+   mod swapped, its badge in the changelog's "Swapped" teal */
+.future-badge.swap-badge {
+  background: #13847a;
+}
+
+.swap-note {
+  text-align: left;
+}
+
 /* --- overview / demon-page sidebar --------------------------------------- */
 
 #sidebar .panel p {
@@ -504,6 +514,11 @@ tr:nth-child(even) {
 
 .changelog-remove .changelog-badge {
   background: #c0392b;
+}
+
+/* a head mod's swap of two insanes (SITE.insaneSwaps) */
+.changelog-swap .changelog-badge {
+  background: #13847a;
 }
 
 .changelog-teaser-date {
