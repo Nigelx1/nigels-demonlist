@@ -3286,14 +3286,18 @@ def scenarios():
             at(st, d["levelId"])["swapGroup"] = Z["levelId"]
         m.write_json_var(root, "data/demons.js", "DEMONS", st["DEMONS"])
         ok("swaps (engine): (the stale group number fixture checks out)", checked() is None, checked())
+        pre = {d["levelId"]: d.get("swapGroup") for d in st["DEMONS"]}
         x, y = (Z, W) if at(st, Z["levelId"])["position"] > at(st, W["levelId"])["position"] else (W, Z)
         err, _, _ = swap(x, y)
         st = state()
         num = {d["name"].strip(): d.get("swapGroup") for d in st["DEMONS"] if "swapGroup" in d}
+        # only the pair's numbers change (the real list may hold other swaps of its own)
+        changed = {d["levelId"] for d in st["DEMONS"] if d.get("swapGroup") != pre.get(d["levelId"])}
         ok("swaps (engine): " + x["name"].strip() + " up over " + y["name"].strip() + " while two others carry " + Z["name"].strip()
            + "'s level id as their group number - the pair takes " + W["name"].strip() + "'s (" + str(W["levelId"]) + "), the two keep theirs",
            err is None and at(st, Z["levelId"]).get("swapGroup") == W["levelId"] == at(st, W["levelId"]).get("swapGroup")
-           and all(at(st, d["levelId"]).get("swapGroup") == Z["levelId"] for d in XY) and len(num) == 4, err or num)
+           and all(at(st, d["levelId"]).get("swapGroup") == Z["levelId"] for d in XY)
+           and changed == {Z["levelId"], W["levelId"]}, err or num)
 
     # --- the runner: a dry run through main(), and a real one (--no-push) in a git repo ----------
     put(start)
