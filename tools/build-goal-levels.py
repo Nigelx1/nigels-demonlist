@@ -6,6 +6,7 @@ Demonlist (data/demons.js), fetch the level's facts from gdladder + gdbrowser an
 extract a colour palette from its showcase-video thumbnail, so goal.html can
 theme itself off the image. An extreme also gets its AREDL placement
 (aredlPosition), which the Future and Future+ views (static/js/views.js) place it by.
+gd.stars is the level's star count (from gdbrowser or its stand-in): 0 = unrated in game.
 
 Run it whenever you add/change a goal in data/goals.js:
 
@@ -218,6 +219,13 @@ for lid in level_ids:
     if gv and gv != "0.0":
         gd["gameVersion"] = gv
     gd["inGameDifficulty"] = gb.get("difficulty") or (difficulty + " Demon")
+    # The star count says whether the level is rated in game: an unrated one (0
+    # stars) can still show a face players voted for ("Hard"). With Rated+ the
+    # stats viewer hides an unrated level's Grind goals outside the Rated+ views
+    # (DL.grindLevelShown, static/js/goals.js).
+    stars = gb.get("stars")
+    if isinstance(stars, int) and not isinstance(stars, bool):
+        gd["stars"] = stars
     sid = gb.get("songID") or song.get("ID")
     sname = gb.get("songName") or song.get("Name")
     if sid and sname and re.match(r"^\d+$", str(sid)):
@@ -231,11 +239,12 @@ for lid in level_ids:
     # so one bad gdbrowser/gdladder answer would otherwise take a creator, song or
     # "Created In" off a Grind page until the next good rebuild (2026-10-12).
     # The same goes for what a stand-in for gdbrowser (tools/gdlevel.py) can't
-    # tell: GDHistory has no song links, and not always the object count.
+    # tell: GDHistory has no song links, and not always the object count or the
+    # star count. An answer without a star count keeps the saved one too.
     old = prev.get(str(lid)) or {}
     kept = []
     if old:
-        if not gb and old.get("gd"):  # gdbrowser's facts: length, objects, version, song
+        if not gb and old.get("gd"):  # gdbrowser's facts: length, objects, version, stars, song
             for k, v in old["gd"].items():
                 if gd.get(k) != v:
                     gd[k] = v
@@ -251,6 +260,10 @@ for lid in level_ids:
             if song and song.get("id") == was.get("id") and was.get("link") and not song.get("link"):
                 song["link"] = was["link"]
                 kept.append("gd.song.link")
+        saved = (old.get("gd") or {}).get("stars")
+        if "stars" not in gd and isinstance(saved, int) and not isinstance(saved, bool):  # gdbrowser gave none
+            gd["stars"] = saved
+            kept.append("gd.stars")
         for k in ("name", "publisher", "description", "rating", "difficulty"):
             blank = (not entry.get(k) or (k == "name" and entry[k] == f"Level {lid}")
                      or (k == "difficulty" and not meta.get("Difficulty") and not gb.get("difficulty")))

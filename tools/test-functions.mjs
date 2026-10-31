@@ -1413,6 +1413,30 @@ if (existsSync(path.join(ROOT, "static", "js", "views.js"))) {
     }
   }
 
+  // An unrated level (0 stars) can show a face players voted for ("Hard"): its
+  // star count (gd.stars, from tools/build-goal-levels.py) is what tells the
+  // stats viewer's Grind rows and chips (DL.grindLevelShown) it's unrated
+  {
+    const W = world(), DL = W.DL;
+    W.GOAL_LEVELS[2005] = { name: "Voted Hard", difficulty: "Hard", rating: null, gd: { length: "Long", inGameDifficulty: "Hard", stars: 0 } };
+    W.GOAL_LEVELS[2006] = { name: "Rated Ten", difficulty: "Extreme", rating: 22, gd: { length: "XL", inGameDifficulty: "Extreme Demon", stars: 10 } };
+    W.GOALS.push({ player: "P8", levelId: 2005, best: 60, segments: [] }, { player: "P8", levelId: 2006, best: 30, segments: [] });
+    DL.withView = (href) => href;
+    DL.escapeHtml = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const all = VIEWS.map(([t, r]) => DL.listView(t, r, true));
+    const rated = all.filter((v) => v.rating === "rated").concat([null]), plus = all.filter((v) => v.rating === "plus");
+    const chips = (v) => DL.renderGrindChips("P8", v);
+    check("rated+: a 0-star level with a face players voted for (Hard) - its Grind goals show in the Rated+ views only",
+      rated.length === 4 && plus.length === 3 && rated.every((v) => !DL.grindLevelShown(2005, v)) && plus.every((v) => DL.grindLevelShown(2005, v)));
+    check("rated+: ...its stats-viewer chip too", rated.every((v) => !/Voted Hard/.test(chips(v))) && plus.every((v) => /Voted Hard/.test(chips(v))));
+    check("rated+: ...and it's never a row, nor scores", all.every((v) => !v.row(2005) && !DL.inProgressScores(v).some((x) => x.id === 2005)));
+    check("rated+: a rated level (10 stars, Extreme Demon) - its Grind goals show everywhere", rated.concat(plus).every((v) =>
+      DL.grindLevelShown(2006, v) && /Rated Ten/.test(chips(v))));
+    delete W.SITE.ratedPlus;
+    check("rated+: without Rated+ (Nigel's Demonlist) both show everywhere", rated.concat(plus).every((v) => DL.grindLevelShown(2005, v)
+      && DL.grindLevelShown(2006, v) && /Voted Hard/.test(chips(v)) && /Rated Ten/.test(chips(v))));
+  }
+
   // the mod page: list-utils.js and views.js, no static/js/goals.js
   {
     const base = world(), W = {};
@@ -1566,17 +1590,20 @@ try:
 
     def build_goal_levels(r):
         """build-goal-levels.py without the network: a new Grind level gets its name
-        from FAKE / GB, the rest keep what they have"""
+        and in-game difficulty (and star count, when the answer has one) from FAKE /
+        GB, the rest keep what they have"""
         st = m.load_state(r)
         gl = st["GOAL_LEVELS"]
         for g in st["GOALS"]:
             k = str(g["levelId"])
             if k not in gl:
                 f = FAKE.get(g["levelId"]) or GB.get(g["levelId"]) or {}
+                gd = {"inGameDifficulty": f.get("difficulty") or "Unrated"}
+                if isinstance(f.get("stars"), int) and not isinstance(f.get("stars"), bool):
+                    gd["stars"] = f["stars"]
                 gl[k] = {"name": f.get("name") or "Level " + k, "publisher": f.get("author"),
                          "difficulty": (f.get("difficulty") or "").replace(" Demon", "") or "Extreme", "rating": None,
-                         "levelId": g["levelId"], "description": None, "requirementPercent": 100,
-                         "gd": {"inGameDifficulty": f.get("difficulty") or "Unrated"}}
+                         "levelId": g["levelId"], "description": None, "requirementPercent": 100, "gd": gd}
         src = m.read(r, "data/goal-levels.js")
         i = src.index("window.GOAL_LEVELS =")
         m.write(r, "data/goal-levels.js", src[:i] + "window.GOAL_LEVELS = " + json.dumps(gl, indent=2, ensure_ascii=False) + ";\n")
@@ -2033,6 +2060,161 @@ out.write(json.dumps(results))
     else check("gdlevel (py): the harness ran", false, (r.stdout + r.stderr).slice(-600));
   } else {
     got.forEach((x) => check(x.label, x.ok, x.detail));
+  }
+}
+
+// --- the Grind levels' star counts: tools/build-goal-levels.py, offline -------------------------
+// The real script on a temp site of its own (it, tools/gdlevel.py and fixture data
+// files). curl answers from the fixtures below - gdbrowser, then RobTop's servers and
+// GDHistory the way tools/gdlevel.py asks them; gdladder and the AREDL never answer -
+// and nothing reaches the network. Then the stats viewer reads what it wrote.
+
+{
+  const PYGL = String.raw`
+import contextlib, io, json, os, re, runpy, shutil, subprocess, sys, tempfile, types, urllib.request
+sys.dont_write_bytecode = True
+results = []
+def ok(label, cond, detail=""):
+    results.append({"label": label, "ok": bool(cond), "detail": "" if cond else str(detail)[:400]})
+out, sys.stdout = sys.stdout, sys.stderr
+tmp = tempfile.mkdtemp(prefix="goal-levels-test-")
+levels = None
+try:
+    for d in ("tools", "data"):
+        os.makedirs(os.path.join(tmp, d))
+    for f in ("build-goal-levels.py", "gdlevel.py"):
+        shutil.copy(os.path.join(sys.argv[1], "tools", f), os.path.join(tmp, "tools", f))
+    try:
+        import PIL.Image
+    except ImportError:  # only a showcase's thumbnail needs Pillow, and these levels have none
+        sys.modules["PIL"] = types.ModuleType("PIL")
+        sys.modules["PIL"].Image = None
+
+    # V: gdbrowser, 0 stars and a face players voted for; R: gdbrowser, 10 stars (0 saved);
+    # S: RobTop's servers, 0 stars; H: GDHistory, 10 stars; N: nobody answers (0 saved);
+    # G: GDHistory without a star count (0 saved); C: gdbrowser without one (10 saved);
+    # U: no star count anywhere; B: saved before gd.stars, RobTop's servers say 10
+    V, R, S, H, N, G, C, U, B = range(901, 910)
+    def saved(lid, name, gd):
+        return {"name": name, "publisher": "Someone", "difficulty": "Extreme", "rating": None, "levelId": lid,
+                "description": None, "requirementPercent": 100, "gd": gd}
+    prev = {str(R): saved(R, "Rated Ten", {"length": "XL", "inGameDifficulty": "Hard", "stars": 0}),
+            str(N): saved(N, "Silent", {"length": "Long", "inGameDifficulty": "Hard", "stars": 0}),
+            str(G): saved(G, "Gap Copy", {"length": "Long", "inGameDifficulty": "Hard", "stars": 0}),
+            str(C): saved(C, "No Count", {"length": "XL", "inGameDifficulty": "Extreme Demon", "stars": 10}),
+            str(U): saved(U, "Unknown", {"length": "XL", "inGameDifficulty": "Extreme Demon"}),
+            str(B): saved(B, "Saved Before", {"length": "XL", "inGameDifficulty": "Extreme Demon"})}
+    files = {"goals.js": "window.GOALS = [\n" + "".join('  { player: "P1", levelId: %d, best: 40 },\n' % i
+                                                        for i in range(901, 910)) + "];\n",
+             "demons.js": "window.DEMONS = [];\n",
+             "goal-levels.js": "window.GOAL_LEVELS = " + json.dumps(prev, indent=2) + ";\n"}
+    for f, text in files.items():
+        with io.open(os.path.join(tmp, "data", f), "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+
+    def servers(lid, name, diff, demon, stars, length):
+        """RobTop's getGJLevels21.php answer for level lid (the keys tools/gdlevel.py reads)"""
+        return (f"1:{lid}:2:{name}:5:1:6:111:8:10:9:{diff}:10:0:12:0:13:22:14:0:17:{demon}:43:6:25::18:{stars}"
+                f":19:0:42:0:45:1000:3::15:{length}:30:0:31:0:37:0:38:0:39:2:46:1:47:2:35:0#111:Someone:222##9999:0:10#ab")
+    def history(lid, name, **o):
+        """GDHistory's answer for level lid: one copy of the servers' own answer"""
+        return {"online_id": lid, "records": [dict({"record_type": "get", "real_date": "2026-10-30T00:00:00Z",
+                "level_name": name, "username": "Someone", "stars": 0, "rating_sum": 30, "demon": None,
+                "demon_type": 0, "auto": None, "length": 3, "game_version": 22, "objects_count": 1000}, **o)]}
+    GDBROWSER = {V: {"name": "Voted Hard", "author": "Someone", "difficulty": "Hard", "stars": 0, "length": "Long"},
+                 R: {"name": "Rated Ten", "author": "Someone", "difficulty": "Extreme Demon", "stars": 10, "length": "XL"},
+                 C: {"name": "No Count", "author": "Someone", "difficulty": "Extreme Demon", "length": "XL"}}
+    SERVERS = {S: servers(S, "Stand In", 30, "", 0, 3), B: servers(B, "Saved Before", 50, 1, 10, 4)}
+    HISTORY = {H: history(H, "From History", stars=10, demon=True, demon_type=6, rating_sum=50, length=4),
+               G: history(G, "Gap Copy", stars=None)}
+    CHALLENGE = "<!DOCTYPE html><title>Just a moment...</title>"
+    asked, stray = [], []
+    def curl(args, **kw):
+        if not args or args[0] != "curl":
+            raise RuntimeError("(test) ran " + " ".join(map(str, args)))
+        url = args[-1]
+        def answer(text, code=0):
+            return subprocess.CompletedProcess(args, code, text, "")
+        if url.startswith("https://gdbrowser.com/api/level/"):
+            lid = int(url.rsplit("/", 1)[1])
+            asked.append(("gdbrowser", lid))
+            return answer(json.dumps(GDBROWSER[lid]) if lid in GDBROWSER else CHALLENGE)
+        if url.startswith("https://www.boomlings.com/"):
+            lid = int(re.match(r"str=(\d+)&", args[args.index("--data") + 1]).group(1))
+            asked.append(("servers", lid))
+            return answer(SERVERS[lid]) if lid in SERVERS else answer("", 28)
+        if url.startswith("https://history.geometrydash.eu/"):
+            lid = int(url.rstrip("/").rsplit("/", 1)[1])
+            asked.append(("gdhistory", lid))
+            return answer(json.dumps(HISTORY[lid])) if lid in HISTORY else answer("", 28)
+        if not url.startswith(("https://gdladder.com/", "https://api.aredl.net/")):
+            stray.append(url)
+        return answer("", 28)
+    def no_network(*a, **k):
+        stray.append(str(a[0] if a else k))
+        raise OSError("(test) offline")
+    subprocess.run, urllib.request.urlopen = curl, no_network
+
+    log = io.StringIO()
+    with contextlib.redirect_stdout(log):
+        runpy.run_path(os.path.join(tmp, "tools", "build-goal-levels.py"), run_name="__main__")
+    log = log.getvalue()
+    sys.stderr.write(log)
+    src = io.open(os.path.join(tmp, "data", "goal-levels.js"), encoding="utf-8").read()
+    levels = json.loads(src[src.index("{", src.index("window.GOAL_LEVELS")):src.rindex("}") + 1])
+    kept = dict(re.findall(r"^\s*KEPT (\d+) [^:]*: (.+)$", log, re.M))
+    def gd(lid):
+        return (levels.get(str(lid)) or {}).get("gd") or {}
+
+    ok("build-goal-levels: every Grind level is written", sorted(levels, key=int) == [str(i) for i in range(901, 910)], sorted(levels))
+    ok("build-goal-levels: gdbrowser's star count goes in gd - 0 for an unrated level with a face players voted for",
+       gd(V).get("stars") == 0 and gd(V).get("inGameDifficulty") == "Hard", gd(V))
+    ok("build-goal-levels: ...and 10 for a rated one, over the 0 it had saved", gd(R).get("stars") == 10
+       and gd(R).get("inGameDifficulty") == "Extreme Demon", gd(R))
+    ok("build-goal-levels: gdbrowser challenged - the Geometry Dash servers' star count, or GDHistory's",
+       gd(S).get("stars") == 0 and gd(S).get("inGameDifficulty") == "Hard" and gd(H).get("stars") == 10
+       and gd(H).get("inGameDifficulty") == "Extreme Demon" and ("servers", S) in asked and ("gdhistory", H) in asked, (gd(S), gd(H)))
+    ok("build-goal-levels: nobody answers - the saved star count is kept, and its KEPT line says so",
+       gd(N).get("stars") == 0 and "gd.stars" in kept.get(str(N), ""), (gd(N), kept))
+    ok("build-goal-levels: GDHistory's copy has no star count - the saved one is kept", gd(G).get("stars") == 0
+       and gd(G).get("inGameDifficulty") == "Hard" and "gd.stars" in kept.get(str(G), ""), (gd(G), kept))
+    ok("build-goal-levels: gdbrowser's answer has no star count - the saved one is kept",
+       gd(C).get("stars") == 10 and "gd.stars" in kept.get(str(C), ""), (gd(C), kept))
+    ok("build-goal-levels: no star count anywhere - none is made up", "stars" not in gd(U)
+       and gd(U).get("inGameDifficulty") == "Extreme Demon", gd(U))
+    ok("build-goal-levels: a level saved before gd.stars gets its count on the next rebuild", gd(B).get("stars") == 10, gd(B))
+    ok("build-goal-levels: a star count that came in isn't reported as kept",
+       not any("gd.stars" in kept.get(str(i), "") for i in (V, R, S, H, B)), kept)
+    ok("build-goal-levels: nothing else reached for the network", not stray, stray)
+except Exception:
+    import traceback
+    ok("build-goal-levels: the harness ran", False, traceback.format_exc()[-400:])
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+out.write(json.dumps({"results": results, "levels": levels}))
+`;
+  const r = spawnSync("python", ["-c", PYGL, ROOT], { encoding: "utf8", env: { ...process.env, PYTHONUTF8: "1" }, maxBuffer: 16 << 20, timeout: 120000 });
+  let got = null;
+  try { got = JSON.parse(r.stdout); } catch { /* below */ }
+  if (!got) {
+    if (r.error || /not found|not recognized/i.test(r.stderr || "")) console.log("(python not available - skipping the build-goal-levels checks)");
+    else check("build-goal-levels (py): the harness ran", false, (r.stdout + r.stderr).slice(-600));
+  } else {
+    got.results.forEach((x) => check(x.label, x.ok, x.detail));
+    // what it wrote, on a list with Rated+: the stats viewer's Grind rows and chips (DL.grindLevelShown)
+    if (got.levels) {
+      const W = { SITE: { ratedPlus: true }, DEMONS: [], UNRATED: [], GOALS: [], GOAL_LEVELS: got.levels };
+      const sb = { window: W, console: { log() {}, warn() {}, error: console.error } };
+      vm.createContext(sb);
+      for (const f of ["static/js/list-utils.js", "static/js/goals.js"]) vm.runInContext(readFileSync(path.join(ROOT, f), "utf8"), sb, { filename: f });
+      const shown = (id) => [{ time: "current", rating: "rated" }, null, { time: "future", rating: "rated" }, { time: "current", rating: "plus" }]
+        .map((v) => W.DL.grindLevelShown(id, v));
+      const all = (ids) => JSON.stringify(ids.map((id) => [id, shown(id)]));
+      check("build-goal-levels: what it writes for a 0-star level with a voted face - its Grind goals show in the Rated+ views only",
+        [901, 903, 905, 906].every((id) => eq(shown(id), [false, false, false, true])), all([901, 903, 905, 906]));
+      check("build-goal-levels: ...and the other levels' everywhere", [902, 904, 907, 908, 909].every((id) => eq(shown(id), [true, true, true, true])),
+        all([902, 904, 907, 908, 909]));
+    }
   }
 }
 
