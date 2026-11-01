@@ -2355,6 +2355,157 @@ print(json.dumps(out))
   }
 }
 
+// --- the demon page's write-up (data/writeups.js, DL.renderDemonDetail) -------------------------
+// Aceabase's demon pages show a write-up under the in-game description (Nigel, 2026-10-31):
+// the level's data/writeups.js entry, else its Grind write-up (data/goal-levels.js `writeup`),
+// in the Grind page's .goal-writeup box. Only a page that loads data/writeups.js shows one:
+// Nigel's Demonlist has no such file, and its demon pages render exactly as before. The
+// file's rules (Aceabase only); the box on a made-up entry and the Grind fallback, each with
+// nothing else on the page changed; then every demon page of this site, as demon.html loads it.
+
+{
+  const quiet = { log() {}, warn() {}, error: console.error };
+  const has = existsSync(path.join(ROOT, "data", "writeups.js"));
+  const html = readFileSync(path.join(ROOT, "demonlist", "demon.html"), "utf8");
+  // the data files demon.html loads, in its order
+  const pageData = [...html.matchAll(/<script src="\.\.\/(data\/[\w-]+\.js)"><\/script>/g)].map((m) => m[1]);
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // a demon page's scripts in a vm: the data files given, then list-utils.js and demonlist.js
+  const site = (files) => {
+    const W = {};
+    const sb = { window: W, console: quiet, URL, location: { protocol: "https:", hostname: "example.test",
+      pathname: "/demonlist/demon.html", search: "", href: "https://example.test/demonlist/demon.html" } };
+    vm.createContext(sb);
+    for (const f of files.concat(["static/js/list-utils.js", "static/js/demonlist.js"])) {
+      vm.runInContext(readFileSync(path.join(ROOT, f), "utf8"), sb, { filename: f });
+    }
+    W.DL.escapeHtml = esc; // (the page's own uses the DOM)
+    return W;
+  };
+  const render = (W, demon) => {
+    const root = { innerHTML: "", querySelector: () => null };
+    W.DL.renderDemonDetail(root, demon);
+    return root.innerHTML;
+  };
+  const boxes = (page) => page.match(/<div class="goal-writeup demon-writeup">[\s\S]*?<\/div>/g) || [];
+
+  // the file (Aceabase)
+  if (!has) {
+    console.log("(skipping the write-up file checks - there's no data/writeups.js (Nigel's Demonlist))");
+  } else {
+    let W = null, why = "";
+    try {
+      W = site(["data/config.js", "data/demons.js", "data/goal-levels.js", "data/writeups.js"]
+        .concat(existsSync(path.join(ROOT, "data", "unrated.js")) ? ["data/unrated.js"] : []));
+    } catch (e) {
+      why = String(e && e.message);
+    }
+    const all = W && W.WRITEUPS;
+    check("write-ups: data/writeups.js loads and sets window.WRITEUPS", !!all && typeof all === "object" && !Array.isArray(all), why);
+    if (all && typeof all === "object" && !Array.isArray(all)) {
+      const keys = Object.keys(all);
+      const listed = new Set(W.DEMONS.concat(W.UNRATED || []).map((d) => String(d.levelId)));
+      const stray = keys.filter((k) => !listed.has(k));
+      check(`write-ups: every key is the id of a level on the list (${keys.length} write-ups)`, keys.length > 0 && !stray.length,
+        "not on the list: " + stray.join(", "));
+      const bad = keys.filter((k) => {
+        const w = all[k];
+        return !w || typeof w !== "object" || ["text", "source", "url"].some((f) => typeof w[f] !== "string" || !w[f].trim() || w[f].includes("<"))
+          || !/^https?:\/\/[^\s"]+$/.test(w.url);
+      });
+      check('write-ups: every entry has its text, source and url (an http(s) link), none with a "<"', !bad.length, bad.join(", "));
+      const grind = Object.values(W.GOAL_LEVELS || {}).filter((g) => g && g.writeup && g.writeup.text).map((g) => g.writeup.text.trim());
+      const copied = keys.filter((k) => all[k] && typeof all[k].text === "string" && grind.includes(all[k].text.trim()));
+      check("write-ups: none repeats a Grind write-up (data/goal-levels.js) - a level without an entry shows that one",
+        !copied.length, copied.join(", "));
+    }
+  }
+  check("write-ups: demon.html loads data/writeups.js exactly when there's one (and data/goal-levels.js with it)",
+    pageData.includes("data/writeups.js") === has && (!has || pageData.includes("data/goal-levels.js")), JSON.stringify(pageData));
+
+  // the box, on a made-up entry: on a demon with an in-game description and on one without
+  {
+    const W = site(["data/config.js", "data/demons.js", "data/changelog.js"]);
+    const d = W.DEMONS.find((x) => x.description) || W.DEMONS[0];
+    const bare = Object.assign({}, d, { description: null });
+    const quote = '<div class="underlined pad"><q>' + esc(d.description) + "</q>";
+    const plain = render(W, d), plainBare = render(W, bare);
+    W.WRITEUPS = {};
+    const none = render(W, d);
+    W.WRITEUPS = { [d.levelId]: { text: 'Fast & "loud" <b>x</b>', source: "GD Wiki & co", url: 'https://example.test/a?b=1&c="d"' } };
+    const mine = render(W, d), mineBare = render(W, bare);
+    const box = '<div class="goal-writeup demon-writeup"><p>Fast &amp; "loud" &lt;b&gt;x&lt;/b&gt;</p>' +
+      '<p class="goal-writeup-cite">via <a class="link" href="https://example.test/a?b=1&amp;c=&quot;d&quot;" target="_blank"' +
+      ' rel="noopener">GD Wiki &amp; co</a></p></div>';
+    check("write-ups: an entry is the Grind page's box - its text, then \"via <source>\" linking the url, all escaped",
+      boxes(mine).length === 1 && boxes(mine)[0] === box, boxes(mine)[0]);
+    check("write-ups: ...under the in-game description, in its section, above the video and the level info",
+      mine.includes(quote + box + "</div>") && mine.indexOf(box) < mine.indexOf('id="level-info"') && !/<iframe/.test(mine.slice(0, mine.indexOf(box))));
+    check("write-ups: ...and nothing else on the page changes", mine.replace(box, "") === plain && plain.includes(quote + "</div>"));
+    check("write-ups: a level with no in-game description gets the box in a section of its own, nothing else changed",
+      mineBare.includes('<div class="underlined pad">' + box + "</div>") && mineBare.replace('<div class="underlined pad">' + box + "</div>", "") === plainBare
+      && !plainBare.includes("<q>"));
+    check("write-ups: a level with no write-up and no Grind one - no box, the page as it was", none === plain && !boxes(plain).length);
+    W.WRITEUPS = { [d.levelId]: { text: "Words", source: "Somewhere" } };
+    const noUrl = boxes(render(W, d))[0] || "";
+    W.WRITEUPS = { [d.levelId]: { text: "Words" } };
+    const noSource = boxes(render(W, d))[0] || "";
+    check("write-ups: no url - \"via <source>\" unlinked; no source - no source line (as on a Grind page)",
+      noUrl.includes('<p class="goal-writeup-cite">via Somewhere</p>') && !noUrl.includes("<a ")
+      && noSource === '<div class="goal-writeup demon-writeup"><p>Words</p></div>', noUrl + " | " + noSource);
+
+    // the Grind fallback: the level's Grind write-up when it has no entry; an entry wins
+    W.GOAL_LEVELS = { [d.levelId]: { name: d.name, writeup: { text: "Grind words", source: "AREDL", url: "https://aredl.net/" } } };
+    W.WRITEUPS = {};
+    const grind = render(W, d);
+    check("write-ups: no entry - the level's Grind write-up (data/goal-levels.js), in the same box",
+      boxes(grind).length === 1 && boxes(grind)[0] === '<div class="goal-writeup demon-writeup"><p>Grind words</p><p class="goal-writeup-cite">via ' +
+      '<a class="link" href="https://aredl.net/" target="_blank" rel="noopener">AREDL</a></p></div>' && grind.replace(boxes(grind)[0], "") === plain,
+      boxes(grind)[0]);
+    W.WRITEUPS = { [d.levelId]: { text: "Own words", source: "S", url: "https://example.test/" } };
+    const both = render(W, d);
+    check("write-ups: ...an entry wins over the Grind write-up: one box, the entry's", boxes(both).length === 1
+      && boxes(both)[0].includes("<p>Own words</p>") && !both.includes("Grind words"));
+    delete W.WRITEUPS;
+    check("write-ups: no data/writeups.js on the page - no box at all, not even a Grind write-up", render(W, d) === plain);
+  }
+
+  // every demon page of this site, with the data files demon.html loads: each shows its
+  // write-up, else its Grind write-up, else none - and none without data/writeups.js
+  {
+    let W = null, why = "";
+    try {
+      W = site(pageData);
+    } catch (e) {
+      why = String(e && e.message);
+    }
+    if (!W) check("write-ups: the data files demon.html loads load", false, why);
+    else {
+      const levels = W.DEMONS.concat(W.UNRATED || []);
+      const text = (lv) => {
+        if (!W.WRITEUPS) return null;
+        const own = W.WRITEUPS[lv.levelId], g = ((W.GOAL_LEVELS || {})[lv.levelId] || {}).writeup;
+        return own && own.text ? own.text : g && g.text ? g.text : null;
+      };
+      const wrong = levels.filter((lv) => {
+        const b = boxes(render(W, lv)), want = text(lv);
+        return want ? b.length !== 1 || !b[0].startsWith('<div class="goal-writeup demon-writeup"><p>' + esc(want) + "</p>") : b.length;
+      });
+      const shown = levels.filter((lv) => text(lv)).length;
+      check(has ? `write-ups: this site's ${levels.length} demon pages - ${shown} show a write-up (their own, else their Grind one), the rest none`
+        : `write-ups: no data/writeups.js - none of this site's ${levels.length} demon pages shows a box`,
+        !wrong.length, wrong.map((lv) => lv.name).join(", "));
+
+      // without data/writeups.js (Nigel's Demonlist): not one box, even with a Grind write-up on every level
+      const X = site(pageData.filter((f) => f !== "data/writeups.js"));
+      const before = levels.map((lv) => render(X, lv));
+      X.GOAL_LEVELS = Object.fromEntries(levels.map((lv) => [lv.levelId, { name: lv.name, writeup: { text: "w", source: "s", url: "https://example.test/" } }]));
+      check(`write-ups: without data/writeups.js, none of the ${levels.length} pages shows a box, even with a Grind write-up on every level`,
+        levels.every((lv, i) => render(X, lv) === before[i] && !boxes(before[i]).length));
+    }
+  }
+}
+
 // --- Rated+ in the engine, offline: tools/apply-edit.py on a copy of the site ----------------
 // A temp copy (no .git, videos or __pycache__) with Rated+ turned on and a fixture
 // data/unrated.js; apply-edit.py is imported FROM the copy. gdbrowser answers from

@@ -746,12 +746,42 @@
     );
   }
 
+  // The demon page's write-up (Aceabase; Nigel, 2026-10-31): the level's entry
+  // in data/writeups.js, else its Grind write-up (data/goal-levels.js
+  // `writeup`, the one its Grind page shows). Drawn the way the Grind page
+  // draws one (static/js/goals.js .goal-writeup): the text, then "via <source>"
+  // linking the url. "" for a level with neither, and always on a page that
+  // doesn't load data/writeups.js (Nigel's Demonlist): that page renders
+  // exactly as it did before.
+  function writeupHtml(demon) {
+    var own = window.WRITEUPS;
+    if (!own || typeof own !== "object") return "";
+    var id = String(demon.levelId || demon.id);
+    var entry = Object.prototype.hasOwnProperty.call(own, id) ? own[id] : null;
+    var grind = (window.GOAL_LEVELS || {})[id];
+    var w = entry && entry.text ? entry : grind && grind.writeup;
+    if (!w || !w.text) return "";
+    return (
+      '<div class="goal-writeup demon-writeup"><p>' + DL.escapeHtml(w.text) + "</p>" +
+        (w.source
+          ? '<p class="goal-writeup-cite">via ' +
+            (w.url
+              ? '<a class="link" href="' + DL.escapeAttr(w.url) + '" target="_blank" rel="noopener">' +
+                DL.escapeHtml(w.source) + "</a>"
+              : DL.escapeHtml(w.source)) +
+            "</p>"
+          : "") +
+      "</div>"
+    );
+  }
+
   // `view` (optional, static/js/views.js): the demon's neighbors, position,
   // list and points in that view. An unrated level (data/unrated.js) comes
   // with a Rated+ view and gets a note on what it is - one nobody has beaten
   // yet isn't on Rated+ until someone does, but its page still lists its
   // records; it has no Position History (that's for listed demons). A demon a
-  // head mod swapped gets a note too (swapNoteHtml).
+  // head mod swapped gets a note too (swapNoteHtml). A write-up, when the
+  // level has one (writeupHtml), goes under its in-game description.
   DL.renderDemonDetail = function (root, demon, view) {
     var V = otherView(view);
     var listed = !!DL.demonById(demon.id);
@@ -814,6 +844,16 @@
     // a listed demon a head mod swapped (SITE.insaneSwaps): its own value and
     // the one it's placed and scored at
     var swapNote = listed ? swapNoteHtml(demon, pageUrl) : "";
+
+    // the in-game description, then the write-up under it, in one section
+    var writeup = writeupHtml(demon);
+    var about =
+      demon.description || writeup
+        ? '<div class="underlined pad">' +
+          (demon.description ? "<q>" + DL.escapeHtml(demon.description) + "</q>" : "") +
+          writeup +
+          "</div>"
+        : "";
 
     // Hosted: embed the player directly, exactly like pointercrate
     // (iframe.ratio-16-9, width:90% margin:15px 5%). On file:// a YouTube embed
@@ -913,7 +953,7 @@
         '<div class="underlined">' + heading + "<h3>" + bylineHtml(demon) + "</h3></div>" +
         unratedNote +
         swapNote +
-        (demon.description ? '<div class="underlined pad"><q>' + DL.escapeHtml(demon.description) + "</q></div>" : "") +
+        about +
         videoHtml +
         '<div class="underlined pad flex wrap" id="level-info">' + infoBits.join("") + "</div>" +
       "</section>" +

@@ -385,6 +385,40 @@ tr:nth-child(even) {
   font-variant: small-caps;
 }
 
+/* --- demon page: the write-up (data/writeups.js, or the level's Grind
+   write-up) under the in-game description - DL.renderDemonDetail ---------- */
+
+/* The Grind page's .goal-writeup box (goals.css, which this page doesn't
+   load), in goals.js' fallback palette - pointercrate's blue. .demon-writeup
+   only exists on the demon page, so the Grind page keeps its own colors. */
+.demon-writeup {
+  --accent: #0881c6;
+  --mist: #e4eef4;
+  --ink: #123243;
+
+  margin: 14px 2px 6px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--mist);
+  border-radius: 0 4px 4px 0;
+  text-align: left;
+}
+
+.demon-writeup p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+/* (the source line keeps the text's size, as it shows on the Grind page:
+   goals.css' 0.78rem for it is outranked there by .goal-writeup p) */
+.demon-writeup .goal-writeup-cite {
+  margin-top: 8px;
+  opacity: 0.7;
+  font-style: italic;
+}
+
 /* --- demon page: position history (pointercrate's #history-table) ---- */
 
 #history-table {

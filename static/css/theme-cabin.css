@@ -936,6 +936,16 @@ html[data-theme="cabin"] .swap-note a {
   font-weight: 700;
 }
 
+/* the write-up under the in-game description (demonlist.css .demon-writeup):
+   the Grind page's box in goals.js' fallback palette, by night the way
+   section 16 turns that palette - the lamp's honey on the night. Its rounder
+   corners and full-strength source line are section 16's .goal-writeup rules. */
+html[data-theme="cabin"] .demon-writeup {
+  --accent: var(--cab-honey);
+  --mist: color-mix(in srgb, var(--accent) 16%, #14213f);
+  --ink: color-mix(in srgb, var(--accent) 24%, #f6eddb);
+}
+
 /* tables: a raised header row with honey text over soft navy stripes,
    rounded at the corners (separate borders: collapsed cells can't round) */
 html[data-theme="cabin"] table {
