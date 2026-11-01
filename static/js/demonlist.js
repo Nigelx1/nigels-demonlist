@@ -781,7 +781,7 @@
   // yet isn't on Rated+ until someone does, but its page still lists its
   // records; it has no Position History (that's for listed demons). A demon a
   // head mod swapped gets a note too (swapNoteHtml). A write-up, when the
-  // level has one (writeupHtml), goes under its in-game description.
+  // level has one (writeupHtml), goes under the video, as on its Grind page.
   DL.renderDemonDetail = function (root, demon, view) {
     var V = otherView(view);
     var listed = !!DL.demonById(demon.id);
@@ -845,15 +845,13 @@
     // the one it's placed and scored at
     var swapNote = listed ? swapNoteHtml(demon, pageUrl) : "";
 
-    // the in-game description, then the write-up under it, in one section
+    // the in-game description above the video, and the write-up under the
+    // video, where the Grind page has its write-up (Nigel, 2026-10-31)
+    var about = demon.description
+      ? '<div class="underlined pad"><q>' + DL.escapeHtml(demon.description) + "</q></div>"
+      : "";
     var writeup = writeupHtml(demon);
-    var about =
-      demon.description || writeup
-        ? '<div class="underlined pad">' +
-          (demon.description ? "<q>" + DL.escapeHtml(demon.description) + "</q>" : "") +
-          writeup +
-          "</div>"
-        : "";
+    var writeupSection = writeup ? '<div class="underlined pad">' + writeup + "</div>" : "";
 
     // Hosted: embed the player directly, exactly like pointercrate
     // (iframe.ratio-16-9, width:90% margin:15px 5%). On file:// a YouTube embed
@@ -955,6 +953,7 @@
         swapNote +
         about +
         videoHtml +
+        writeupSection +
         '<div class="underlined pad flex wrap" id="level-info">' + infoBits.join("") + "</div>" +
       "</section>" +
       (listed ? positionHistoryHtml(demon) : "") +

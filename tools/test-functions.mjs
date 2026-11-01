@@ -2356,7 +2356,7 @@ print(json.dumps(out))
 }
 
 // --- the demon page's write-up (data/writeups.js, DL.renderDemonDetail) -------------------------
-// Aceabase's demon pages show a write-up under the in-game description (Nigel, 2026-10-31):
+// Aceabase's demon pages show a write-up under the video, as its Grind page does (Nigel, 2026-10-31):
 // the level's data/writeups.js entry, else its Grind write-up (data/goal-levels.js `writeup`),
 // in the Grind page's .goal-writeup box. Only a page that loads data/writeups.js shows one:
 // Nigel's Demonlist has no such file, and its demon pages render exactly as before. The
@@ -2439,9 +2439,12 @@ print(json.dumps(out))
       ' rel="noopener">GD Wiki &amp; co</a></p></div>';
     check("write-ups: an entry is the Grind page's box - its text, then \"via <source>\" linking the url, all escaped",
       boxes(mine).length === 1 && boxes(mine)[0] === box, boxes(mine)[0]);
-    check("write-ups: ...under the in-game description, in its section, above the video and the level info",
-      mine.includes(quote + box + "</div>") && mine.indexOf(box) < mine.indexOf('id="level-info"') && !/<iframe/.test(mine.slice(0, mine.indexOf(box))));
-    check("write-ups: ...and nothing else on the page changes", mine.replace(box, "") === plain && plain.includes(quote + "</div>"));
+    const sect = '<div class="underlined pad">' + box + "</div>";
+    const video = plain.search(/<iframe|js-demon-video|Watch the showcase video/);
+    check("write-ups: ...in a section of its own under the video (as on a Grind page), below the in-game description, above the level info",
+      mine.includes(sect) && mine.indexOf(quote) < mine.indexOf(sect) && mine.indexOf(sect) < mine.indexOf('id="level-info"')
+      && (video < 0 || mine.search(/<iframe|js-demon-video|Watch the showcase video/) < mine.indexOf(sect)));
+    check("write-ups: ...and nothing else on the page changes", mine.replace(sect, "") === plain && plain.includes(quote + "</div>"));
     check("write-ups: a level with no in-game description gets the box in a section of its own, nothing else changed",
       mineBare.includes('<div class="underlined pad">' + box + "</div>") && mineBare.replace('<div class="underlined pad">' + box + "</div>", "") === plainBare
       && !plainBare.includes("<q>"));
@@ -2460,7 +2463,8 @@ print(json.dumps(out))
     const grind = render(W, d);
     check("write-ups: no entry - the level's Grind write-up (data/goal-levels.js), in the same box",
       boxes(grind).length === 1 && boxes(grind)[0] === '<div class="goal-writeup demon-writeup"><p>Grind words</p><p class="goal-writeup-cite">via ' +
-      '<a class="link" href="https://aredl.net/" target="_blank" rel="noopener">AREDL</a></p></div>' && grind.replace(boxes(grind)[0], "") === plain,
+      '<a class="link" href="https://aredl.net/" target="_blank" rel="noopener">AREDL</a></p></div>'
+      && grind.replace('<div class="underlined pad">' + boxes(grind)[0] + "</div>", "") === plain,
       boxes(grind)[0]);
     W.WRITEUPS = { [d.levelId]: { text: "Own words", source: "S", url: "https://example.test/" } };
     const both = render(W, d);

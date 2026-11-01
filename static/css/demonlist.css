@@ -386,7 +386,7 @@ tr:nth-child(even) {
 }
 
 /* --- demon page: the write-up (data/writeups.js, or the level's Grind
-   write-up) under the in-game description - DL.renderDemonDetail ---------- */
+   write-up) under the video - DL.renderDemonDetail ---------- */
 
 /* The Grind page's .goal-writeup box (goals.css, which this page doesn't
    load), in goals.js' fallback palette - pointercrate's blue. .demon-writeup
