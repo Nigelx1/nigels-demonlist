@@ -119,7 +119,7 @@ window.DEMONS = [
     "position": 3,
     "name": "Bloodbath",
     "difficulty": "Extreme",
-    "rating": 23.98,
+    "rating": 23.97,
     "publisher": "Riot",
     "creators": [
       "Riot"
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 855
+    "aredlPosition": 856
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 946
+    "aredlPosition": 947
   },
   {
     "id": 89976481,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1135
+    "aredlPosition": 1136
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1228
+    "aredlPosition": 1229
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1394
+    "aredlPosition": 1395
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1606
+    "aredlPosition": 1607
   },
   {
     "id": 61137742,
@@ -392,7 +392,7 @@ window.DEMONS = [
     "position": 10,
     "name": "Bad Trip",
     "difficulty": "Insane",
-    "rating": 17.94,
+    "rating": 17.93,
     "publisher": "Loltad",
     "creators": [
       "Loltad"
@@ -470,7 +470,7 @@ window.DEMONS = [
     "position": 12,
     "name": "Nilscapes",
     "difficulty": "Insane",
-    "rating": 17.03,
+    "rating": 17.04,
     "publisher": "L413",
     "creators": [
       "L413"
@@ -957,7 +957,7 @@ window.DEMONS = [
     "position": 24,
     "name": "Future Funk",
     "difficulty": "Hard",
-    "rating": 12.95,
+    "rating": 12.96,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1052,7 +1052,7 @@ window.DEMONS = [
     "position": 26,
     "name": "Tidal Line",
     "difficulty": "Hard",
-    "rating": 10.2,
+    "rating": 10.21,
     "publisher": "Sp4rce",
     "creators": [
       "Sp4rce"
@@ -1285,7 +1285,7 @@ window.DEMONS = [
     "position": 32,
     "name": "evolutionary theory",
     "difficulty": "Medium",
-    "rating": 7.85,
+    "rating": 7.84,
     "publisher": "MAYEROSA",
     "creators": [
       "MAYEROSA"
@@ -1446,7 +1446,7 @@ window.DEMONS = [
     "position": 36,
     "name": "potal",
     "difficulty": "Medium",
-    "rating": 6.33,
+    "rating": 6.32,
     "publisher": "Sillow",
     "creators": [
       "Sillow"
@@ -1522,7 +1522,7 @@ window.DEMONS = [
     "position": 38,
     "name": "Solar Circles",
     "difficulty": "Medium",
-    "rating": 5.92,
+    "rating": 5.93,
     "publisher": "D4rkGryf",
     "creators": [
       "D4rkGryf"
@@ -1795,7 +1795,7 @@ window.DEMONS = [
     "position": 45,
     "name": "Death Moon",
     "difficulty": "Easy",
-    "rating": 3.81,
+    "rating": 3.82,
     "publisher": "Caustic",
     "creators": [
       "Caustic"
@@ -1872,7 +1872,7 @@ window.DEMONS = [
     "position": 47,
     "name": "MUNDUS SANGUINANS",
     "difficulty": "Easy",
-    "rating": 3.23,
+    "rating": 3.24,
     "publisher": "1MadJack1",
     "creators": [
       "1MadJack1"
@@ -2206,7 +2206,7 @@ window.DEMONS = [
     "position": 56,
     "name": "Ruined Planet",
     "difficulty": "Easy",
-    "rating": 2.76,
+    "rating": 2.77,
     "publisher": "Ene",
     "creators": [
       "Ene"
@@ -2244,7 +2244,7 @@ window.DEMONS = [
     "position": 57,
     "name": "Endless Descent",
     "difficulty": "Easy",
-    "rating": 2.67,
+    "rating": 2.68,
     "publisher": "Ph4lip",
     "creators": [
       "Ph4lip"
@@ -2750,7 +2750,7 @@ window.DEMONS = [
     "position": 70,
     "name": "red alert",
     "difficulty": "Easy",
-    "rating": 1.18,
+    "rating": 1.19,
     "publisher": "ratliffigd",
     "creators": [
       "ratliffigd"
@@ -2986,7 +2986,7 @@ window.DEMONS = [
     "position": 76,
     "name": "Eternal",
     "difficulty": "Easy",
-    "rating": 1.04,
+    "rating": 1.05,
     "publisher": "YunHaSeu14",
     "creators": [
       "YunHaSeu14"
