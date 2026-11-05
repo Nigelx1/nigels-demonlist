@@ -74,7 +74,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 352
+    "aredlPosition": 355
   },
   {
     "id": 78248443,
@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 684
+    "aredlPosition": 688
   },
   {
     "id": 10565740,
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 856
+    "aredlPosition": 860
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 947
+    "aredlPosition": 951
   },
   {
     "id": 89976481,
@@ -230,14 +230,14 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1136
+    "aredlPosition": 1140
   },
   {
     "id": 119653522,
     "position": 6,
     "name": "Steel Terrors",
     "difficulty": "Extreme",
-    "rating": 21.5,
+    "rating": 21.51,
     "publisher": "DreamZoneGD",
     "creators": [
       "DreamZoneGD"
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1229
+    "aredlPosition": 1234
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1395
+    "aredlPosition": 1399
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1607
+    "aredlPosition": 1611
   },
   {
     "id": 61137742,
@@ -1872,7 +1872,7 @@ window.DEMONS = [
     "position": 47,
     "name": "MUNDUS SANGUINANS",
     "difficulty": "Easy",
-    "rating": 3.24,
+    "rating": 3.23,
     "publisher": "1MadJack1",
     "creators": [
       "1MadJack1"
@@ -2244,7 +2244,7 @@ window.DEMONS = [
     "position": 57,
     "name": "Endless Descent",
     "difficulty": "Easy",
-    "rating": 2.68,
+    "rating": 2.69,
     "publisher": "Ph4lip",
     "creators": [
       "Ph4lip"
