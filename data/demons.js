@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1140
+    "aredlPosition": 1141
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1234
+    "aredlPosition": 1236
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1399
+    "aredlPosition": 1401
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1611
+    "aredlPosition": 1614
   },
   {
     "id": 61137742,
@@ -470,7 +470,7 @@ window.DEMONS = [
     "position": 12,
     "name": "Nilscapes",
     "difficulty": "Insane",
-    "rating": 17.04,
+    "rating": 17.05,
     "publisher": "L413",
     "creators": [
       "L413"
@@ -550,7 +550,7 @@ window.DEMONS = [
     "position": 14,
     "name": "Supersonic",
     "difficulty": "Insane",
-    "rating": 16.88,
+    "rating": 16.87,
     "publisher": "ZenthicAlpha",
     "creators": [
       "ZenthicAlpha"
@@ -749,7 +749,7 @@ window.DEMONS = [
     "position": 19,
     "name": "Magma Bound",
     "difficulty": "Insane",
-    "rating": 15.77,
+    "rating": 15.78,
     "publisher": "ScorchVx",
     "creators": [
       "ScorchVx"
@@ -957,7 +957,7 @@ window.DEMONS = [
     "position": 24,
     "name": "Future Funk",
     "difficulty": "Hard",
-    "rating": 12.96,
+    "rating": 12.95,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1285,7 +1285,7 @@ window.DEMONS = [
     "position": 32,
     "name": "evolutionary theory",
     "difficulty": "Medium",
-    "rating": 7.84,
+    "rating": 7.85,
     "publisher": "MAYEROSA",
     "creators": [
       "MAYEROSA"
@@ -1362,7 +1362,7 @@ window.DEMONS = [
     "position": 34,
     "name": "Rising Down",
     "difficulty": "Medium",
-    "rating": 6.94,
+    "rating": 6.95,
     "publisher": "Small",
     "creators": [
       "Small"
@@ -1599,7 +1599,7 @@ window.DEMONS = [
     "position": 40,
     "name": "penguin industries",
     "difficulty": "Medium",
-    "rating": 5.31,
+    "rating": 5.32,
     "publisher": "Unknown1276",
     "creators": [
       "Unknown1276"
@@ -1676,7 +1676,7 @@ window.DEMONS = [
     "position": 42,
     "name": "Theory of Jumping",
     "difficulty": "Medium",
-    "rating": 4.77,
+    "rating": 4.76,
     "publisher": "SpacePark",
     "creators": [
       "SpacePark"
