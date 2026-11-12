@@ -74,7 +74,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 355
+    "aredlPosition": 356
   },
   {
     "id": 78248443,
@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 688
+    "aredlPosition": 689
   },
   {
     "id": 10565740,
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 860
+    "aredlPosition": 861
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 951
+    "aredlPosition": 952
   },
   {
     "id": 89976481,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1141
+    "aredlPosition": 1142
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1236
+    "aredlPosition": 1237
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1401
+    "aredlPosition": 1402
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1614
+    "aredlPosition": 1615
   },
   {
     "id": 61137742,
@@ -510,7 +510,7 @@ window.DEMONS = [
     "position": 13,
     "name": "Dark Travel",
     "difficulty": "Insane",
-    "rating": 16.94,
+    "rating": 16.95,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -550,7 +550,7 @@ window.DEMONS = [
     "position": 14,
     "name": "Supersonic",
     "difficulty": "Insane",
-    "rating": 16.87,
+    "rating": 16.88,
     "publisher": "ZenthicAlpha",
     "creators": [
       "ZenthicAlpha"
@@ -634,7 +634,7 @@ window.DEMONS = [
     "position": 16,
     "name": "Lit Fuse",
     "difficulty": "Insane",
-    "rating": 16.68,
+    "rating": 16.69,
     "publisher": "KrmaL",
     "creators": [
       "KrmaL"
@@ -1091,7 +1091,7 @@ window.DEMONS = [
     "position": 27,
     "name": "Space Invaders",
     "difficulty": "Hard",
-    "rating": 10.16,
+    "rating": 10.15,
     "publisher": "DeeperSpace",
     "creators": [
       "DeeperSpace"
@@ -1169,7 +1169,7 @@ window.DEMONS = [
     "position": 29,
     "name": "Entropic Dreams",
     "difficulty": "Hard",
-    "rating": 9.96,
+    "rating": 9.97,
     "publisher": "LepszyGD",
     "creators": [
       "LepszyGD"
@@ -1208,7 +1208,7 @@ window.DEMONS = [
     "position": 30,
     "name": "Biru",
     "difficulty": "Medium",
-    "rating": 9.87,
+    "rating": 9.86,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1599,7 +1599,7 @@ window.DEMONS = [
     "position": 40,
     "name": "penguin industries",
     "difficulty": "Medium",
-    "rating": 5.32,
+    "rating": 5.3,
     "publisher": "Unknown1276",
     "creators": [
       "Unknown1276"
@@ -2986,7 +2986,7 @@ window.DEMONS = [
     "position": 76,
     "name": "Eternal",
     "difficulty": "Easy",
-    "rating": 1.05,
+    "rating": 1.04,
     "publisher": "YunHaSeu14",
     "creators": [
       "YunHaSeu14"
