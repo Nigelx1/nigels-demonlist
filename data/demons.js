@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1237
+    "aredlPosition": 1238
   },
   {
     "id": 30219145,
@@ -430,7 +430,7 @@ window.DEMONS = [
     "position": 11,
     "name": "BuTiTi II",
     "difficulty": "Insane",
-    "rating": 17.79,
+    "rating": 17.78,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -879,7 +879,7 @@ window.DEMONS = [
     "position": 22,
     "name": "Game Time",
     "difficulty": "Insane",
-    "rating": 15.06,
+    "rating": 15.07,
     "publisher": "SimilarAMZ",
     "creators": [
       "SimilarAMZ"
@@ -1091,7 +1091,7 @@ window.DEMONS = [
     "position": 27,
     "name": "Space Invaders",
     "difficulty": "Hard",
-    "rating": 10.15,
+    "rating": 10.16,
     "publisher": "DeeperSpace",
     "creators": [
       "DeeperSpace"
@@ -1130,7 +1130,7 @@ window.DEMONS = [
     "position": 28,
     "name": "tower descent",
     "difficulty": "Hard",
-    "rating": 10.15,
+    "rating": 10.11,
     "publisher": "pocke",
     "creators": [
       "pocke"
@@ -1285,7 +1285,7 @@ window.DEMONS = [
     "position": 32,
     "name": "evolutionary theory",
     "difficulty": "Medium",
-    "rating": 7.85,
+    "rating": 7.87,
     "publisher": "MAYEROSA",
     "creators": [
       "MAYEROSA"
@@ -1362,7 +1362,7 @@ window.DEMONS = [
     "position": 34,
     "name": "Rising Down",
     "difficulty": "Medium",
-    "rating": 6.95,
+    "rating": 6.94,
     "publisher": "Small",
     "creators": [
       "Small"
@@ -1446,7 +1446,7 @@ window.DEMONS = [
     "position": 36,
     "name": "potal",
     "difficulty": "Medium",
-    "rating": 6.32,
+    "rating": 6.31,
     "publisher": "Sillow",
     "creators": [
       "Sillow"
@@ -1638,7 +1638,7 @@ window.DEMONS = [
     "position": 41,
     "name": "Zafari",
     "difficulty": "Easy",
-    "rating": 4.91,
+    "rating": 4.9,
     "publisher": "Rustam",
     "creators": [
       "Rustam"
@@ -1676,7 +1676,7 @@ window.DEMONS = [
     "position": 42,
     "name": "Theory of Jumping",
     "difficulty": "Medium",
-    "rating": 4.76,
+    "rating": 4.77,
     "publisher": "SpacePark",
     "creators": [
       "SpacePark"
@@ -1872,7 +1872,7 @@ window.DEMONS = [
     "position": 47,
     "name": "MUNDUS SANGUINANS",
     "difficulty": "Easy",
-    "rating": 3.23,
+    "rating": 3.22,
     "publisher": "1MadJack1",
     "creators": [
       "1MadJack1"
@@ -2136,7 +2136,7 @@ window.DEMONS = [
     "position": 54,
     "name": "Space Circles",
     "difficulty": "Easy",
-    "rating": 2.89,
+    "rating": 2.88,
     "publisher": "SUOMI",
     "creators": [
       "SUOMI"
@@ -2206,7 +2206,7 @@ window.DEMONS = [
     "position": 56,
     "name": "Ruined Planet",
     "difficulty": "Easy",
-    "rating": 2.77,
+    "rating": 2.78,
     "publisher": "Ene",
     "creators": [
       "Ene"
