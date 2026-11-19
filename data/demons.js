@@ -112,7 +112,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 689
+    "aredlPosition": 691
   },
   {
     "id": 10565740,
@@ -152,7 +152,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 861
+    "aredlPosition": 865
   },
   {
     "id": 93752979,
@@ -191,7 +191,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 952
+    "aredlPosition": 955
   },
   {
     "id": 89976481,
@@ -230,7 +230,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1142
+    "aredlPosition": 1145
   },
   {
     "id": 119653522,
@@ -269,7 +269,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1238
+    "aredlPosition": 1241
   },
   {
     "id": 30219145,
@@ -307,7 +307,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1402
+    "aredlPosition": 1406
   },
   {
     "id": 114933189,
@@ -346,7 +346,7 @@ window.DEMONS = [
       },
       "songOfficial": false
     },
-    "aredlPosition": 1615
+    "aredlPosition": 1622
   },
   {
     "id": 61137742,
@@ -430,7 +430,7 @@ window.DEMONS = [
     "position": 11,
     "name": "BuTiTi II",
     "difficulty": "Insane",
-    "rating": 17.78,
+    "rating": 17.79,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -672,7 +672,7 @@ window.DEMONS = [
     "position": 17,
     "name": "Fool Moon Paranoid",
     "difficulty": "Insane",
-    "rating": 16.09,
+    "rating": 16.08,
     "publisher": "unne",
     "creators": [
       "unne"
@@ -919,7 +919,7 @@ window.DEMONS = [
     "position": 23,
     "name": "Forest Temple",
     "difficulty": "Hard",
-    "rating": 13.95,
+    "rating": 13.94,
     "publisher": "Michigun",
     "creators": [
       "Michigun"
@@ -957,7 +957,7 @@ window.DEMONS = [
     "position": 24,
     "name": "Future Funk",
     "difficulty": "Hard",
-    "rating": 12.95,
+    "rating": 12.96,
     "publisher": "JonathanGD",
     "creators": [
       "JonathanGD"
@@ -1169,7 +1169,7 @@ window.DEMONS = [
     "position": 29,
     "name": "Entropic Dreams",
     "difficulty": "Hard",
-    "rating": 9.97,
+    "rating": 9.96,
     "publisher": "LepszyGD",
     "creators": [
       "LepszyGD"
@@ -1285,7 +1285,7 @@ window.DEMONS = [
     "position": 32,
     "name": "evolutionary theory",
     "difficulty": "Medium",
-    "rating": 7.87,
+    "rating": 7.88,
     "publisher": "MAYEROSA",
     "creators": [
       "MAYEROSA"
@@ -1446,7 +1446,7 @@ window.DEMONS = [
     "position": 36,
     "name": "potal",
     "difficulty": "Medium",
-    "rating": 6.31,
+    "rating": 6.3,
     "publisher": "Sillow",
     "creators": [
       "Sillow"
@@ -1676,7 +1676,7 @@ window.DEMONS = [
     "position": 42,
     "name": "Theory of Jumping",
     "difficulty": "Medium",
-    "rating": 4.77,
+    "rating": 4.76,
     "publisher": "SpacePark",
     "creators": [
       "SpacePark"
@@ -2666,7 +2666,7 @@ window.DEMONS = [
     "position": 68,
     "name": "Volcano",
     "difficulty": "Easy",
-    "rating": 1.24,
+    "rating": 1.25,
     "publisher": "seannnn",
     "creators": [
       "seannnn"
