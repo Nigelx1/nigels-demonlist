@@ -33,6 +33,18 @@
 
 window.CHANGELOG = [
   {
+    "date": "2026-11-21",
+    "items": [
+      {
+        "kind": "add",
+        "demon": "PXTTXRN SXXKXR",
+        "demonId": 81391957,
+        "at": 59,
+        "text": "Nigel's clear"
+      }
+    ]
+  },
+  {
     "date": "2026-10-26",
     "items": [
       {

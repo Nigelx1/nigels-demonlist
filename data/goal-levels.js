@@ -239,7 +239,7 @@ window.GOAL_LEVELS = {
     "name": "rauchkammer",
     "publisher": "Devilmine",
     "difficulty": "Extreme",
-    "rating": 19.88,
+    "rating": 19.89,
     "aredlPosition": 1625,
     "levelId": 146399247,
     "description": "Updated to support Startpositions inside the level",

@@ -2316,8 +2316,47 @@ window.DEMONS = [
     "aredlPosition": null
   },
   {
-    "id": 49901047,
+    "id": 81391957,
     "position": 59,
+    "name": "PXTTXRN SXXKXR",
+    "difficulty": "Easy",
+    "rating": 2.04,
+    "publisher": "Viot",
+    "creators": [
+      "Viot"
+    ],
+    "verifier": "Nigel",
+    "videoUrl": "https://www.youtube.com/watch?v=k14p8BITqZU",
+    "thumbnailUrl": "https://i.ytimg.com/vi/k14p8BITqZU/maxresdefault.jpg",
+    "levelId": 81391957,
+    "description": "please wait while we start the program for y ou. this should only take a few secon ds  .",
+    "requirementPercent": 100,
+    "records": [
+      {
+        "player": "Nigel",
+        "progress": 100,
+        "nationality": "US",
+        "subdivision": "IL"
+      }
+    ],
+    "gd": {
+      "length": "Long",
+      "objects": 56039,
+      "gameVersion": "2.1",
+      "inGameDifficulty": "Easy Demon",
+      "song": {
+        "id": "850364",
+        "name": "Empress",
+        "artist": "Koraii",
+        "link": "https://geometrydashcontent.b-cdn.net/songs/850364.mp3"
+      },
+      "songOfficial": false
+    },
+    "aredlPosition": null
+  },
+  {
+    "id": 49901047,
+    "position": 60,
     "name": "End Line",
     "difficulty": "Easy",
     "rating": 1.98,
@@ -2356,7 +2395,7 @@ window.DEMONS = [
   },
   {
     "id": 13037894,
-    "position": 60,
+    "position": 61,
     "name": "infinite circles",
     "difficulty": "Easy",
     "rating": 1.97,
@@ -2395,7 +2434,7 @@ window.DEMONS = [
   },
   {
     "id": 11317271,
-    "position": 61,
+    "position": 62,
     "name": "Blue Hell",
     "difficulty": "Easy",
     "rating": 1.92,
@@ -2432,7 +2471,7 @@ window.DEMONS = [
   },
   {
     "id": 57012656,
-    "position": 62,
+    "position": 63,
     "name": "Ship",
     "difficulty": "Easy",
     "rating": 1.9,
@@ -2471,7 +2510,7 @@ window.DEMONS = [
   },
   {
     "id": 89886591,
-    "position": 63,
+    "position": 64,
     "name": "iSpyWithMyLittleEye",
     "difficulty": "Easy",
     "rating": 1.87,
@@ -2510,7 +2549,7 @@ window.DEMONS = [
   },
   {
     "id": 28352064,
-    "position": 64,
+    "position": 65,
     "name": "The Farewell",
     "difficulty": "Easy",
     "rating": 1.8,
@@ -2549,7 +2588,7 @@ window.DEMONS = [
   },
   {
     "id": 76582313,
-    "position": 65,
+    "position": 66,
     "name": "The Long Walk Home",
     "difficulty": "Easy",
     "rating": 1.72,
@@ -2588,7 +2627,7 @@ window.DEMONS = [
   },
   {
     "id": 848722,
-    "position": 66,
+    "position": 67,
     "name": "Lights And Thunder",
     "difficulty": "Easy",
     "rating": 1.62,
@@ -2625,7 +2664,7 @@ window.DEMONS = [
   },
   {
     "id": 80790301,
-    "position": 67,
+    "position": 68,
     "name": "Permafrost Mountain",
     "difficulty": "Easy",
     "rating": 1.59,
@@ -2663,7 +2702,7 @@ window.DEMONS = [
   },
   {
     "id": 127078077,
-    "position": 68,
+    "position": 69,
     "name": "Volcano",
     "difficulty": "Easy",
     "rating": 1.25,
@@ -2702,7 +2741,7 @@ window.DEMONS = [
   },
   {
     "id": 56587109,
-    "position": 69,
+    "position": 70,
     "name": "phjork",
     "difficulty": "Easy",
     "rating": 1.2,
@@ -2747,7 +2786,7 @@ window.DEMONS = [
   },
   {
     "id": 128665322,
-    "position": 70,
+    "position": 71,
     "name": "red alert",
     "difficulty": "Easy",
     "rating": 1.19,
@@ -2792,7 +2831,7 @@ window.DEMONS = [
   },
   {
     "id": 56210242,
-    "position": 71,
+    "position": 72,
     "name": "Shiver",
     "difficulty": "Easy",
     "rating": 1.16,
@@ -2831,7 +2870,7 @@ window.DEMONS = [
   },
   {
     "id": 5904109,
-    "position": 72,
+    "position": 73,
     "name": "Platinum Adventure",
     "difficulty": "Easy",
     "rating": 1.13,
@@ -2870,7 +2909,7 @@ window.DEMONS = [
   },
   {
     "id": 566659,
-    "position": 73,
+    "position": 74,
     "name": "demon mixed",
     "difficulty": "Easy",
     "rating": 1.11,
@@ -2907,7 +2946,7 @@ window.DEMONS = [
   },
   {
     "id": 126762295,
-    "position": 74,
+    "position": 75,
     "name": "SCORIGAMI",
     "difficulty": "Easy",
     "rating": 1.08,
@@ -2945,7 +2984,7 @@ window.DEMONS = [
   },
   {
     "id": 55520,
-    "position": 75,
+    "position": 76,
     "name": "THE LIGHTNING ROAD",
     "difficulty": "Easy",
     "rating": 1.05,
@@ -2983,7 +3022,7 @@ window.DEMONS = [
   },
   {
     "id": 88494611,
-    "position": 76,
+    "position": 77,
     "name": "Eternal",
     "difficulty": "Easy",
     "rating": 1.04,
@@ -3022,7 +3061,7 @@ window.DEMONS = [
   },
   {
     "id": 13519,
-    "position": 77,
+    "position": 78,
     "name": "The Nightmare",
     "difficulty": "Easy",
     "rating": 1.04,
